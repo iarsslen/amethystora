@@ -2786,7 +2786,7 @@ access *ARGS:
         filter:protan | filter:deutan | filter:tritan | filter:grey)
             gsettings set "${schema}" filter "$2"
             gsettings set "${schema}" filter-on true
-            echo "$(gettext "The colour filter is on. Its tile in quick settings switches it off and on, and picks another filter or strength. Screenshots are saved without it; a recording of a whole screen shows it.")"
+            echo "$(gettext "The colour filter is on. Its tile in quick settings switches it off and on, and picks another filter or strength. Screenshots are saved without it, and recordings and screen shares may show the apps' own colours.")"
             ;;
         filter:on | filter:off)
             [[ "$(value filter)" != none ]] || { echo "$(gettext "Choose a filter first: ame desktop access filter protan, deutan, tritan or grey.")"; exit 1; }

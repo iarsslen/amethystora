@@ -93,6 +93,12 @@ export class Access {
             this.speech.stop();
     }
 
+    // Another module's colour matrix (9 numbers, row by row, in linear light) laid over the colour filter in the same
+    // pass, or null to take it away: drawn whether a filter is on or not (a focus profile's grey)
+    setExtraMatrix(id, matrix) {
+        this.filter?.setExtra(id, matrix);
+    }
+
     state() {
         return {
             filter: this.filter?.state() ?? null,

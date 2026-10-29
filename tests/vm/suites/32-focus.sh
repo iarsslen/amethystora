@@ -333,7 +333,7 @@ CYCLE="(async () => { const uuid = '${UUID}'; const MT = await import('resource:
     Main.extensionManager.disableExtension(uuid); await new Promise(r => setTimeout(r, 500)); const before = count();
     const originals = [MT.MessageTray.prototype._showNotification, MT.Notification.prototype.playSound];
     for (let i = 0; i < 10; i++) { Main.extensionManager.enableExtension(uuid); await new Promise(r => setTimeout(r, 500)); Main.extensionManager.disableExtension(uuid); await new Promise(r => setTimeout(r, 500)); }
-    const after = count(); const effects = Main.layoutManager.uiGroup.get_effects().length;
+    const after = count(); const effects = Main.layoutManager.uiGroup.get_effects().length + global.stage.get_effects().length;
     const methods = MT.MessageTray.prototype._showNotification === originals[0] && MT.Notification.prototype.playSound === originals[1];
     Main.extensionManager.enableExtension(uuid);
     globalThis.vmlabFocusCycle = (after - before) + ' ' + effects + ' ' + methods; })(); 'started'"

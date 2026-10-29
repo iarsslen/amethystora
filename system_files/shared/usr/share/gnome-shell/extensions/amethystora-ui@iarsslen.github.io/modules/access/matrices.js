@@ -23,7 +23,8 @@ const BLUE_YELLOW = [1, 0, 0.7, 0, 1, 0.7, 0, 0, 0];
 
 const LUMA = [0.2126, 0.7152, 0.0722];
 
-function multiply(a, b) {
+// a × b: b first, then a
+export function multiply(a, b) {
     const out = [];
     for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 3; col++) {

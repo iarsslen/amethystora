@@ -2172,6 +2172,9 @@ test -s /usr/share/amethystora/themed/shell-touch.css.tpl
 grep -q "extends Clutter.Effect" "${UI_EXTENSION}/modules/access/filter.js"
 grep -q "Clutter.LayerNode.new_to_framebuffer" "${UI_EXTENSION}/modules/access/filter.js"
 grep -q "Cogl.SnippetHook.FRAGMENT" "${UI_EXTENSION}/modules/access/filter.js"
+# On the stage, so that Zoom's magnified picture goes through it too, and the one effect Focus's grey goes through
+grep -q "global.stage.add_effect_with_name(EFFECT_NAME" "${UI_EXTENSION}/modules/access/filter.js"
+grep -q "setExtraMatrix(GREY" "${UI_EXTENSION}/modules/focus.js"
 # What is drawn over windows holds off direct scanout while it shows: the filter, the ruler and the pen's ring
 for file in access/filter.js access/ruler.js touch/ring.js; do
     grep -q "disable_unredirect()" "${UI_EXTENSION}/modules/${file}"

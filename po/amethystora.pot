@@ -7751,7 +7751,7 @@ msgid "Colour filters are off."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
-msgid "The colour filter is on. Its tile in quick settings switches it off and on, and picks another filter or strength. Screenshots are saved without it; a recording of a whole screen shows it."
+msgid "The colour filter is on. Its tile in quick settings switches it off and on, and picks another filter or strength. Screenshots are saved without it, and recordings and screen shares may show the apps' own colours."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -9950,6 +9950,14 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
 msgid "Strength"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "A screen in HDR is shown without the colour filter, which does not work with HDR yet."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "This graphics chip cannot copy the screen, so the colour filter cannot be drawn."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js

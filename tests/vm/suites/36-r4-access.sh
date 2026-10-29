@@ -4,6 +4,9 @@
 # of GNOME Shell itself through Eval, which a lab-only extension of the test account opens (never in the image), with
 # keys and clicks from keys.py and touches and clicks from a pointer or touch screen of the lab's own:
 #   - both schemas as shipped, and nothing made or bound while everything is off;
+#   - what the screen really shows with a colour filter on, read from QEMU's screendump between phases (screen_next):
+#     red and green filtered once, also where a square was drawn and moved (partial redraws), through Zoom's
+#     magnified picture, and a screen marked HDR left unfiltered;
 #   - a colour filter: the screen filtered as the published matrices say; the screenshot UI (Print) and GNOME's
 #     screenshot service saving the apps' own colours with a filter on; the strength; the tile's switch; direct
 #     scanout held off while on (counted on the compositor); none takes it all away;
@@ -16,7 +19,9 @@
 #   - the pen's tools: Super+Ctrl+P, the ring with animations forced on, the strip, lighting and running a tool,
 #     Escape and a click outside, a right click and the back button where it opened;
 #   - the pen's button set up and given back in GNOME's stylus settings;
+#   - Focus's grey through the filter's one effect with no filter chosen;
 #   - ten disables and enables with everything on, Control and the setup file.
+# Phases 1 to 3 end with continue_phase, so that the shell keeps its session from one to the next.
 # vmlab-paths: @ui/extension.js @ui/*access* @ui/*touch* @ui/*quick* @ui/*pill* @ui/*screenshot* @ui/*dock* @sf/*themed/shell-access* @sf/*themed/shell-touch* @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
@@ -73,7 +78,7 @@ PICKED=""
 pick() {
     local seen="${2:-false}"
     ev "delete globalThis.vmlabPick; (async () => { const shot = new imports.gi.Shell.Screenshot();
-        const e = Main.layoutManager.uiGroup.get_effect('amethystora-access-filter'); if (e) e.everyPaintForTest = ${seen};
+        const e = global.stage.get_effect('amethystora-access-filter'); if (e) e.everyPaintForTest = ${seen};
         const c = await new Promise(r => shot.pick_color($1, (o, res) => { const [, k] = shot.pick_color_finish(res);
             r([k.red, k.green, k.blue]); }));
         if (e) e.everyPaintForTest = false;
@@ -145,11 +150,14 @@ import Gtk from 'gi://Gtk?version=4.0';
 const app = new Gtk.Application({application_id: ARGV[0]});
 app.connect('activate', () => {
     const css = new Gtk.CssProvider();
-    css.load_from_string('window.red { background: #d93a3a; } label { font-size: 15px; }');
+    css.load_from_string('window.red { background: #d93a3a; } label { font-size: 15px; } ' +
+        'window.halves { background: linear-gradient(#d93a3a 50%, #3a9a3a 50%); }');
     Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, 800);
     const window = new Gtk.ApplicationWindow({application: app, title: ARGV[0], default_width: 640, default_height: 400});
     if (ARGV[1] === 'red') {
         window.add_css_class('red');
+    } else if (ARGV[1] === 'halves') {
+        window.add_css_class('halves');
     } else if (ARGV[1] === 'back') {
         const back = new Gtk.GestureClick({button: 8});
         back.connect('pressed', () => window.set_title('went back'));
@@ -164,11 +172,13 @@ EOF
 chown -R "${TEST_USER}:" "${HOME_DIR}/.local/share"
 enabled="$(user_bus gsettings get org.gnome.shell enabled-extensions)"
 [[ ${enabled} == *vmlab-eval@lab* ]] || user_bus gsettings set org.gnome.shell enabled-extensions "${enabled%]*}, 'vmlab-eval@lab']"
-for schema in "${ACCESS}" "${TOUCH}"; do
-    for key in $(in_session "gsettings list-keys ${schema}"); do gs reset "${schema}" "${key}"; done
-done
-loginctl unlock-sessions
-systemctl restart gdm
+if ((SUITE_PHASE == 1)); then
+    for schema in "${ACCESS}" "${TOUCH}"; do
+        for key in $(in_session "gsettings list-keys ${schema}"); do gs reset "${schema}" "${key}"; done
+    done
+    loginctl unlock-sessions
+    systemctl restart gdm
+fi
 ready() { [[ "$(ev "typeof ${A}?.state")" == function && "$(ev "typeof ${T}?.state")" == function ]]; }
 if ! wait_for 240 has_session || ! wait_for 120 ready; then
     not_ok "the access and touch modules did not start in the session"
@@ -183,12 +193,42 @@ cleanup() {
     for schema in "${ACCESS}" "${TOUCH}"; do
         for key in $(in_session "gsettings list-keys ${schema}" 2>/dev/null); do gs reset "${schema}" "${key}"; done
     done
-    user_bus systemctl --user stop vmlab-red vmlab-text vmlab-back >/dev/null 2>&1
+    ev "globalThis.vmlabBlue?.destroy(); delete globalThis.vmlabBlue; 'gone'" >/dev/null 2>&1
+    gs reset org.gnome.desktop.a11y.applications screen-magnifier-enabled
+    gs reset org.gnome.desktop.a11y.magnifier mag-factor
+    gs reset org.gnome.desktop.a11y.magnifier mouse-tracking
+    user_bus systemctl --user stop vmlab-red vmlab-text vmlab-back vmlab-halves >/dev/null 2>&1
     in_session "dconf reset -f ${PEN}" >/dev/null 2>&1
     rm -f "${HOME_DIR}/.local/state/amethystora/pen-button" "${HOME_DIR}/.local/state/amethystora/pen-button.bak"
 }
 trap cleanup EXIT
 
+# The next phase in this session, with the screen as QEMU scans it out handed to it
+next_phase() {
+    trap - EXIT
+    screen_next
+    continue_phase
+}
+SCREEN_PNG=/var/lib/vmlab-tests/screen.png
+RED='[217, 58, 58]'
+GREEN='[58, 154, 58]'
+BLUE='[40, 80, 220]'
+# A colour of the screen as QEMU scanned it out, at a place ("x y") in its pixels
+shown() {
+    local x y
+    read -r x y <<<"$1"
+    pixel "${SCREEN_PNG}" "${x}" "${y}"
+}
+# shown_as WHAT PLACE KIND STRENGTH COLOUR: the screen at PLACE shows COLOUR through the matrix, once
+shown_as() {
+    local seen want
+    seen="$(shown "$2")"
+    want="$(expected "$3" "$4" "$5")"
+    check "$1 (${seen}, wanted ${want})" near "${seen}" "${want}" 3
+}
+place() { ev "globalThis.vmlabPlaces.$1"; }
+
+if ((SUITE_PHASE == 1)); then
 # --- 1-2: the schemas, and off costs nothing -------------------------------------------------------------------------
 same "1 the access schema's keys" "$(in_session "gsettings list-keys ${ACCESS}" | sort | paste -sd ' ')" \
     "filter filter-on filter-strength read-aloud read-aloud-key read-aloud-speed ruler ruler-key ruler-shown"
@@ -197,9 +237,100 @@ same "1 the touch schema's keys" "$(in_session "gsettings list-keys ${TOUCH}" | 
 same "1 shipped off" "$(gs get "${ACCESS}" filter) $(gs get "${ACCESS}" ruler) $(gs get "${ACCESS}" read-aloud) $(gs get "${TOUCH}" touch-mode) $(gs get "${TOUCH}" pen-ring)" \
     "'none' 'off' false 'off' 'off'"
 same "2 nothing made while off" "$(ast '') $(tst '')" \
-    '{"filter":{"effect":false,"applied":false,"tile":false,"unredirectHeld":false,"bytes":0},"ruler":null,"speech":{"reading":false,"left":0,"process":false,"speed":"1"},"keys":[]} {"mode":{"value":"off","active":false,"forced":null,"following":false,"tile":false,"handle":false,"gesture":false,"hint":false},"ring":{"open":false,"virtual":false},"key":false}'
+    '{"filter":{"effect":false,"applied":false,"tile":false,"unredirectHeld":false,"bytes":0,"failedScreens":0,"hdrScreens":0,"extras":[]},"ruler":null,"speech":{"reading":false,"left":0,"process":false,"speed":"1"},"keys":[]} {"mode":{"value":"off","active":false,"forced":null,"following":false,"tile":false,"handle":false,"gesture":false,"hint":false},"ring":{"open":false,"virtual":false},"key":false}'
 same "2 no shortcut bound" "$(ev "['ruler-key', 'read-aloud-key', 'pen-ring-key'].filter(k => k in Main.wm._allowedKeybindings).length")" 0
 same "2 nothing holds direct scanout off" "$(held)" 0
+
+# --- 3a-3c: what the screen really shows: red over green, deutan, a blue square drawn and moved -----------------------
+user_bus systemd-run --user --unit vmlab-halves --collect gjs -m "${HOME_DIR}/.local/share/vmlab-access/win.js" org.vmlab.Halves halves >/dev/null
+wait_for 120 window_up org.vmlab.Halves
+ev "${MOVE} move(global.stage.width - 2, global.stage.height - 2); 'out of the way'" >/dev/null
+# The places, in the stage's coordinates and in the screen's pixels: the square's first and second place, just right of
+# its second, far in the red, in the green
+ev "globalThis.vmlabPlaces = (() => { const w = global.get_window_actors().find(a => a.meta_window.get_title() === 'org.vmlab.Halves').meta_window;
+    w.activate(global.get_current_time()); const r = w.get_frame_rect(), s = global.stage.peek_stage_views()[0].get_scale();
+    const p = (x, y) => Math.round(x * s) + ' ' + Math.round(y * s);
+    const x = Math.round(r.x + r.width * 0.15), y = Math.round(r.y + r.height * 0.3);
+    const far = [Math.round(r.x + r.width * 0.75), Math.round(r.y + r.height * 0.35)];
+    return {x, y, far: far.join(' '), first: p(x + 20, y + 20), second: p(x + 120, y + 20), beside: p(x + 142, y + 20),
+        red: p(...far), green: p(r.x + r.width * 0.5, r.y + r.height * 0.8), height: r.height, scale: s}; })(); 'placed'" >/dev/null
+wait_for 10 is "global.display.focus_window?.get_title() === 'org.vmlab.Halves'"
+in_session "ame desktop access filter deutan" >/dev/null
+wait_for 10 is "${A}.state().filter.applied"
+sleep 2
+ev "globalThis.vmlabBlue = new imports.gi.St.Widget({style: 'background-color: #2850dc;', width: 40, height: 40});
+    Main.layoutManager.uiGroup.add_child(globalThis.vmlabBlue);
+    globalThis.vmlabBlue.set_position(globalThis.vmlabPlaces.x, globalThis.vmlabPlaces.y); 'drawn'" >/dev/null
+sleep 1
+ev "globalThis.vmlabBlue.set_position(globalThis.vmlabPlaces.x + 100, globalThis.vmlabPlaces.y); 'moved'" >/dev/null
+sleep 2
+next_phase
+fi
+
+if ((SUITE_PHASE == 2)); then
+    if [[ -s "${SCREEN_PNG}" ]]; then
+        shown_as "3a the screen shows the red filtered once" "$(place red)" deutan 1 "${RED}"
+        shown_as "3a ... and the green" "$(place green)" deutan 1 "${GREEN}"
+        shown_as "3a where the square was, redrawn red, filtered once" "$(place first)" deutan 1 "${RED}"
+        shown_as "3a the square where it moved, filtered once" "$(place second)" deutan 1 "${BLUE}"
+        shown_as "3a just beside it, filtered once" "$(place beside)" deutan 1 "${RED}"
+    else
+        not_ok "3a the lab handed no screen over (run.mjs screen_next)"
+    fi
+    # Zoom, full screen, twice, the pointer kept at the centre over the red
+    gs set org.gnome.desktop.a11y.magnifier mag-factor 2.0
+    gs set org.gnome.desktop.a11y.magnifier mouse-tracking centered
+    gs set org.gnome.desktop.a11y.applications screen-magnifier-enabled true
+    wait_for 10 is "Main.magnifier.isActive()"
+    read -r px py <<<"$(place far)"
+    ev "${MOVE} move(${px}, ${py}); 'over the red'" >/dev/null
+    sleep 1
+    ev "${MOVE} move(${px} + 1, ${py}); 'over the red'" >/dev/null
+    # The screen's centre shows the pointer's place: 30 px left of it and 20 up, then a quarter of the window lower
+    ev "globalThis.vmlabPlaces.zoomed = (() => { const m = Main.layoutManager.primaryMonitor, s = globalThis.vmlabPlaces.scale;
+        const c = [m.x + m.width / 2, m.y + m.height / 2], p = (x, y) => Math.round(x * s) + ' ' + Math.round(y * s);
+        return {red: p(c[0] - 60, c[1] - 40), green: p(c[0] - 60, c[1] + globalThis.vmlabPlaces.height / 2),
+            fits: c[1] + globalThis.vmlabPlaces.height / 2 < m.y + m.height - 10}; })(); 'placed'" >/dev/null
+    sleep 2
+    same "3b the filter stays applied with Zoom on" "$(ast .filter.applied)" true
+    next_phase
+fi
+
+if ((SUITE_PHASE == 3)); then
+    if [[ -s "${SCREEN_PNG}" ]]; then
+        shown_as "3b Zoom's picture of the red, filtered once" "$(place zoomed.red)" deutan 1 "${RED}"
+        if [[ "$(place zoomed.fits)" == true ]]; then
+            shown_as "3b ... and of the green" "$(place zoomed.green)" deutan 1 "${GREEN}"
+        fi
+    else
+        not_ok "3b the lab handed no screen over (run.mjs screen_next)"
+    fi
+    gs reset org.gnome.desktop.a11y.applications screen-magnifier-enabled
+    gs reset org.gnome.desktop.a11y.magnifier mag-factor
+    gs reset org.gnome.desktop.a11y.magnifier mouse-tracking
+    wait_for 10 is "!Main.magnifier.isActive()"
+    # A screen in HDR is left unfiltered: the primary marked so, as the display configuration would say it
+    ev "(() => { const m = Main.layoutManager.primaryMonitor, f = ${A}.filter; f._effect.hdr = new Set([m.x + ',' + m.y]);
+        f._failed('hdr', null); global.stage.queue_redraw(); return 'hdr'; })()" >/dev/null
+    sleep 2
+    same "3c a screen in HDR: the filter on, not applied, said so" "$(ast .filter.effect) $(ast .filter.applied) $(ast .filter.hdrScreens)" \
+        "true false 1"
+    next_phase
+fi
+
+if ((SUITE_PHASE == 4)); then
+    if [[ -s "${SCREEN_PNG}" ]]; then
+        check "3c ... and that screen shows the apps' own red ($(shown "$(place red)"))" near "$(shown "$(place red)")" "${RED}" 3
+    else
+        not_ok "3c the lab handed no screen over (run.mjs screen_next)"
+    fi
+    told() { journalctl --since -15min -q -o cat _UID="$(id -u "${TEST_USER}")" | grep -q 'not drawn on a screen (hdr)'; }
+    check "3c ... and the journal says why" wait_for 10 told
+    ev "${A}.filter._effect.hdr = new Set(); globalThis.vmlabBlue.destroy(); delete globalThis.vmlabBlue; 'back'" >/dev/null
+    in_session "ame desktop access filter none" >/dev/null
+    wait_for 10 is "!${A}.state().filter.effect"
+    user_bus systemctl --user stop vmlab-halves >/dev/null 2>&1
+fi
 
 # --- 3-7: colour filters -----------------------------------------------------------------------------------------------
 user_bus systemd-run --user --unit vmlab-red --collect gjs -m "${HOME_DIR}/.local/share/vmlab-access/win.js" org.vmlab.Red red >/dev/null
@@ -211,7 +342,7 @@ pick "${CENTRE}"
 ORIGINAL="${PICKED}"
 in_session "ame desktop access filter deutan" >/dev/null
 wait_for 10 is "${A}.state().filter.effect"
-same "3 the filter is on the shell's top group, with its tile, holding scanout off" "$(ast .filter.applied) $(ast .filter.tile) $(held)" \
+same "3 the filter is on the stage, with its tile, holding scanout off" "$(ast .filter.applied) $(ast .filter.tile) $(held)" \
     "true true 1"
 pick "${CENTRE}" true
 SEEN="${PICKED}"
@@ -262,7 +393,19 @@ ev "global.get_window_actors().find(a => a.meta_window.get_title() === 'org.vmla
 in_session "ame desktop access filter none" >/dev/null
 wait_for 10 is "!${A}.state().filter.effect"
 same "6 none takes the filter and the tile away, scanout free again" "$(ast .filter) $(held)" \
-    '{"effect":false,"applied":false,"tile":false,"unredirectHeld":false,"bytes":0} 0'
+    '{"effect":false,"applied":false,"tile":false,"unredirectHeld":false,"bytes":0,"failedScreens":0,"hdrScreens":0,"extras":[]} 0'
+# Focus's grey: laid over the filter's one effect, here with no filter chosen
+ev "${UI}.get('focus')._setGrey(true); 'grey'" >/dev/null
+wait_for 10 is "${A}.state().filter.effect"
+same "7b Focus's grey goes through the same effect, with no tile and no effect of its own" \
+    "$(ast .filter.extras) $(ast .filter.tile) $(ev "${UI}.get('focus').state().greyBy") $(ev "Main.layoutManager.uiGroup.get_effect('amethystora-focus-grey') === null")" \
+    '["amethystora-focus-grey"] false access true'
+pick "${CENTRE}" true
+WANT="$(expected grey 1 "${ORIGINAL}")"
+check "7b the screen grey (${PICKED}, wanted ${WANT})" near "${PICKED}" "${WANT}" 2
+ev "${UI}.get('focus')._setGrey(false); 'colour'" >/dev/null
+wait_for 10 is "!${A}.state().filter.effect"
+same "7b gone with it, scanout free again" "$(ast .filter.extras) $(held)" "[] 0"
 user_bus systemctl --user stop vmlab-red >/dev/null 2>&1
 
 # --- 8: the reading ruler ----------------------------------------------------------------------------------------------
@@ -439,7 +582,7 @@ CYCLE="(async () => { const uuid = '${UUID}';
     for (let i = 0; i < 10; i++) { Main.extensionManager.enableExtension(uuid); await w(600);
         Main.extensionManager.lookup(uuid).stateObj.modules?.get('touch')?.openRing(); await w(100);
         Main.extensionManager.disableExtension(uuid); await w(500); }
-    const left = [count() - before, Main.layoutManager.uiGroup.get_effects().length,
+    const left = [count() - before, Main.layoutManager.uiGroup.get_effects().length + global.stage.get_effects().length,
         Main.layoutManager.uiGroup.has_style_class_name('amethystora-touch'), global.stage.get_actions().length - actions,
         ['ruler-key', 'read-aloud-key', 'pen-ring-key'].filter(k => k in Main.wm._allowedKeybindings).length,
         globalThis.vmlabUnredirect.held];

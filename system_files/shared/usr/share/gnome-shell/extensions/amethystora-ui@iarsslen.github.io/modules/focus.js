@@ -14,7 +14,8 @@
 //   the power mode              a hold with the power daemon, let go at the end and whenever the shell stops
 //   the accent                  the theme module's class on the shell's top group, in memory
 //   the wallpaper               Daylight's night picture over GNOME's, in memory
-//   grey                        a desaturate effect over the shell, in memory
+//   grey                        a grey matrix laid over the colour filter's pass (access.setExtraMatrix), in memory;
+//                               a desaturate effect over the shell where the access module is not running
 // Switching from one profile to another changes only what differs.
 //
 // Off, with both triggers off, nothing runs: one handler on the module's own keys and the tile's actors in quick
@@ -31,6 +32,7 @@ import * as LoginManager from 'resource:///org/gnome/shell/misc/loginManager.js'
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 
+import {filterMatrix} from './access/matrices.js';
 import {FocusMark} from './focus/mark.js';
 import {NightLight, colorSettings} from './focus/night.js';
 import {NightPicture} from './focus/picture.js';
@@ -263,12 +265,21 @@ export class Focus {
     }
 
     _setGrey(on) {
+        // Through the colour filter's one effect on the stage, so that the two never stack nor fight
+        const access = this._module('access');
+        if (access?.setExtraMatrix && this._grey !== 'desaturate') {
+            access.setExtraMatrix(GREY, on ? filterMatrix('grey', 1) : null);
+            this._grey = on ? 'access' : null;
+            return;
+        }
         const group = Main.layoutManager.uiGroup;
         if (on && !this._grey) {
-            this._grey = new Clutter.DesaturateEffect({factor: 1});
-            group.add_effect_with_name(GREY, this._grey);
+            this._grey = 'desaturate';
+            this._desaturate = new Clutter.DesaturateEffect({factor: 1});
+            group.add_effect_with_name(GREY, this._desaturate);
         } else if (!on && this._grey) {
-            group.remove_effect(this._grey);
+            group.remove_effect(this._desaturate);
+            this._desaturate = null;
             this._grey = null;
         }
     }
@@ -488,6 +499,7 @@ export class Focus {
             night: this._night?.value ?? null,
             picture: this._picture?.shown ?? 0,
             grey: !!this._grey,
+            greyBy: this._grey,
             held: this.held,
             question: !!this._question,
         };

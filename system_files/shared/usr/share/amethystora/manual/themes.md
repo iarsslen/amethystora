@@ -283,11 +283,14 @@ The strength is **Half**, **¾** or **Full** (`ame desktop access strength 75`; 
 filter is chosen, quick settings has a **Colour filter** tile: its switch turns the filter off and on again, and its
 menu picks another filter or strength. `ame desktop access filter none` takes the filter and the tile away.
 
-The pointer is not filtered. **Screenshots are saved without the filter**, in the apps' own colours, so that a picture
-you send looks right to everyone; on the screen, the screenshot tool is filtered like the rest. **A recording or a
-screen share of a whole screen shows the filter**, since it is what the screen shows; one of an area or of a window
-does not. While a filter is on, a game shown full screen is drawn through the desktop like any window, and each screen
-is drawn once more for every frame, which costs a little speed.
+The pointer is not filtered (in some virtual machines, where the desktop draws it, it is). Zoom's magnified picture is
+filtered like the rest. **Screenshots are saved without the filter**, in the apps' own colours, so that a picture you
+send looks right to everyone; on the screen, the screenshot tool is filtered like the rest. **Recordings and screen
+shares may show the apps' own colours**: whether one of a whole screen shows the filter depends on the program that
+makes it, and one of an area or of a window never does. The lock screen is shown without the filter, and so is a
+screen in HDR, which the filter does not work with yet (it says so the first time). While a filter is on, a game shown
+full screen is drawn through the desktop like any window, and each screen is copied and drawn once more for every
+frame, which costs a little speed and battery.
 
 ### The reading ruler
 
