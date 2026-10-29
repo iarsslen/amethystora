@@ -23,7 +23,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {EmojiData, TONES} from './emoji/data.js';
 import {Picker} from './emoji/picker.js';
 import {addRecent, readRecent} from './emoji/recent.js';
-import {cancelPastes, paste} from './emoji/paste.js';
+import {cancelPastes, giveBackTextInput, paste} from './emoji/paste.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.emoji';
 const KEY = 'emoji-picker';
@@ -205,8 +205,10 @@ export class Emoji {
         this._picker = null;
         // The keyboard goes back to the windows first
         const focus = global.stage.get_key_focus();
-        if (focus && picker.contains(focus))
+        if (focus && picker.contains(focus)) {
             global.stage.set_key_focus(null);
+            giveBackTextInput();
+        }
         picker.destroy();
         this._data = null;
         this.glassChanged();

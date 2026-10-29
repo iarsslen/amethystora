@@ -29,7 +29,7 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import {Providers, resultsOf} from './search/providers.js';
 import {Section} from './search/section.js';
 import {Glance, fileOf} from './search/glance.js';
-import {cancelPastes} from './emoji/paste.js';
+import {cancelPastes, giveBackTextInput} from './emoji/paste.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.search';
 
@@ -373,8 +373,10 @@ export class Search {
 
         // The keyboard goes back to the windows before anything fades: nothing that cannot be seen holds it
         const focus = global.stage.get_key_focus();
-        if (focus && focus !== global.stage && this._box.contains(focus))
+        if (focus && focus !== global.stage && this._box.contains(focus)) {
             global.stage.set_key_focus(null);
+            giveBackTextInput();
+        }
     }
 
     // The field and the results go back to the overview, where they were, in the overview's own look
