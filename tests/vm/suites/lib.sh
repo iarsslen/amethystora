@@ -30,6 +30,13 @@ usb_next() {
     install -d -m 0700 /var/lib/vmlab-tests
     printf '%s\n' "$1" >/var/lib/vmlab-tests/usb.json
 }
+# screen_next: before that next phase, the screen as QEMU scans it out, which the next phase finds in
+# /var/lib/vmlab-tests/screen.png (run.mjs): what a person sees, not what the shell paints for a screenshot
+screen_next() {
+    install -d -m 0700 /var/lib/vmlab-tests
+    rm -f /var/lib/vmlab-tests/screen.png
+    : >/var/lib/vmlab-tests/screen-next
+}
 # next_boot JSON: the restart reboot_and_continue asks for is a power cycle, the machine started again with what
 # JSON says (run.mjs): {"absent": [N]} leaves SPARE-N unplugged, {"faulty": {"N": [sector, ...]}} gives SPARE-N
 # sectors that fail every read, {"system_absent": true} leaves the VM's own disk unplugged, {"credentials":

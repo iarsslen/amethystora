@@ -32,7 +32,8 @@
 // the suites after it (90 switches the image and starts over) says "# vmlab-order: last" in its first lines, and runs
 // after every other suite of that machine; the others run in the order of their names.
 // Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes),
-// and with /var/lib/vmlab-tests/usb.json left (usb_next in lib.sh) USB devices plugged in or out first.
+// and with /var/lib/vmlab-tests/usb.json left (usb_next in lib.sh) USB devices plugged in or out first, and with
+// /var/lib/vmlab-tests/screen-next left (screen_next) the screen as QEMU shows it in /var/lib/vmlab-tests/screen.png.
 // A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
 // asks for (next_boot in lib.sh): spare disks absent or faulty, other credentials, the passphrase typed; or
 // with {"itself": true} no restart from here at all, only a wait for the one the phase left to happen, a soft
@@ -62,6 +63,8 @@ const IMAGE = `localhost/amethystora-run:${NAME}`;
 const GUEST_DIR = '/run/amethystora-tests';
 const NEXT_BOOT = '/var/lib/vmlab-tests/next-boot.json';
 const USB = '/var/lib/vmlab-tests/usb.json';
+const SCREEN = '/var/lib/vmlab-tests/screen-next';
+const SCREEN_PNG = '/var/lib/vmlab-tests/screen.png';
 // The USB devices a phase can have plugged in, on the VM's xHCI controller: sticks with serials of their own, on
 // drives that read as zeros, and a keyboard and nothing else. Each has a port of its own (the tablet has 1):
 // without one, QEMU puts a hub of its own in front of the second, which USB protection blocks as the new
@@ -364,6 +367,16 @@ async function reboot(machine) {
   }
 }
 
+// What the VM's screen shows, as QEMU scans it out, handed to the next phase as a PNG, where a phase that ended with 101
+// asked (screen_next): for a suite that has to see the real screen, not the shell's idea of it
+async function screenNext(vm) {
+  const answer = await agent(vm, { op: 'exec', command: `test -e ${SCREEN} && rm -f ${SCREEN}` }, 10).catch(() => null);
+  if (answer?.rc !== 0) return;
+  const png = await screendump(vm);
+  await agent(vm, { op: 'write', path: SCREEN_PNG, data: png.toString('base64'), mode: '0644' }, 30);
+  say(`   screen: handed to the next phase`);
+}
+
 // USB devices plugged out, then in, as a phase that ended with 101 asked (usb_next), before the next one
 let drives = 0;
 async function usb(vm) {
@@ -441,6 +454,7 @@ async function suite(machine, name) {
     // 101: the next phase in the same boot, for what takes longer than one phase may, or after USB devices
     if (rc === 101) {
       await usb(vm);
+      await screenNext(vm);
       continue;
     }
     say(`${lane(m)}${name}: rebooting for phase ${phase + 1}`);
