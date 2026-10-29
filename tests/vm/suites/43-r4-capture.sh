@@ -136,6 +136,8 @@ app.run([]);
 EOF
 # Three widgets on the desktop (one with a menu and a long text) and one for the bar
 for id in vmlab-clock vmlab-build vmlab-menu vmlab-bar; do install -d -o "${TEST_USER}" -g "${TEST_USER}" "${WIDGETS}/${id}"; done
+# What an earlier run in the same machine left (20 asks whether the clock ever ran)
+rm -rf "${HOME_DIR}/.local/state/amethystora/widgets/"vmlab-*
 echo '{"name": "Clock", "command": "./widget.sh", "interval": 60, "place": "desktop", "position": "top-left", "size": "large"}' \
     >"${WIDGETS}/vmlab-clock/widget.json"
 # The JSON's \n stays two characters: the widgets' scripts are written through here-documents
@@ -202,6 +204,8 @@ same "3 offered: the Present tile (id present), the key, the screen watch" \
     '[true,true,true] present Halo'
 # Quiet off, so that the notice at the end comes from presenting alone
 gs set org.gnome.shell.extensions.amethystora-ui.pill quiet false
+# and from this suite's banner alone: what earlier suites left in GNOME's queue would be held and counted too
+ev "Main.messageTray.getSources().forEach(s => [...s.notifications].forEach(n => n.destroy())); 'cleared'" >/dev/null
 ev "${P}._toggle.emit('clicked', 1); 'clicked'" >/dev/null
 sleep 2
 same "4 presenting: the session is kept from idling" "$(inhibited)" "(true,)"
@@ -243,7 +247,7 @@ gs reset org.gnome.shell.extensions.amethystora-ui.pill quiet
 # the question is the real notification, and its Present the real action
 present_action() {
     ev "(() => { const n = Main.messageTray.getSources().find(s => s.title === 'Present')?.notifications.find(x => x.title === 'Present on the new screen?');
-        const a = n?.actions.find(x => x.label === 'Present'); if (!a) return 'none'; a.callback(); return 'clicked'; })()"
+        const a = n?.actions.find(x => x.label === 'Present'); if (!a) return 'none'; a.activate(); return 'clicked'; })()"
 }
 same "7 a new screen is asked about once" \
     "$(ev "(() => { const p = ${P}; const base = Object.getPrototypeOf(p)._connectors.call(p); p._connectors = () => [...base, 'VMLAB-1'];
@@ -267,7 +271,7 @@ same "8 presenting ends with the share it started during" \
 keys Super_L Alt_L d
 same "9 Super+Alt+D opens Scribble, the shell holding input" "$(pst .scribble) $(ev "Main.modalCount")" "true 1"
 same "9 the toolbar is 22 px from the bottom, centred" \
-    "$(ev "(() => { const b = ${P}.scribble.toolbar; const m = Main.layoutManager.primaryMonitor; return [m.y + m.height - b.y - b.height, Math.round(b.x + b.width / 2 - m.x - m.width / 2)].join(' '); })()")" \
+    "$(ev "(() => { const b = ${P}.scribble.toolbar; const m = Main.layoutManager.primaryMonitor; return [m.y + m.height - b.y - b.height, Math.trunc(b.x + b.width / 2 - m.x - m.width / 2)].join(' '); })()")" \
     "22 0"
 drag 500 300 900 500
 keys 2
@@ -346,8 +350,12 @@ same "11 the screenshot schema" "$(in_session "gsettings list-keys ${SHOT}" | so
     "capture-pin capture-thumbnail tool-settings true true"
 # The slide in, measured with animations forced on (the lab draws in software and turns them off)
 ev "global.force_animations = true; 'forced'" >/dev/null
-capture 400 300 500 300 normal 0.05
-same "12 the thumbnail slides in from below" "$(ev "String((${S}._card?.actor.translation_y ?? 0) > 0)")" true
+# Watched every 10 ms from before the capture: the card comes once the file is written, which a fixed wait can miss
+ev "(() => { const s = ${S}; const old = s._card; globalThis.vmlabSlid = false; let n = 0;
+    imports.gi.GLib.timeout_add(0, 10, () => { const c = s._card; if (c && c !== old && c.actor.translation_y > 0) vmlabSlid = true;
+    return !vmlabSlid && ++n < 500; }); return 'watching'; })()" >/dev/null
+capture 400 300 500 300 normal 0.5
+same "12 the thumbnail slides in from below" "$(ev "String(globalThis.vmlabSlid)")" true
 ev "global.force_animations = false; 'back'" >/dev/null
 sleep 1
 same "12 the thumbnail: 210 px, 16 px from the corner, a 110 px picture, its buttons" \
@@ -361,10 +369,10 @@ ev "${S}._card._startTimer(); 'released'" >/dev/null
 check "12 and goes six seconds after" wait_for 9 no_card
 button_at() { ev "(() => { const b = ${S}._card.actor.get_child_at_index(1).get_children().find(x => x.accessible_name === '$1'); const [x, y] = b.get_transformed_position(); return (x + b.width / 2) + ' ' + (y + b.height / 2); })()"; }
 capture 400 300 500 300
-ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.imports.gi.St.ClipboardType.CLIPBOARD, 'vmlab'); 'text'" >/dev/null
+ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.CLIPBOARD, 'vmlab'); 'text'" >/dev/null
 # shellcheck disable=SC2046
 click $(button_at Copy)
-same "13 Copy puts the picture on the clipboard" "$(ev "imports.gi.St.Clipboard.get_default().get_mimetypes(imports.gi.imports.gi.St.ClipboardType.CLIPBOARD).includes('image/png')")" true
+same "13 Copy puts the picture on the clipboard" "$(ev "imports.gi.St.Clipboard.get_default().get_mimetypes(imports.gi.St.ClipboardType.CLIPBOARD).includes('image/png')")" true
 capture 400 300 500 300
 user_bus timeout 6 dbus-monitor --session "type='method_call',interface='org.freedesktop.FileManager1',member='ShowItems'" \
     >"${LAB}/showitems" 2>/dev/null &
@@ -406,20 +414,21 @@ sleep 1
 click $(pin_button 'Clicks pass through')
 same "14 the arrow lets clicks pass through, its ring amber" \
     "$(ev "(() => { const a = ${S}._pins.list.at(-1).actor; return [a.reactive, a.has_style_class_name('amethystora-screenshot-pin-through')].join(' '); })()")" "false true"
-rm -f "/run/user/$(id -u "${TEST_USER}")/vmlab-clicks"
+# The window counts in memory from its start (step 5's click was its first): one more
+clicks_before="$(clicks)"
 # shellcheck disable=SC2046
 click $(pin_centre)
-same "14 a click on it lands on the window below" "$(clicks)" 1
+same "14 a click on it lands on the window below" "$(clicks)" $((clicks_before + 1))
 n="$(pins .length)"
 # shellcheck disable=SC2046
 click $(pin_button Close)
 same "14 the cross lets it go" "$(pins .length)" $((n - 1))
-ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.imports.gi.St.ClipboardType.CLIPBOARD, 'vmlab'); 'text'" >/dev/null
+ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.CLIPBOARD, 'vmlab'); 'text'" >/dev/null
 shots_before="$(in_session 'ls "$(xdg-user-dir PICTURES)"/*/*.png 2>/dev/null | wc -l')"
 capture 300 200 600 400 pin
 same "15 Ctrl+P pins the area exactly where it was" "$(pins '.at(-1)' | jq -c '[.x, .y, .width, .height]')" "[300,200,600,400]"
 same "15 and saves nothing" "$(in_session 'ls "$(xdg-user-dir PICTURES)"/*/*.png 2>/dev/null | wc -l')" "${shots_before}"
-same "15 and leaves the clipboard as it was" "$(ev "imports.gi.St.Clipboard.get_default().get_mimetypes(imports.gi.imports.gi.St.ClipboardType.CLIPBOARD).includes('image/png')")" false
+same "15 and leaves the clipboard as it was" "$(ev "imports.gi.St.Clipboard.get_default().get_mimetypes(imports.gi.St.ClipboardType.CLIPBOARD).includes('image/png')")" false
 first="$(ev "${S}._pins.list[0].state.x + ',' + ${S}._pins.list[0].state.y")"
 ev "(() => { const s = ${S}; const p = s._pins.list.at(-1).picture; for (let i = 0; i < 6; i++) s._pins.pin(p, {x: 7 + 10 * i, y: 7 + 10 * i, width: 100, height: 80}); return 'seven'; })()" >/dev/null
 same "16 six at most, the first let go" "$(pins .length) $(ev "String(${S}.pins().some(p => p.x + ',' + p.y === '${first}'))")" "6 false"
@@ -481,7 +490,8 @@ ev "global.display.list_all_windows().find(w => w.title === 'org.vmlab.Capture')
 sleep 1
 check "21 and still covers it after a restack" like "$(under)" "*SurfaceActor*"
 check "21 and the layer is right under the first window again" right_under_windows
-ev "global.display.list_all_windows().find(w => w.title === 'org.vmlab.Capture')?.minimize(); 'minimized'" >/dev/null
+# Both windows out of the way: the cards sit on the wallpaper, under every window
+ev "global.display.list_all_windows().filter(w => ['org.vmlab.Capture', 'org.vmlab.Other'].includes(w.title)).forEach(w => w.minimize()); 'minimized'" >/dev/null
 sleep 1
 same "22 large: the clock's first line is drawn large, the second as a line" \
     "$(ev "(() => { const c = ${W}._cards.get('vmlab-clock').actor.get_children(); return [c[0].has_style_class_name('amethystora-deskwidgets-large'), c[1].has_style_class_name('amethystora-deskwidgets-line')].join(' '); })()")" \
@@ -491,6 +501,16 @@ same "22 the build's last line is in the palette's green" \
 same "22 at most six lines of a long text" "$(ev "${W}._cards.get('vmlab-menu').actor.get_n_children()")" 6
 rm -f "${LAB}/vmlab-build-clicked"
 card_centre() { ev "(() => { const b = ${W}.cards().find(x => x.id === '$1'); return Math.round(b.x + b.width / 2) + ' ' + Math.round(b.y + b.height / 2); })()"; }
+# What the pointer meets at a card's centre, and the modal count: says why when a click there does nothing
+reaches() {
+    local r
+    r="$(ev "(() => { const b = ${W}.cards().find(x => x.id === '$1'); const card = ${W}._cards.get('$1').actor;
+        const hit = global.stage.get_actor_at_pos(imports.gi.Clutter.PickMode.REACTIVE, Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2));
+        return [hit === card || card.contains(hit), hit?.constructor.name, hit?.name ?? '', Main.modalCount].join(' '); })()")"
+    if [[ ${r} == "true "*" 0" ]]; then ok "22 a click on $1 reaches its card"; else not_ok "22 a click on $1 reaches its card" "found: ${r}"; fi
+}
+reaches vmlab-build
+reaches vmlab-menu
 # shellcheck disable=SC2046
 click $(card_centre vmlab-build)
 check "22 a click runs its click" wait_for 5 test -e "${LAB}/vmlab-build-clicked"
@@ -520,7 +540,8 @@ ev "Main.extensionManager.disableExtension('amethystora-widgets@iarsslen.github.
 sleep 2
 same "24 with the widgets extension off, no card runs" "$(ev "${W}.cards().length")" 0
 ev "Main.extensionManager.enableExtension('amethystora-widgets@iarsslen.github.io'); 'on'" >/dev/null
-check "24 and with it on again, they are back" wait_for 10 test "\$(ev \"${W}.cards().length\")" -gt 0
+cards_back() { [[ "$(ev "${W}.cards().length")" -gt 0 ]]; }
+check "24 and with it on again, they are back" wait_for 10 cards_back
 
 # --- the light theme and a theme switch ----------------------------------------------------------------------------------
 theme="$(in_session "amethystora-theme current" 2>/dev/null)"
@@ -546,11 +567,11 @@ same "25 after ten cycles: nothing of ours left over, one layer of cards, no gra
 ev "Main.extensionManager.disableExtension('${UUID}'); 'off'" >/dev/null
 sleep 1
 same "25 off: GNOME's screenshot methods are its own again, the key is gone" \
-    "$(ev "${ORIGINALS}") $(ev "String(Main.wm._allowedKeybindings?.['scribble'] === undefined)")" "true true true"
+    "$(ev "${ORIGINALS}") $(ev "String(!Main.wm._allowedKeybindings?.['scribble'])")" "true true true"
 ev "Main.extensionManager.enableExtension('${UUID}'); 'on'" >/dev/null
 sleep 2
 in_session "ame desktop present off" >/dev/null
-same "25 Present mode off: its key is gone" "$(ev "String(Main.wm._allowedKeybindings?.['scribble'] === undefined)")" true
+same "25 Present mode off: its key is gone" "$(ev "String(!Main.wm._allowedKeybindings?.['scribble'])")" true
 ok "ran on $(gnome-shell --version 2>/dev/null); a GNOME 51 image (the beta stream) runs these same steps"
 
 # --- and nothing threw ---------------------------------------------------------------------------------------------------
