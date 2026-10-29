@@ -31,12 +31,30 @@ WORK=/run/vmlab-31-spaces
 HERE="$(dirname "$0")"
 keys() { python3 "${HERE}/keys.py" "$@"; }
 atspi() { user_bus python3 "${HERE}/atspi.py" gnome-shell "$@"; }
+# Eval's answer is JSON.stringify of the value, which gdbus prints as a GVariant string: decoded once here, a string
+# printed as itself and anything else as compact JSON (sed left the quotes of a JSON value escaped). A throw is printed
+# as gdbus gave it.
+EV_DECODE='
+import ast, json, re, sys
+text = sys.stdin.read().strip()
+answer = re.fullmatch(r"\((true|false), (.*)\)", text, re.S)
+if not answer or answer.group(1) == "false":
+    print(text)
+    sys.exit(0)
+value = ast.literal_eval(answer.group(2))
+try:
+    value = json.loads(value)
+except ValueError:
+    pass
+print(value if isinstance(value, str) else json.dumps(value, separators=(",", ":"), ensure_ascii=False))'
 ev() {
     user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "$1" |
-        sed -E -e "s/^\(true, '(.*)'\)\$/\1/" -e 's/^"(.*)"$/\1/'
+        python3 -I -c "${EV_DECODE}"
 }
-gs() { in_session "gsettings $*" 2>/dev/null; }
-ame_() { in_session "ame $*" 2>/dev/null; }
+# Each argument quoted for the shell in_session starts: a value such as "['Writing']" lost its quotes there, and
+# gsettings refused it without a word
+gs() { in_session "gsettings $(printf '%q ' "$@")" 2>/dev/null; }
+ame_() { in_session "ame $(printf '%q ' "$@")" 2>/dev/null; }
 same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }
 is_true() { [[ "$(ev "$1")" == true ]]; }
 UI="Main.extensionManager.lookup('${UUID}').stateObj.modules"
@@ -245,13 +263,14 @@ TITLES="$(ev "JSON.stringify(${WINS}.map(w => w.get_title()).filter(t => t && t.
 gs set org.gnome.desktop.wm.preferences workspace-names "['Writing']"
 open_menu
 check "2 Save this workspace is offered" atspi wait 5 "Save this workspace"
-atspi click "Save this workspace" >/dev/null 2>&1
+clicked="$(atspi click "Save this workspace" 2>&1)"
 check "2 the button then reads Saved as Writing" atspi wait 5 "Saved as Writing"
+echo "# after the click (${clicked:-no answer}): $(ev "JSON.stringify([${WS}._setsMenu?._saveLabel?.text, ${WS}.sets?.list?.length, global.workspace_manager.get_active_workspace().index(), ${WS}._setsMenu?._workspace?.index?.()])")"
 sleep 1.5
 check "2 sets.json and its copy, 0600, in a 0700 folder" bash -c "[[ \$(stat -c %a '${STATE}/sets.json') == 600 &&
     \$(stat -c %a '${STATE}/sets.json.bak') == 600 && \$(stat -c %a '${STATE}') == 700 ]]"
 same "2 the file holds Writing: three windows, classic" \
-    "$(jq -r '[.sets | length, .sets[0].name, (.sets[0].windows | length), .sets[0].layout] | join(" ")' "${STATE}/sets.json")" \
+    "$(jq -r '[(.sets | length), .sets[0].name, (.sets[0].windows | length), .sets[0].layout] | join(" ")' "${STATE}/sets.json")" \
     "1 Writing 3 classic"
 check "2 its copy reads the same" cmp "${STATE}/sets.json" "${STATE}/sets.json.bak"
 leaked="$(python3 -c "import json,sys; t=json.loads(sys.argv[1]); s=open(sys.argv[2]).read(); print([x for x in t if x in s])" "${TITLES}" "${STATE}/sets.json")"
@@ -292,7 +311,7 @@ ev "${WS}.openSet('Writing'); 1" >/dev/null
 wait_for 30 opening_over
 sleep 1
 same "5a GNOME went to the next empty workspace (3)" "$(active)" 2
-same "5a the Text Editor window on 2 did not move" "$(frames org.gnome.TextEditor | python3 -c "import json,sys; print(json.dumps([f for f in json.load(sys.stdin) if f[0]==1]))")" "${BEFORE}"
+same "5a the Text Editor window on 2 did not move" "$(frames org.gnome.TextEditor | python3 -c "import json,sys; print(json.dumps([f for f in json.load(sys.stdin) if f[0]==1], separators=(',', ':')))")" "${BEFORE}"
 same "5a one Text Editor window more, on 3" "$(count_class org.gnome.TextEditor)" "$((editors + 1))"
 check "5a Files and kitty on 3" is_true "${WINS}.filter(w => ['org.gnome.Nautilus', 'kitty'].includes(w.get_wm_class())).every(w => w.get_workspace().index() === 2)"
 same "6 the unnamed workspace took the set's name" "$(names)" "['Writing', '', 'Writing']"
@@ -355,10 +374,12 @@ open_menu
 same "8 the gone app shows the dimmed stand-in icon" "$(ev "${WS}._setsMenu._rows.get_children().map(r => r.get_children()[0].get_child().get_children()[0].get_children()).find(icons => icons.length === 4)?.filter(i => i.icon_name === 'application-x-executable-symbolic' && i.opacity === 128).length")" 1
 close_menu
 NOTES="Main.messageTray.getSources().flatMap(s => s.notifications.map(n => n.title))"
+# Counted from here: the list keeps what earlier runs in this session said
+broken_before="$(ev "${NOTES}.filter(t => t === 'Broken could not be started').length")"
 ev "${WS}.openSet('Writing'); 1" >/dev/null
 check "8 the rest started" wait_for 40 three_up
 wait_for 40 opening_over
-same "9 one notification for the app that could not start" "$(ev "${NOTES}.filter(t => t === 'Broken could not be started').length")" 1
+same "9 one notification for the app that could not start" "$(($(ev "${NOTES}.filter(t => t === 'Broken could not be started').length") - broken_before))" 1
 same "8 none for the app that is gone" "$(ev "${NOTES}.filter(t => t.includes('vmlab-gone')).length")" 0
 
 # --- 10 Windows later than 30 s are not waited for -------------------------------------------------------------------
