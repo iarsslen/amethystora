@@ -174,7 +174,9 @@ export class TouchMode {
         // From the right edge of the screen the handle is on, the one Today opens on
         this._gesture.connect('may-recognize', gesture => {
             const monitor = Main.layoutManager.primaryMonitor;
-            const [x, y] = gesture.get_point_begin_coords_abs(0) ?? [];
+            // Where the touch is now, from its last event, in the stage's coordinates: GNOME 50's Clutter.Gesture has no
+            // _abs getters, and its point getters gave far-off numbers here (the lab, a touch from the right edge)
+            const [x, y] = gesture.get_point_event(0)?.get_coords() ?? [];
             return (Shell.ActionMode.NORMAL & Main.actionMode) !== 0 && !!monitor &&
                 x >= monitor.x && x < monitor.x + monitor.width && y >= monitor.y && y < monitor.y + monitor.height;
         });
