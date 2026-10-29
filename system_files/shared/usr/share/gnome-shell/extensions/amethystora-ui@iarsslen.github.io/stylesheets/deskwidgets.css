@@ -1,0 +1,33 @@
+/* Widgets on the desktop (board 49): glass cards with corners of 12, 10 x 12 px inside, lines 3 px apart; a large
+   first line is 22 px (the clock). The colours that follow the theme are in the theme's shell-deskwidgets.css; the
+   ones here stand in until a theme is applied. */
+.amethystora-deskwidgets-card {
+  padding: 10px 12px;
+  spacing: 3px;
+  max-width: 22em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: rgba(26, 16, 42, 0.58);
+  color: #efe4ff;
+}
+
+.amethystora-deskwidgets-head {
+  spacing: 6px;
+}
+
+.amethystora-deskwidgets-title {
+  font-weight: 700;
+}
+
+.amethystora-deskwidgets-large {
+  font-size: 22px;
+}
+
+.amethystora-deskwidgets-line {
+  font-weight: 600;
+  color: rgba(239, 228, 255, 0.78);
+}
+
+.amethystora-deskwidgets-menu-line {
+  max-width: 28em;
+}

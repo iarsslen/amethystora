@@ -131,6 +131,7 @@ export class Session {
             });
             ui.add_child(this._extractTip);
         }
+        this.syncPin(false);
 
         for (const button of [ui._selectionButton, ui._screenButton, ui._windowButton, ui._castButton])
             button.connectObject('notify::checked', () => this._sync(), this);
@@ -155,6 +156,9 @@ export class Session {
         this._compact.remove_style_class_name('amethystora-screenshot-compact');
         this._extractTip?.destroy();
         this._extract?.destroy();
+        this._pinTip?.destroy();
+        this._pin?.destroy();
+        this._pinTip = this._pin = null;
         this._toolbarBin.destroy();
         this._overlay.destroy();
         this._input.destroy();
@@ -174,6 +178,40 @@ export class Session {
     get extractLive() {
         return Boolean(this._extract) && !this._portal && this._ui._shotButton.checked &&
             this._ui._selectionButton.checked;
+    }
+
+    // Pin takes an area or the screen, never a window, a recording, or what an app asked for
+    get pinLive() {
+        return Boolean(this._pin) && !this._portal && this._ui._shotButton.checked &&
+            (this._ui._selectionButton.checked || this._ui._screenButton.checked);
+    }
+
+    // Pin, beside Extract Text, while pinning is on (capture-pin); made or taken away as the key changes
+    syncPin(resync = true) {
+        const ui = this._ui;
+        const wanted = this._module.pinOn;
+        if (wanted && !this._pin) {
+            this._pin = new St.Button({
+                style_class: 'screenshot-ui-show-pointer-button amethystora-screenshot-compact',
+                child: new St.Icon({gicon: this._module.icon('pin'), icon_size: 16}),
+                accessible_name: _('Pin on top'),
+            });
+            this._pin.connect('clicked', () => this._module.pin());
+            const at = this._extract ? ui._showPointerButtonContainer.get_children().indexOf(this._extract) + 1 : 0;
+            ui._showPointerButtonContainer.insert_child_at_index(this._pin, at);
+            this._pinTip = new ScreenshotUI.Tooltip(this._pin, {
+                text: _('Pin on top'),
+                style_class: 'screenshot-ui-tooltip',
+                visible: false,
+            });
+            ui.add_child(this._pinTip);
+        } else if (!wanted && this._pin) {
+            this._pinTip?.destroy();
+            this._pin.destroy();
+            this._pinTip = this._pin = null;
+        }
+        if (resync)
+            this._sync();
     }
 
     get marks() {
@@ -216,6 +254,11 @@ export class Session {
             const live = this.extractLive;
             this._extract.reactive = live;
             this._extract.ease({opacity: live ? 255 : 80, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        }
+        if (this._pin) {
+            const live = this.pinLive;
+            this._pin.reactive = live;
+            this._pin.ease({opacity: live ? 255 : 80, duration: 200, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         }
     }
 

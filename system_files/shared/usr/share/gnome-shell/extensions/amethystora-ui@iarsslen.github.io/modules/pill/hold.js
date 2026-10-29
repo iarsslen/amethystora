@@ -5,6 +5,9 @@
 // list and the pill says how many are waiting, rather than showing them one after another; with the digest on, they
 // wait for the next digest instead.
 //
+// Present mode (modules/present.js) is a reason of its own: while it is on, banners are held as quiet holds them,
+// whatever the quiet key says.
+//
 // A focus profile (modules/focus.js) is one more reason, with its own rule: every banner held, or only the apps it
 // names let through, and their sounds off. Its held banners are said once when it ends, as quiet's are; it has no
 // activity of its own here (the profile's mark is).
@@ -84,6 +87,7 @@ export class Hold {
         this.id = 'quiet';
         this.plate = 'quiet';
         this._focus = null;
+        this._presenting = false;
     }
 
     enable() {
@@ -301,6 +305,8 @@ export class Hold {
     // --- Quiet ----------------------------------------------------------------------------------------------------
 
     _currentReason() {
+        if (this._presenting)
+            return 'presenting';
         if (this._quiet) {
             if (this._capture.recording)
                 return 'recording';
@@ -391,6 +397,15 @@ export class Hold {
 
     get later() {
         return this._later;
+    }
+
+    // --- Present mode ----------------------------------------------------------------------------------------------
+
+    setPresenting(on) {
+        if (this._presenting === on)
+            return;
+        this._presenting = on;
+        this._update();
     }
 
     // --- A focus profile --------------------------------------------------------------------------------------------
@@ -616,6 +631,8 @@ export class Hold {
         case 'sharing':
         case 'recording':
             return _('Quiet while sharing');
+        case 'presenting':
+            return _('Quiet while presenting');
         case 'night': {
             const span = this.nightSpan();
             const hours = Math.floor(span.to);
@@ -680,6 +697,7 @@ export class Hold {
             fullscreen: _('a window is fullscreen'),
             sharing: _('the screen is shared'),
             recording: _('the screen is recorded'),
+            presenting: _('you present'),
             night: _('it is night'),
         }[this._reason] ?? '';
         const held = this.quietHeld;

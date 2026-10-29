@@ -102,6 +102,10 @@ if (changed.length) {
     errors.push(`it changed ${changed.join(', ')} in its own folder, which makes the bar load it again, ` +
         'and run it again, without end; keep what it writes in $WIDGET_STATE');
 }
+if (widget.manifest.place === 'desktop') {
+    warnings.push('it is drawn on the desktop only while widgets on the desktop are on ' +
+        '(ame desktop desktop-widgets on), never in the bar');
+}
 if (state) {
     if (state.click)
         checkCommand(widget, '"click"', state.click);

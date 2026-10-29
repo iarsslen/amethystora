@@ -4,27 +4,39 @@
 // a small card to open it from; Ctrl+C only copies, Ctrl+S asks where to save, and Extract Text (Ctrl+E) hands the
 // area to Gradia, which copies the text in it. A window is captured over the windows it belongs to. Everything is
 // GNOME's UI with these pieces added while it is open; the keybindings that take a screenshot without it are GNOME's.
+//
+// Pin a capture (board 48): the card is a thumbnail with Edit, Copy, Pin on top, Show in Files and Delete
+// (capture-thumbnail; off, GNOME's own words come back as a notification), and a capture can be pinned above every
+// window, from the thumbnail or straight from the bar's Pin button or Ctrl+P (capture-pin; screenshot/pins.js).
 
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import Gettext from 'gettext';
+
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 
 import {
-    GRADIA, captureFrame, captureWindow, copyToClipboard, disposeSettings, gradiaInstalled, playShutter, saveAs,
-    saveToFolder,
+    GRADIA, captureFrame, captureWindow, contentOf, copyToClipboard, disposeSettings, gradiaInstalled, playShutter,
+    saveAs, saveToFolder,
 } from './screenshot/capture.js';
 import {Card} from './screenshot/card.js';
 import {DRAWING, MAX_WIDTH, MIN_WIDTH} from './screenshot/marks.js';
+import {Pins, forgetWaiting} from './screenshot/pins.js';
+import {Capture} from './pill/capture.js';
 import {Session} from './screenshot/session.js';
 
 // The mode GNOME's screenshot UI opens in for an app's interactive screenshot through the screenshot portal
 const PORTAL_MODE = 2;
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.screenshot';
 // Icons drawn for the toolbar, in icons/screenshot; the rest are the icon theme's
-const OWN_ICONS = new Set(['move', 'pen', 'box', 'fill', 'highlight', 'arrow', 'text', 'marker', 'extract']);
+const OWN_ICONS = new Set(['move', 'pen', 'box', 'fill', 'highlight', 'arrow', 'text', 'marker', 'extract', 'pin',
+    'through']);
+// GNOME's own words for a capture, in its own translations, for the notification that stands in for the thumbnail
+const gnome = text => Gettext.dgettext('gnome-shell', text);
 const THEME_ICONS = {area: 'screenshot-ui-area-symbolic', display: 'screenshot-ui-display-symbolic'};
 
 export class Screenshot {
@@ -55,6 +67,19 @@ export class Screenshot {
                 this._forText = false;
                 this._endSession();
             }, this);
+
+        // Pinned pictures, put back after a screen lock while pinning is on
+        this._pins = new Pins(this);
+        if (this.pinOn)
+            this._pins.enable();
+        else
+            forgetWaiting();
+        this._settings.connectObject(
+            'changed::capture-pin', () => this._pinChanged(),
+            'changed::capture-thumbnail', () => {
+                if (!this._settings.get_boolean('capture-thumbnail'))
+                    this._card?.close(true);
+            }, this);
     }
 
     // GNOME's screenshot UI on a selection, whose capture copies the text in it (through Gradia), for the pen's Text
@@ -77,8 +102,13 @@ export class Screenshot {
         const ui = this._ui;
         if (!ui)
             return;
+        this._settings?.disconnectObject(this);
         ui.disconnectObject(this);
         this._endSession();
+        this._pins?.disable();
+        this._pins = null;
+        this._notifications?.destroy();
+        this._notifications = null;
         for (const [name, descriptor] of [['open', this._open], ['_saveScreenshot', this._save]]) {
             if (descriptor)
                 Object.defineProperty(ui, name, descriptor);
@@ -96,6 +126,46 @@ export class Screenshot {
         disposeSettings();
         this._icons = null;
         this._ui = null;
+    }
+
+    // ---- Pin a capture ----
+
+    get pinOn() {
+        return this._settings?.get_boolean('capture-pin') ?? false;
+    }
+
+    // Off: no Pin anywhere, and what is pinned lets go; on again: the bar offers it at its next opening
+    _pinChanged() {
+        if (!this.pinOn)
+            this._pins?.clear();
+        this._session?.syncPin();
+    }
+
+    // The pinned pictures' buttons and the thumbnail are glass panes
+    glassSurfaces() {
+        const surfaces = this._pins?.glassSurfaces() ?? [];
+        if (this._card && !this._card.closing)
+            surfaces.push({actor: this._card.actor, material: 'glass', radius: null});
+        return surfaces;
+    }
+
+    surfacesChanged() {
+        this._ext.modules?.get('glass')?.surfacesChanged?.();
+    }
+
+    // The button and Ctrl+P: the area (or the screen) straight on top, where it was
+    pin() {
+        this._take('pin').catch(logError);
+    }
+
+    // A pinned picture's Save as…
+    saveAs(picture) {
+        saveAs(picture, this._pending).catch?.(logError);
+    }
+
+    // For the VM suite: the pinned pictures as a person sees them
+    pins() {
+        return this._pins?.list.map(pin => pin.state) ?? [];
     }
 
     _onOpen(open, mode, rest) {
@@ -192,6 +262,11 @@ export class Screenshot {
                 this.extractText();
                 return Clutter.EVENT_STOP;
             }
+            // Pin, as its button; GNOME's own P (the pointer, with or without Ctrl) stays for P alone
+            if ((symbol === Clutter.KEY_p || symbol === Clutter.KEY_P) && session.pinLive) {
+                this.pin();
+                return Clutter.EVENT_STOP;
+            }
         }
         return session.handleKey(event);
     }
@@ -220,7 +295,9 @@ export class Screenshot {
         if (!picturing)
             return Promise.resolve();
         this._busy = true;
-        const done = this._finish(kind, ui, picturing);
+        // A pin goes where the area was, read before the UI closes
+        const place = kind === 'pin' ? this._selectedPlace() : null;
+        const done = this._finish(kind, ui, picturing, place);
         if (kind === 'normal' && this._session?.portal)
             return done;
         if (kind !== 'normal')
@@ -228,7 +305,13 @@ export class Screenshot {
         return Promise.resolve();
     }
 
-    async _finish(kind, ui, picturing) {
+    // The area or the screen chosen, in the stage's logical pixels
+    _selectedPlace() {
+        const [x, y, width, height] = this._ui._getSelectedGeometry(false);
+        return {x, y, width, height};
+    }
+
+    async _finish(kind, ui, picturing, place) {
         try {
             const picture = await picturing;
             // The picture is made: the next screenshot need not wait for this one's file chooser, which may stay open
@@ -251,7 +334,7 @@ export class Screenshot {
             case 'save-as': {
                 const file = await saveAs(picture, this._pending);
                 if (file && this._ui)
-                    this._showCard(picture, file, false);
+                    this._showCard(picture, file, false, false);
                 break;
             }
             case 'extract': {
@@ -262,6 +345,11 @@ export class Screenshot {
                 }
                 break;
             }
+            // Neither saved nor copied: only on top, until it is saved from its menu
+            case 'pin':
+                if (this.pinOn)
+                    this._pins?.pin(picture, place);
+                break;
             }
         } catch (e) {
             console.error(`Amethystora UI: the screenshot was not taken: ${e.message}\n${e.stack}`);
@@ -285,22 +373,82 @@ export class Screenshot {
             if (!chosen)
                 return null;
             playShutter();
-            return captureWindow(ui, chosen, this._windows?.get(chosen) ?? null);
+            const scale = chosen.bufferScale;
+            return captureWindow(ui, chosen, this._windows?.get(chosen) ?? null).then(p => p && {...p, scale});
         }
         if (!ui._selectionButton.checked && !ui._screenButton.checked)
             return null;
         playShutter();
-        // A copy: while an app's screenshot is finished the UI stays, and an undo or a new mark must not reach it
-        return captureFrame(ui, [...this._session?.marks ?? []]);
+        // A copy: while an app's screenshot is finished the UI stays, and an undo or a new mark must not reach it;
+        // the picture's pixels to a logical pixel, for a pin's size
+        const scale = ui._scale;
+        return captureFrame(ui, [...this._session?.marks ?? []]).then(p => p && {...p, scale});
     }
 
-    _showCard(picture, file, copied) {
+    // pasted: the picture is on the clipboard too (not after Save as)
+    _showCard(picture, file, copied, pasted = true) {
         this._card?.close(true);
-        this._card = new Card(picture, file, copied);
-        this._card.actor.connect('destroy', actor => {
-            if (this._card?.actor === actor)
-                this._card = null;
+        this._card = null;
+        if (!this._settings.get_boolean('capture-thumbnail')) {
+            this._notify(picture, file, pasted);
+            return;
+        }
+        // Whether the screen is shared or recorded now, as GNOME's own indicators know it
+        const capture = new Capture();
+        const unlisten = capture.listen(() => {});
+        const shared = capture.active;
+        unlisten();
+        const card = new Card(picture, file, copied, {
+            shared,
+            pin: this.pinOn ? (p, place) => this._pins?.pin(p, place) : null,
+            pinIcon: this.icon('pin'),
         });
+        this._card = card;
+        card.actor.connect('destroy', () => {
+            if (this._card === card)
+                this._card = null;
+            this.surfacesChanged();
+        });
+        this.surfacesChanged();
+    }
+
+    // The thumbnail turned off: GNOME's own notification, in GNOME's words, so that a capture still says it happened
+    _notify(picture, file, pasted) {
+        if (!this._notifications) {
+            this._notifications = new MessageTray.Source({
+                title: gnome('Screen Capture'),
+                iconName: 'screenshooter-symbolic',
+            });
+            this._notifications.connect('destroy', source => {
+                if (this._notifications === source)
+                    this._notifications = null;
+            });
+            Main.messageTray.add(this._notifications);
+        }
+        const notification = new MessageTray.Notification({
+            source: this._notifications,
+            title: gnome('Screenshot captured'),
+            body: pasted ? gnome('You can paste the image from the clipboard') : '',
+            datetime: GLib.DateTime.new_now_local(),
+            gicon: contentOf(picture),
+            isTransient: true,
+        });
+        if (file) {
+            const context = () => global.create_app_launch_context(0, -1);
+            notification.addAction(gnome('Show in Files'), () => {
+                Gio.DBus.session.call('org.freedesktop.FileManager1', '/org/freedesktop/FileManager1',
+                    'org.freedesktop.FileManager1', 'ShowItems', new GLib.Variant('(ass)', [[file.get_uri()], '']),
+                    null, Gio.DBusCallFlags.NONE, -1, null, null);
+            });
+            notification.connect('activated', () => {
+                try {
+                    Gio.app_info_launch_default_for_uri(file.get_uri(), context());
+                } catch (e) {
+                    console.warn(`Amethystora UI: the screenshot could not be opened: ${e.message}`);
+                }
+            });
+        }
+        this._notifications.addNotification(notification);
     }
 
     gradiaInstalled() {

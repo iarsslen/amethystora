@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the present module (modules/present.js): Present mode, offered and off as the image ships, the pointer
+     while presenting, the question when a screen is plugged in, and Scribble's key. -->
+<schemalist gettext-domain="amethystora">
+  <schema id="org.gnome.shell.extensions.amethystora-ui.present" path="/org/gnome/shell/extensions/amethystora-ui/present/">
+    <key name="enabled" type="b">
+      <default>false</default>
+      <summary>Present mode is offered</summary>
+      <description>A Present tile in quick settings, a question when a screen is plugged in, and Super+Alt+D to draw on the screen. While presenting, the screen stays awake, banners wait and the pointer is easy to follow.</description>
+    </key>
+    <key name="pointer-mark" type="s">
+      <choices>
+        <choice value="halo"/>
+        <choice value="torch"/>
+        <choice value="none"/>
+      </choices>
+      <default>'halo'</default>
+      <summary>The pointer while presenting</summary>
+      <description>halo draws a disc round the pointer, torch dims everything but a circle round it, and none leaves the pointer as it is.</description>
+    </key>
+    <key name="ask-on-screen" type="b">
+      <default>true</default>
+      <summary>Ask to present when a screen is plugged in</summary>
+      <description>Once for each screen in a session, while Present mode is offered. Nothing happens without the click.</description>
+    </key>
+    <key name="scribble" type="as">
+      <default><![CDATA[['<Super><Alt>d']]]></default>
+      <summary>Draw on the screen</summary>
+      <description>Ink over the whole screen until Esc, while Present mode is offered.</description>
+    </key>
+  </schema>
+</schemalist>

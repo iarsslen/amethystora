@@ -40,11 +40,14 @@ import {Bezel} from './modules/bezel.js';
 import {Captions} from './modules/captions.js';
 import {Access} from './modules/access.js';
 import {Touch} from './modules/touch.js';
+import {Present} from './modules/present.js';
+import {DeskWidgets} from './modules/deskwidgets.js';
 import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
 // first after the theme, since the glass asks it; the glass comes after the dock and the panel's modules, whose actors
-// it draws behind. Focus profiles come last: a profile lays itself over what the others do, and stops first.
+// it draws behind. Present mode comes after the pill, whose hold it asks. Focus profiles come last: a profile lays
+// itself over what the others do, and stops first.
 const MODULES = [
     ['theme', Theme],
     ['style', Style],
@@ -78,6 +81,8 @@ const MODULES = [
     ['captions', Captions],
     ['access', Access],
     ['touch', Touch],
+    ['present', Present],
+    ['deskwidgets', DeskWidgets],
     ['focus', Focus],
 ];
 

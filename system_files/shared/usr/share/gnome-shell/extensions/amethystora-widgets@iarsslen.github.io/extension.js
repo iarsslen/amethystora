@@ -1,6 +1,7 @@
 // The top bar's widgets: each folder in ~/.config/amethystora/widgets is a widget, a command whose
 // output the bar shows as a label, an icon and a menu (protocol.js says what it may print, runner.js
-// runs it). A widget is loaded again as soon as anything in its folder changes, so one being written
+// runs it). A widget whose widget.json says "place": "desktop" is not the bar's: Amethystora UI's
+// deskwidgets module draws it on the wallpaper, with this runner, while widgets on the desktop are on. A widget is loaded again as soon as anything in its folder changes, so one being written
 // shows up as it is saved. The commands run outside GNOME Shell, which on Wayland is the compositor:
 // a broken widget shows a warning sign in the bar, and cannot take the session down with it.
 
@@ -289,7 +290,12 @@ export default class WidgetsExtension extends Extension {
             GLib.file_test(GLib.build_filenamev([dir, 'disabled']), GLib.FileTest.EXISTS))
             return;
         try {
-            const button = new WidgetButton(loadWidget(dir), this);
+            const widget = loadWidget(dir);
+            // Drawn on the wallpaper by Amethystora UI (its deskwidgets module), never in the bar; still watched, so
+            // that a change of place is noticed
+            if (widget.manifest?.place === 'desktop')
+                return;
+            const button = new WidgetButton(widget, this);
             this._buttons.set(id, button);
             Main.panel.addToStatusArea(`amethystora-widget-${id}`, button, 0, button.side);
             this._arrange();

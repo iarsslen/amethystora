@@ -1,0 +1,58 @@
+/* Present mode and Scribble: sizes and shapes (board 38). The colours that follow the theme are in the theme's
+   shell-present.css; the ones here stand in until a theme is applied. */
+
+/* The halo: a 52 px disc round the pointer, in the palette's yellow */
+.amethystora-present-halo {
+  border-radius: 26px;
+  border: 2px solid rgba(255, 214, 90, 0.8);
+  background-color: rgba(255, 214, 90, 0.35);
+}
+
+/* Scribble's toolbar: a glass pane at the bottom, buttons of 30 px with corners of 10, 14 px colour dots */
+.amethystora-present-toolbar {
+  padding: 6px 8px;
+  spacing: 4px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: rgba(26, 16, 42, 0.85);
+  color: #efe4ff;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
+.amethystora-present-tool {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 10px;
+  color: #efe4ff;
+  background-color: transparent;
+}
+
+.amethystora-present-tool:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.amethystora-present-tool:checked {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.amethystora-present-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+}
+
+.amethystora-present-separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.amethystora-present-clear {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #efe4ff;
+  background-color: transparent;
+}

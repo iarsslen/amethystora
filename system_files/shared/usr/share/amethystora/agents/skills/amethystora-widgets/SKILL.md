@@ -50,6 +50,14 @@ lists the widgets.
 | `interval` | Seconds between runs, counted from the end of the last one (default 60). `0` means the command keeps running and prints a new line whenever the widget should change. |
 | `position` | `left` (after the workspaces), `center` (after the clock) or `right` (before the meters; the default). |
 | `order` | Whole number; lower comes first among widgets in the same place (default 0, then by id). |
+| `place` | `bar` (the default) or `desktop`: a card on the wallpaper instead of the bar. Drawn only while the user has widgets on the desktop on (`ame desktop desktop-widgets on`); otherwise it never runs, and it never shows in the bar. |
+| `size` | Desktop only: `large` draws the first line of `text` in large letters (a clock), `normal` (the default) does not. |
+
+On the desktop, `position` is a corner of the screen: `top-left`, `top-right` (the default), `bottom-left` or
+`bottom-right`; a bar position there (or a corner in the bar) is an error. The card shows `icon` beside the first
+line of `text`; each further line of `text` (use `\n` in the JSON string) is smaller and dimmer (six lines at most), and
+`class` colours the last line. Clicks, menus and the runner are the bar's. Ask the user before choosing the desktop: the
+bar is where widgets go unless they want them on the wallpaper.
 
 ## What the command prints
 

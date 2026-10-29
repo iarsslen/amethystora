@@ -191,6 +191,9 @@ read_in_background bars gsettings list-recursively org.gnome.shell.extensions.am
 read_in_background today gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.today
 read_in_background power gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.power
 read_in_background focus gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.focus
+read_in_background present gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.present
+read_in_background screenshot gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.screenshot
+read_in_background deskwidgets gsettings get org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
@@ -1035,6 +1038,14 @@ USAGE="ame desktop widgets"
 item desktop widgets widgets "${ gettext "Top bar widgets"; }" \
     "${ gettext "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."; }" \
     "" widgets
+# Widgets on the desktop (offered, off; org.gnome.shell.extensions.amethystora-ui.deskwidgets)
+if [[ "${ said deskwidgets; }" == true ]]; then DESK_WIDGETS=on; else DESK_WIDGETS=off; fi
+[[ "${ ended deskwidgets; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+switch_choices false ame desktop desktop-widgets
+USAGE="ame desktop desktop-widgets on|off"
+item desktop desktop-widgets switch "${ gettext "Widgets on the desktop"; }" \
+    "${ gettext "Widgets placed on the desktop in their widget.json are drawn on the wallpaper, under the windows."; }" \
+    "${DESK_WIDGETS}" widgets#on-the-desktop
 
 # Quick settings as live tiles: the theme block, and every tile back (org.gnome.shell.extensions.amethystora-ui.quick)
 QUICK_HIDDEN="${ said quick; }"
@@ -1336,6 +1347,47 @@ focus_profile() {
 focus_profile work "${ gettext "Focus: Work"; }"
 focus_profile games "${ gettext "Focus: Games"; }"
 focus_profile sleep "${ gettext "Focus: Sleep"; }"
+GROUP=""
+
+# Present mode (offered, off) and the screenshot's thumbnail and pins (org.gnome.shell.extensions.amethystora-ui.present
+# and .screenshot)
+PRESENT="${ said present; }"
+SCREENSHOT="${ said screenshot; }"
+ui_reason() { [[ "${ ended "$1"; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+present_mark="${ key_of "${PRESENT}" pointer-mark; }"
+present_mark="${present_mark//\'/}"
+GROUP="${ gettext "Presenting"; }"
+ui_reason present
+switch_choices false ame desktop present
+USAGE="ame desktop present on|off"
+item desktop present switch "${ gettext "Present mode"; }" \
+    "${ gettext "A Present tile in quick settings: the screen stays awake, banners wait and the pointer is easy to follow. Super+Alt+D draws on the screen."; }" \
+    "${ onoff_of "${PRESENT}" enabled; }" desktop#presenting
+ui_reason present
+choice halo "${ gettext "Halo"; }" "${ gettext "A disc round the pointer"; }" false ame desktop present mark halo
+choice torch "${ gettext "Torch"; }" "${ gettext "Everything but a circle round the pointer dimmed"; }" false ame desktop present mark torch
+choice none "${ gettext "No mark"; }" "" false ame desktop present mark none
+USAGE="ame desktop present mark halo|torch|none"
+item desktop present-mark choice "${ gettext "The pointer while presenting"; }" "" "${present_mark:-halo}" desktop#presenting
+ui_reason present
+switch_choices false ame desktop present ask
+USAGE="ame desktop present ask on|off"
+item desktop present-ask switch "${ gettext "Ask when a screen is plugged in"; }" \
+    "${ gettext "Once for each screen, while Present mode is on. Nothing happens without your click."; }" \
+    "${ onoff_of "${PRESENT}" ask-on-screen; }" desktop#presenting
+GROUP="${ gettext "Screenshots"; }"
+ui_reason screenshot
+switch_choices false ame desktop screenshot thumbnail
+USAGE="ame desktop screenshot thumbnail on|off"
+item desktop screenshot-thumbnail switch "${ gettext "A thumbnail after a screenshot"; }" \
+    "${ gettext "Edit, copy, pin, show or delete it from the bottom right corner. Off, GNOME's notification says it was taken."; }" \
+    "${ onoff_of "${SCREENSHOT}" capture-thumbnail; }" desktop#screenshots
+ui_reason screenshot
+switch_choices false ame desktop screenshot pin
+USAGE="ame desktop screenshot pin on|off"
+item desktop screenshot-pin switch "${ gettext "Pin pictures on top"; }" \
+    "${ gettext "Keep a screenshot above every window while you work below it."; }" \
+    "${ onoff_of "${SCREENSHOT}" capture-pin; }" desktop#pinned-pictures
 GROUP=""
 
 if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi

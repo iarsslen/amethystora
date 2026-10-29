@@ -270,6 +270,32 @@ Night Light's times** starts Sleep at Night Light's evening time and ends it at 
 profile you pick wins over both. Turning Focus off while a trigger has it on keeps it off until that
 trigger's next start: the next evening, or the next game.
 
+## Presenting
+
+Present mode is for a call, a class or a demo. It is off until you turn it on in Control (**Desktop**,
+**Presenting**) or with `ame desktop present on`. Then **Present** is a tile in quick settings, and while it is
+on:
+
+- the screen stays awake: it does not dim, lock or go to sleep by itself (you can still lock it yourself);
+- banners wait in the notification list, as [Quiet](#quiet) holds them; calls, alarms and urgent ones still
+  come through, and when you stop, the top bar says how many are waiting;
+- the top bar says **Presenting** and for how long; click it to stop;
+- the pointer is easy to follow: a **Halo** round it (the default), or a **Torch** that dims everything but a
+  circle round it. `ame desktop present mark halo`, `torch` or `none` changes it.
+
+When you plug in a screen, a projector for instance, Amethystora asks whether to present on it, once for each
+screen; nothing happens until you click **Present**, and presenting then ends when that screen is unplugged.
+Started while you share your screen in a call, it ends with the share. `ame desktop present ask off` stops the
+question.
+
+### Drawing on the screen
+
+`Super+Alt+D` lets you draw over everything on the screen while Present mode is on, presenting or not: a pen, a
+highlighter and three colours, in a bar at the bottom (a pen's pressure is not read). The windows
+under the ink take no clicks or keys until you finish. `Ctrl+Z` takes the last stroke back, `1`, `2` and `3`
+pick a colour, `P` and `H` the pen and the highlighter, and `Esc` (or **Clear**) wipes the ink and gives you the
+windows back. Nothing is ever saved; to keep it, press `Print` while you draw and take a screenshot with the ink.
+
 ## Sounds
 
 The desktop's own sounds are Amethystora's **Soft** set: lower and rounder, for a quiet room. You hear them for a
@@ -472,8 +498,33 @@ part of your setup file, since they are your own writing.
 picture before it is saved: move a mark, a pen, a box, a filled box to hide something, a highlighter, an
 arrow, text and numbered markers, in eight colours and the width the slider (or the mouse wheel) sets.
 `1` to `9` pick the tools, `Ctrl+Z` undoes, `Delete` removes the mark you picked up. `Ctrl+C` copies the
-picture without saving it and `Ctrl+S` saves it where you choose. Once it is taken, a card at the bottom
-right opens it in Gradia, shows it in Files or opens it in your image viewer.
+picture without saving it and `Ctrl+S` saves it where you choose.
+
+Once it is taken, a thumbnail rests at the bottom right for six seconds, longer while the pointer is on it.
+Click the picture to open it in your image viewer, or use its buttons: **Edit** opens it in Gradia, **Copy**
+copies it again, **Pin on top** pins it (below), **Show in Files** shows it in its folder and **Delete** moves
+it to the trash. `ame desktop screenshot thumbnail off` (or Control, **Desktop**, **Screenshots**) puts GNOME's
+own notification back instead.
+
+### Pinned pictures
+
+A pinned picture stays above every window, on every workspace, while you work in the window below: numbers
+from a chart, a recipe, a design to match. Pin one from the thumbnail, or straight from the screenshot bar:
+frame an area and click **Pin on top** beside the pointer button (or press `Ctrl+P`), and it stays exactly
+where it was, without being saved or copied.
+
+- Drag it to move it; scroll over it to make it larger or smaller; `Ctrl` and scroll make it see-through.
+- The arrow in its corner lets clicks pass through it to the window below, for tracing; its ring turns amber.
+  Click the arrow again to take it back.
+- The cross, or `Esc` after clicking it, lets it go. Right-click it to copy it, save it, or pick **Solid**,
+  **See-through** or **Faint**.
+- Up to six at a time; a seventh lets the oldest go. They are kept while the screen is locked and are gone
+  when you log out.
+- While you share or record the whole screen, pinned pictures and the thumbnail are blurred, for everyone and for
+  you, and carry a small mark: a picture of another window could hold what the share should not show. They are
+  sharp again when the share ends.
+
+`ame desktop screenshot pin off` turns pinning off and lets go of every pinned picture.
 
 ## Copying text from the screen
 

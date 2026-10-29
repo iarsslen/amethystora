@@ -46,19 +46,16 @@
   -slider-handle-border-color: rgba({{ foreground_rgb }}, 0.3);
 }
 
-#screenshot-ui .amethystora-screenshot-round,
-.amethystora-screenshot-card-box .amethystora-screenshot-round {
+#screenshot-ui .amethystora-screenshot-round {
   color: {{ foreground }};
   background-color: {{ background }};
 }
 
-#screenshot-ui .amethystora-screenshot-round:hover,
-.amethystora-screenshot-card-box .amethystora-screenshot-round:hover {
+#screenshot-ui .amethystora-screenshot-round:hover {
   background-color: st-mix({{ foreground }}, {{ background }}, 12%);
 }
 
-#screenshot-ui .amethystora-screenshot-round:active,
-.amethystora-screenshot-card-box .amethystora-screenshot-round:active {
+#screenshot-ui .amethystora-screenshot-round:active {
   background-color: st-mix({{ foreground }}, {{ background }}, 24%);
 }
 
@@ -66,11 +63,63 @@
   border-color: {{ accent }};
 }
 
-.amethystora-screenshot-card-box .amethystora-screenshot-card {
-  border-color: {{ background }};
-  background-color: {{ background }};
+/* The thumbnail and a pinned picture's buttons: glass panes over the wallpaper, the theme's popover colour where the
+   glass is solid or not running; the text and the buttons in the theme's text colour, Pin in the accent */
+
+#uiGroup .amethystora-screenshot-thumb,
+#uiGroup .amethystora-screenshot-pin-pill {
+  background-color: rgba({{ popover_bg_rgb }}, 0.94);
+  border-color: rgba({{ foreground_rgb }}, 0.16);
+  color: {{ foreground }};
 }
 
-.amethystora-screenshot-card-box .amethystora-screenshot-badge {
-  background-color: {{ accent }};
+#uiGroup .amethystora-screenshot-thumb.amethystora-glass-pane,
+#uiGroup .amethystora-screenshot-pin-pill.amethystora-glass-pane {
+  background-color: transparent;
+  border-color: transparent;
+  -amethystora-glass-edge: rgba({{ foreground_rgb }}, 0.16);
+}
+
+#uiGroup.amethystora-glass-solid .amethystora-screenshot-thumb.amethystora-glass-pane,
+#uiGroup.amethystora-glass-solid .amethystora-screenshot-pin-pill.amethystora-glass-pane {
+  background-color: {{ popover_bg }};
+}
+
+#uiGroup .amethystora-screenshot-thumb-button,
+#uiGroup .amethystora-screenshot-pin-button {
+  color: {{ foreground }};
+  background-color: rgba({{ foreground_rgb }}, 0.1);
+}
+
+#uiGroup .amethystora-screenshot-thumb-button:hover,
+#uiGroup .amethystora-screenshot-pin-button:hover,
+#uiGroup .amethystora-screenshot-pin-button:checked {
+  background-color: rgba({{ foreground_rgb }}, 0.18);
+}
+
+#uiGroup .amethystora-screenshot-thumb-button:focus {
+  box-shadow: inset 0 0 0 2px {{ accent }};
+}
+
+#uiGroup .amethystora-screenshot-thumb-pin,
+#uiGroup .amethystora-screenshot-thumb-pin:hover {
+  color: {{ accent_fg }};
+  background-color: rgba({{ accent_bg_rgb }}, 0.6);
+}
+
+#uiGroup .amethystora-screenshot-badge {
+  color: {{ accent_fg }};
+  background-color: {{ accent_bg }};
+}
+
+#uiGroup .amethystora-screenshot-pin-ring {
+  border-color: rgba({{ accent_rgb }}, 0.6);
+}
+
+#uiGroup .amethystora-screenshot-pin-through .amethystora-screenshot-pin-ring {
+  border-color: rgba({{ color3_rgb }}, 0.8);
+}
+
+#uiGroup .amethystora-screenshot-pin-shared {
+  color: {{ color3 }};
 }

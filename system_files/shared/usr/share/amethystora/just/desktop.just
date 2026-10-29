@@ -2753,3 +2753,115 @@ touch *ARGS:
             ;;
         *) usage ;;
     esac
+
+# Present mode (offered, off): on|off offers it (a Present tile, a question when a screen is plugged in, Super+Alt+D to draw on the screen); mark halo|torch|none, the pointer while presenting; ask on|off, the question
+[positional-arguments]
+present WHAT="" VALUE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.present
+    usage() {
+        echo "usage: ame desktop present on|off | mark halo|torch|none | ask on|off"
+        exit 64
+    }
+    case "${1:-}/${2:-}" in
+        /)
+            if [[ "$(gsettings get "${schema}" enabled)" == true ]]; then
+                echo "$(gettext "Present mode is offered: the Present tile is in quick settings, and Super+Alt+D draws on the screen.")"
+            else
+                echo "$(gettext "Present mode is off. Turn it on with: ame desktop present on")"
+            fi
+            ;;
+        on/)
+            gsettings set "${schema}" enabled true
+            echo "$(gettext "Present mode is offered: the Present tile is in quick settings, and Super+Alt+D draws on the screen.")"
+            echo "$(gettext "While you present, the screen stays awake, banners wait and the pointer is easy to follow.")"
+            ;;
+        off/)
+            gsettings set "${schema}" enabled false
+            echo "$(gettext "Present mode is off.")"
+            ;;
+        mark/halo | mark/torch | mark/none)
+            gsettings set "${schema}" pointer-mark "$2"
+            case "$2" in
+                halo) echo "$(gettext "While presenting, a halo follows the pointer.")" ;;
+                torch) echo "$(gettext "While presenting, everything but a circle round the pointer is dimmed.")" ;;
+                none) echo "$(gettext "While presenting, the pointer is left as it is.")" ;;
+            esac
+            ;;
+        ask/on)
+            gsettings set "${schema}" ask-on-screen true
+            echo "$(gettext "When a screen is plugged in, you are asked whether to present on it.")"
+            ;;
+        ask/off)
+            gsettings set "${schema}" ask-on-screen false
+            echo "$(gettext "Plugging in a screen asks nothing.")"
+            ;;
+        *) usage ;;
+    esac
+
+# Screenshots: thumbnail on|off, the thumbnail after a capture (off, GNOME's notification); pin on|off, pinning pictures on top
+[positional-arguments]
+screenshot WHAT="" STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.screenshot
+    usage() {
+        echo "usage: ame desktop screenshot thumbnail|pin on|off"
+        exit 64
+    }
+    case "${1:-}/${2:-}" in
+        /)
+            if [[ "$(gsettings get "${schema}" capture-thumbnail)" == true ]]; then thumbnail=on; else thumbnail=off; fi
+            if [[ "$(gsettings get "${schema}" capture-pin)" == true ]]; then pin=on; else pin=off; fi
+            echo "$(eval_gettext "The thumbnail after a screenshot: \${thumbnail}. Pinning pictures on top: \${pin}.")"
+            ;;
+        thumbnail/on)
+            gsettings set "${schema}" capture-thumbnail true
+            echo "$(gettext "After a screenshot, a thumbnail rests at the bottom right: edit, copy, pin, show or delete it.")"
+            ;;
+        thumbnail/off)
+            gsettings set "${schema}" capture-thumbnail false
+            echo "$(gettext "After a screenshot, GNOME's notification says it was taken.")"
+            ;;
+        pin/on)
+            gsettings set "${schema}" capture-pin true
+            echo "$(gettext "A screenshot can be pinned above every window, from its thumbnail or with Pin in the screenshot bar.")"
+            ;;
+        pin/off)
+            gsettings set "${schema}" capture-pin false
+            echo "$(gettext "Pinning pictures is off; pinned pictures are gone.")"
+            ;;
+        *) usage ;;
+    esac
+
+# Widgets on the desktop (offered, off): widgets whose widget.json says "place": "desktop" drawn on the wallpaper, under the windows
+[positional-arguments]
+desktop-widgets STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.deskwidgets
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" enabled)" == true ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" enabled true
+            echo "$(gettext "Widgets on the desktop: on. A widget placed on the desktop in its widget.json is drawn on the wallpaper.")"
+            ;;
+        off)
+            gsettings set "${schema}" enabled false
+            echo "$(gettext "Widgets on the desktop: off. Their commands do not run.")"
+            ;;
+        *)
+            echo "usage: ame desktop desktop-widgets on|off"
+            exit 64
+            ;;
+    esac

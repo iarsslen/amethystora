@@ -12,12 +12,13 @@
 //   plate         '' or the plate's own look: 'link', 'battery', 'saver', 'quiet', 'focus'
 //   activate()    optional: what a click on the pill's body does instead of opening the card
 //
+// Present mode's mark (modules/present.js) follows a recording: it says what the screen is for now.
 // A focus profile's mark (modules/focus/mark.js) comes last: it says what the desktop is set to, not what happens.
 
 // Reading aloud (modules/access/speech.js) comes after what waits for the person and before what runs by itself: the
 // person has just asked for it.
-export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'reading', 'timer', 'news', 'media',
-    'update', 'quiet', 'focus'];
+export const ORDER = ['call', 'recording', 'present', 'link', 'battery', 'waiting', 'reading', 'timer', 'news',
+    'media', 'update', 'quiet', 'focus'];
 
 // At most this many others are listed in a card
 const OTHERS = 3;

@@ -2380,7 +2380,7 @@ msgstr ""
 msgid "Pointer"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
 msgid "Halo"
 msgstr ""
 
@@ -3242,6 +3242,14 @@ msgid "Small commands whose output the top bar shows. Each runs as you, with eve
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Widgets on the desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Widgets placed on the desktop in their widget.json are drawn on the wallpaper, under the windows."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Theme in quick settings"
 msgstr ""
 
@@ -3637,6 +3645,66 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Focus: Sleep"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "Presenting"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Present mode"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A Present tile in quick settings: the screen stays awake, banners wait and the pointer is easy to follow. Super+Alt+D draws on the screen."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A disc round the pointer"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "Torch"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything but a circle round the pointer dimmed"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "No mark"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pointer while presenting"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Ask when a screen is plugged in"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Once for each screen, while Present mode is on. Nothing happens without your click."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Screenshots"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A thumbnail after a screenshot"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Edit, copy, pin, show or delete it from the bottom right corner. Off, GNOME's notification says it was taken."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pin pictures on top"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Keep a screenshot above every window while you work below it."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -5966,11 +6034,11 @@ msgstr ""
 msgid "Type the text, then press Ctrl+D on a line of its own."
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
+#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/deskwidgets.js
 msgid "Fix it with the AI agent"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
+#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/deskwidgets.js
 msgid "Open its folder"
 msgstr ""
 
@@ -6108,7 +6176,7 @@ msgid "Start"
 msgstr ""
 
 #. Translators: a choice in a menu: to stop Android
-#: usr/share/amethystora/just/apps.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+#: usr/share/amethystora/just/apps.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
 msgid "Stop"
 msgstr ""
 
@@ -7559,6 +7627,71 @@ msgstr ""
 msgid "To open them from the pen's side button: ame desktop touch pen-button on"
 msgstr ""
 
+#: usr/share/amethystora/just/desktop.just
+msgid "Present mode is offered: the Present tile is in quick settings, and Super+Alt+D draws on the screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Present mode is off. Turn it on with: ame desktop present on"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "While you present, the screen stays awake, banners wait and the pointer is easy to follow."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Present mode is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "While presenting, a halo follows the pointer."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "While presenting, everything but a circle round the pointer is dimmed."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "While presenting, the pointer is left as it is."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "When a screen is plugged in, you are asked whether to present on it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Plugging in a screen asks nothing."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The thumbnail after a screenshot: ${thumbnail}. Pinning pictures on top: ${pin}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "After a screenshot, a thumbnail rests at the bottom right: edit, copy, pin, show or delete it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "After a screenshot, GNOME's notification says it was taken."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A screenshot can be pinned above every window, from its thumbnail or with Pin in the screenshot bar."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Pinning pictures is off; pinned pictures are gone."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Widgets on the desktop: on. A widget placed on the desktop in its widget.json is drawn on the wallpaper."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Widgets on the desktop: off. Their commands do not run."
+msgstr ""
+
 #: usr/share/amethystora/just/report.just
 msgid "Gathering what a bug report needs. It stays on this machine until you choose otherwise."
 msgstr ""
@@ -8712,7 +8845,7 @@ msgid "Open"
 msgstr ""
 
 #. Translators: a choice about the private folder, which is open: close it.
-#: usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/card.js
+#: usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
 msgid "Close"
 msgstr ""
 
@@ -9792,7 +9925,7 @@ msgstr ""
 msgid "Your phone"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/card.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
 msgid "Copy"
 msgstr ""
 
@@ -10434,6 +10567,10 @@ msgid "Quiet while sharing"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Quiet while presenting"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
 msgid "Quiet until %s"
 msgstr ""
 
@@ -10463,6 +10600,10 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
 msgid "the screen is recorded"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "you present"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
@@ -10987,6 +11128,58 @@ msgstr ""
 msgid "Said once per app per hour. Never for a game in front."
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js
+msgid "Drawing on the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+msgid "Pen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+msgid "Highlighter"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js
+msgid "Pink"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+msgid "Yellow"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+msgid "Blue"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present/scribble.js
+msgid "Clear · Esc"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "Presenting · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "Presenting for %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "The screen stays awake and banners wait until you stop. Super+Alt+D draws on the screen."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "Present"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "Present on the new screen?"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
+msgid "The screen stays awake, banners wait, and the pointer is easy to follow."
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
 msgid "Show %s"
 msgstr ""
@@ -11162,11 +11355,47 @@ msgid "Copied"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/card.js
-msgid "Edit in Gradia"
+msgid "Edit"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/card.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/session.js
+msgid "Pin on top"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/card.js
 msgid "Show in Files"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/card.js
+msgid "Delete"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "Pinned picture"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "Shown in the share"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "Clicks pass through"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "Save as…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "Solid"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "See-through"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/pins.js
+msgid "Faint"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/session.js
@@ -11182,19 +11411,11 @@ msgid "Move or delete a mark"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
-msgid "Pen"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
 msgid "Box"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
 msgid "Filled box, to hide something"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
-msgid "Highlighter"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
@@ -11226,15 +11447,7 @@ msgid "Orange"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
-msgid "Yellow"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
 msgid "Green"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
-msgid "Blue"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js

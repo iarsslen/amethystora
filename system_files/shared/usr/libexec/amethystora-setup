@@ -23,7 +23,7 @@
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
 #                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus, power,
-#                access, touch}: the window
+#                access, touch, present, screenshot, deskwidgets}: the window
 #                layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
@@ -44,8 +44,11 @@
 #                each focus profile does and its two triggers (FOCUS_KEYS; never the profile on now, when it ends, or
 #                a saved set it names, which are this machine's), colour filters, the reading ruler and reading
 #                aloud (ACCESS_KEYS; never whether a filter or the ruler is drawn this moment), touch mode and the
-#                pen's tools (TOUCH_KEYS; never the pens' own buttons, GNOME's settings of this machine's pens), and
-#                no other GNOME
+#                pen's tools (TOUCH_KEYS; never the pens' own buttons, GNOME's settings of this machine's pens), Present mode,
+#                its pointer and its question (PRESENT_KEYS; never Scribble's key), the screenshot's thumbnail and
+#                pinning (SCREENSHOT_KEYS; never
+#                the drawing tools' colours), widgets on the desktop (DESKWIDGETS_KEYS; never a widget, which is a
+#                command), and no other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
 #                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
@@ -230,6 +233,16 @@ ACCESS_KEYS='{
 TOUCH=org.gnome.shell.extensions.amethystora-ui.touch
 TOUCH_KEYS='{"touch-mode": ["s", ["off", "follow", "on"]], "pen-ring": ["s", ["off", "ring", "strip"]],
     "pen-ring-tools": ["as", "pen-tools"]}'
+# Present mode (offered), the pointer while presenting and the question when a screen is plugged in. Never scribble, the
+# keybinding, which is the image's
+PRESENT=org.gnome.shell.extensions.amethystora-ui.present
+PRESENT_KEYS='{"enabled": ["b"], "pointer-mark": ["s", ["halo", "torch", "none"]], "ask-on-screen": ["b"]}'
+# The thumbnail after a screenshot and pinning pictures on top. Never tool-settings, the drawing tools' last colours
+SCREENSHOT=org.gnome.shell.extensions.amethystora-ui.screenshot
+SCREENSHOT_KEYS='{"capture-thumbnail": ["b"], "capture-pin": ["b"]}'
+# Widgets on the desktop: the switch only; the widgets themselves are commands, which a setup file never carries
+DESKWIDGETS=org.gnome.shell.extensions.amethystora-ui.deskwidgets
+DESKWIDGETS_KEYS='{"enabled": ["b"]}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -360,7 +373,8 @@ if type != "object" then "it is not a JSON object" else
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
             "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look", "transitions",
-            "hints", "appgrid", "focus", "power", "access", "touch"]; "settings."),
+            "hints", "appgrid", "focus", "power", "access", "touch", "present",
+            "screenshot", "deskwidgets"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -477,6 +491,18 @@ if type != "object" then "it is not a JSON object" else
             at("touch"; only($touch | keys; "settings.touch."),
                 (if type == "object" then to_entries[] | select(.key | IN($touch | keys[])) | $touch[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.touch.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("present"; only($present | keys; "settings.present."),
+                (if type == "object" then to_entries[] | select(.key | IN($present | keys[])) | $present[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.present.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("screenshot"; only($screenshot | keys; "settings.screenshot."),
+                (if type == "object" then to_entries[] | select(.key | IN($screenshot | keys[])) | $screenshot[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.screenshot.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("deskwidgets"; only($deskwidgets | keys; "settings.deskwidgets."),
+                (if type == "object" then to_entries[] | select(.key | IN($deskwidgets | keys[])) | $deskwidgets[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.deskwidgets.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -497,6 +523,8 @@ check() {
         --argjson transitions "${TRANSITIONS_KEYS}" --argjson hints "${HINTS_KEYS}" --argjson appgrid "${APPGRID_KEYS}" \
         --argjson focus "${FOCUS_KEYS}" --argjson power "${POWER_KEYS}" \
         --argjson access "${ACCESS_KEYS}" --argjson touch "${TOUCH_KEYS}" \
+        --argjson present "${PRESENT_KEYS}" --argjson screenshot "${SCREENSHOT_KEYS}" \
+        --argjson deskwidgets "${DESKWIDGETS_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -638,7 +666,8 @@ current() {
             value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
-        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch; do
+        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
+            present screenshot deskwidgets; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -655,6 +684,9 @@ current() {
                 focus) schema="${FOCUS}" ;;
                 access) schema="${ACCESS}" ;;
                 touch) schema="${TOUCH}" ;;
+                present) schema="${PRESENT}" ;;
+                screenshot) schema="${SCREENSHOT}" ;;
+                deskwidgets) schema="${DESKWIDGETS}" ;;
             esac
             while read -r key; do
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
@@ -669,7 +701,8 @@ current() {
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
         workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
         bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}, power: {}, access: {},
-        touch: {}};
+        touch: {}, present: {},
+        screenshot: {}, deskwidgets: {}};
         . * $x)'
 }
 
@@ -804,7 +837,8 @@ def brew($x; $k): $x.brew[$k] // [];
     ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
         | {area: "pill", action: "remove", key: $k, from: .value}),
     (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus", "power",
-        "access", "touch") as $a
+        "access", "touch", "present",
+        "screenshot", "deskwidgets") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners",
@@ -880,12 +914,14 @@ def text:
     elif .area == "quick" or .area == "bars" or .area == "today" or .area == "breaks"
         or .area == "search" or .area == "emoji" or .area == "bezel" or .area == "sound"
         or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" or .area == "power"
-        or .area == "access" or .area == "touch" then
+        or .area == "access" or .area == "touch"
+        or .area == "present" or .area == "screenshot" or .area == "deskwidgets" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
             search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's",
             transitions: "the transitions'", hints: "the tips'", appgrid: "the app grid's",
             focus: "focus profiles'", power: "the power module's",
-            access: "seeing and reading's", touch: "touch and pen's"}[.area]
+            access: "seeing and reading's", touch: "touch and pen's",
+            present: "Present mode's", screenshot: "the screenshot's", deskwidgets: "the desktop widgets'"}[.area]
         + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
@@ -1128,7 +1164,8 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
+        present screenshot deskwidgets; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1145,6 +1182,9 @@ add_all() {
             focus) schema="${FOCUS}" label="focus profiles'" ;;
             access) schema="${ACCESS}" label="seeing and reading's" ;;
             touch) schema="${TOUCH}" label="touch and pen's" ;;
+            present) schema="${PRESENT}" label="Present mode's" ;;
+            screenshot) schema="${SCREENSHOT}" label="the screenshot's" ;;
+            deskwidgets) schema="${DESKWIDGETS}" label="the desktop widgets'" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
         for change in "${changes[@]}"; do
@@ -1245,7 +1285,8 @@ remove_all() {
     for name in "${names[@]}"; do
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
+        present screenshot deskwidgets; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1262,6 +1303,9 @@ remove_all() {
             focus) schema="${FOCUS}" label="focus profiles'" ;;
             access) schema="${ACCESS}" label="seeing and reading's" ;;
             touch) schema="${TOUCH}" label="touch and pen's" ;;
+            present) schema="${PRESENT}" label="Present mode's" ;;
+            screenshot) schema="${SCREENSHOT}" label="the screenshot's" ;;
+            deskwidgets) schema="${DESKWIDGETS}" label="the desktop widgets'" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
         for name in "${names[@]}"; do
@@ -1372,6 +1416,9 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-ui.bezel"; ($s.bezel // {})),
           section("org.gnome.desktop.sound"; ($s.sound // {})),
           section("org.gnome.shell.extensions.amethystora-ui.focus"; ($s.focus // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.present"; ($s.present // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.screenshot"; ($s.screenshot // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.deskwidgets"; ($s.deskwidgets // {})),
           section("org.gnome.shell.extensions.amethystora-ui.theme";
             ($s.look // {} | with_entries(select(.key | IN("accent-per-workspace", "workspace-accents"))))),
           section("org.gnome.shell.extensions.amethystora-transitions"; ($s.transitions // {})),

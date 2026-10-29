@@ -51,6 +51,27 @@ items run commands, open links or flip switches.
 guide to it, `/usr/share/amethystora/agents/skills/amethystora-widgets/SKILL.md`; the examples are in
 `/usr/share/amethystora/widgets/examples`.
 
+## On the desktop
+
+A widget can be a small card on your wallpaper instead of a button in the bar: a clock, a build's status, the
+day's tasks. Turn widgets on the desktop on in Control (**Desktop**, **Widgets on the desktop**) or with
+`ame desktop desktop-widgets on`, then add to its `widget.json`:
+
+```json
+{"name": "Clock", "command": "./clock.sh", "interval": 60, "place": "desktop", "position": "top-left", "size": "large"}
+```
+
+- `place` is `desktop` (the bar is the default, `bar`).
+- `position` is the corner of the screen: `top-left`, `top-right` (the default), `bottom-left` or
+  `bottom-right`. Several widgets in one corner stack, in their `order`.
+- `size` is `large` for a first line in large letters, as a clock has; `normal` otherwise.
+
+The card shows what the command prints, as the bar would: the icon beside the first line, the next lines a
+little smaller (six lines at most), the colour on the last one. A click runs its `click` or opens its menu. The
+cards are on the main screen, under your windows, and not in the overview, and run while the widgets extension
+itself is on. A desktop widget never shows in the bar, and while widgets on the desktop are off it does not run at
+all. `amethystora-widgets run` checks it the same way.
+
 ## Safety
 
 A widget runs as you, with access to your files, like any program you start. Only keep widgets you

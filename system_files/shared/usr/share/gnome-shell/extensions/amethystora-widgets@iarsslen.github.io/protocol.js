@@ -3,14 +3,20 @@
 // Plain JavaScript with no GNOME imports. The agent skill amethystora-widgets documents every field
 // here for the people and agents who write widgets: keep the two in step.
 //
-// widget.json: {"name", "description", "command", "interval", "position", "order"}
+// widget.json: {"name", "description", "command", "interval", "position", "order", "place", "size"}
+// "place" is "bar" (the top bar, the default) or "desktop" (a card on the wallpaper, drawn by Amethystora UI's
+// deskwidgets module while widgets on the desktop are on); a desktop widget's "position" is a corner and its
+// "size" says how large its first line is.
 // What the command prints, each update on one line: plain text, or
 //   {"text", "icon", "class", "click", "hidden", "menu": [{"label", "icon", "run", "open", "toggle"} | {"separator": true}]}
 
 export const POSITIONS = ['left', 'center', 'right'];
+export const PLACES = ['bar', 'desktop'];
+export const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+export const SIZES = ['normal', 'large'];
 export const CLASSES = ['accent', 'good', 'warning', 'critical'];
 
-const MANIFEST_FIELDS = ['name', 'description', 'command', 'interval', 'position', 'order'];
+const MANIFEST_FIELDS = ['name', 'description', 'command', 'interval', 'position', 'order', 'place', 'size'];
 const OUTPUT_FIELDS = ['text', 'icon', 'class', 'click', 'hidden', 'menu'];
 const ITEM_FIELDS = ['label', 'icon', 'run', 'open', 'toggle', 'separator'];
 
@@ -40,13 +46,17 @@ export function parseManifest(text) {
         return {errors: ['widget.json has to hold one object'], warnings};
     unknownFields(data, MANIFEST_FIELDS, 'widget.json', warnings);
 
+    const place = data.place ?? 'bar';
+    const desktop = place === 'desktop';
     const manifest = {
         name: data.name,
         description: data.description ?? '',
         command: data.command,
         interval: data.interval ?? 60,
-        position: data.position ?? 'right',
+        position: data.position ?? (desktop ? 'top-right' : 'right'),
         order: data.order ?? 0,
+        place,
+        size: data.size ?? 'normal',
     };
     if (!isText(manifest.name))
         errors.push('"name" has to be the name of the widget');
@@ -56,8 +66,16 @@ export function parseManifest(text) {
         errors.push('"command" has to be a command line, or the list of its arguments');
     if (!Number.isInteger(manifest.interval) || manifest.interval < 0)
         errors.push('"interval" has to be a whole number of seconds, or 0 for a command that keeps running');
-    if (!POSITIONS.includes(manifest.position))
+    if (!PLACES.includes(place))
+        errors.push(`"place" has to be one of ${PLACES.join(', ')}`);
+    else if (desktop && !CORNERS.includes(manifest.position))
+        errors.push(`"position" of a widget on the desktop has to be one of ${CORNERS.join(', ')}`);
+    else if (!desktop && !POSITIONS.includes(manifest.position))
         errors.push(`"position" has to be one of ${POSITIONS.join(', ')}`);
+    if (!SIZES.includes(manifest.size))
+        errors.push(`"size" has to be one of ${SIZES.join(', ')}`);
+    else if (!desktop && data.size !== undefined)
+        warnings.push('"size" is read only on the desktop ("place": "desktop"), ignored');
     if (!Number.isInteger(manifest.order))
         errors.push('"order" has to be a whole number');
     return {manifest: errors.length ? undefined : manifest, errors, warnings};

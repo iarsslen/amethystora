@@ -267,12 +267,21 @@ saved="$(sed -n 's/^FOCUS_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystor
 [[ "${saved}" == "${listed}" ]] ||
     { echo "the manifest saves other focus keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 # Seeing and reading, and touch and pen: every key of their schemas but whether a filter or the ruler is drawn this moment
-# and the shortcuts, each of the schema's type, range or choices; the pen's tools by name; and the manifest saves the same
-for table in ACCESS:org.gnome.shell.extensions.amethystora-ui.access TOUCH:org.gnome.shell.extensions.amethystora-ui.touch; do
-    name="${table%%:*}" id="${table#*:}"
-    TABLE="$(bash -c "$(sed -n "/^${name}_KEYS='/,/'\$/p" "${SETUP}")"'; printf "%s" "${'"${name}"'_KEYS}"')"
+# and the shortcuts, each of the schema's type, range or choices; the pen's tools by name. Present mode, the screenshot's
+# thumbnail and pins, and widgets on the desktop likewise: every key but Scribble's keybinding and the drawing tools'
+# colours. The manifest saves the same keys.
+for table in 'ACCESS:org.gnome.shell.extensions.amethystora-ui.access:filter-on|ruler-shown|.*-key' \
+    'TOUCH:org.gnome.shell.extensions.amethystora-ui.touch:filter-on|ruler-shown|.*-key' \
+    PRESENT:org.gnome.shell.extensions.amethystora-ui.present:scribble \
+    SCREENSHOT:org.gnome.shell.extensions.amethystora-ui.screenshot:tool-settings \
+    DESKWIDGETS:org.gnome.shell.extensions.amethystora-ui.deskwidgets:-; do
+    IFS=: read -r name id left_out <<<"${table}"
+    TABLE="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+    # A table over several lines is read as bash reads it
+    [[ -n "${TABLE}" ]] ||
+        TABLE="$(bash -c "$(sed -n "/^${name}_KEYS='/,/'\$/p" "${SETUP}")"'; printf "%s" "${'"${name}"'_KEYS}"')"
     listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
-    schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${id}" | grep -vxE 'filter-on|ruler-shown|.*-key' | sort)"
+    schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${id}" | grep -vxE -- "${left_out}" | sort)"
     [[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
         { echo "${name}_KEYS and ${id} differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
     while read -r key; do
@@ -350,7 +359,13 @@ org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'sky
 org.gnome.shell.extensions.amethystora-transitions reveal true
 org.gnome.shell.extensions.amethystora-ui.hints enabled true
 org.gnome.shell.extensions.amethystora-ui.appgrid recent true
-org.gnome.shell.extensions.amethystora-ui.power busy-app true"
+org.gnome.shell.extensions.amethystora-ui.power busy-app true
+org.gnome.shell.extensions.amethystora-ui.present enabled false
+org.gnome.shell.extensions.amethystora-ui.present pointer-mark 'halo'
+org.gnome.shell.extensions.amethystora-ui.present ask-on-screen true
+org.gnome.shell.extensions.amethystora-ui.screenshot capture-thumbnail true
+org.gnome.shell.extensions.amethystora-ui.screenshot capture-pin true
+org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled false"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -477,7 +492,9 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.power = {"busy-app": false}
     | .settings.focus = {"games-power": "as-set", "trigger-sleep": true, "work-apps": ["org.gnome.Nautilus.desktop"]}
     | .settings.access = {"filter": "deutan", "filter-strength": 75}
-    | .settings.touch = {"touch-mode": "follow", "pen-ring-tools": ["area", "back"]}' \
+    | .settings.touch = {"touch-mode": "follow", "pen-ring-tools": ["area", "back"]}
+    | .settings.present = {"enabled": true, "pointer-mark": "torch"} | .settings.screenshot = {"capture-pin": false}
+    | .settings.deskwidgets = {"enabled": true}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -503,6 +520,10 @@ grep -qxF "  ~ focus profiles' trigger-sleep: true, in place of false" <<<"${out
 grep -qxF '  ~ seeing and reading'"'"'s filter: "deutan", in place of "none"' <<<"${out}"
 grep -qxF "  ~ seeing and reading's filter-strength: 75, in place of 100" <<<"${out}"
 grep -qxF '  ~ touch and pen'"'"'s touch-mode: "follow", in place of "off"' <<<"${out}"
+grep -qxF "  ~ Present mode's enabled: true, in place of false" <<<"${out}"
+grep -qxF '  ~ Present mode'"'"'s pointer-mark: "torch", in place of "halo"' <<<"${out}"
+grep -qxF "  ~ the screenshot's capture-pin: false, in place of true" <<<"${out}"
+grep -qxF "  ~ the desktop widgets' enabled: true, in place of false" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus games-power "as-set"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep true" "${LOG}"
@@ -516,6 +537,10 @@ grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.power busy-app
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.access filter "deutan"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.access filter-strength 75" "${LOG}"
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.touch pen-ring-tools ["area","back"]' "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.present enabled true" "${LOG}"
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.present pointer-mark "torch"' "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.screenshot capture-pin false" "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled true" "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
@@ -648,7 +673,13 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"touch": {"pen-ring-key": ["<Super>p"]}}}' \
     '{"version": 1, "settings": {"touch": {"pen-ring-tools": []}}}' \
     '{"version": 1, "settings": {"touch": {"pen-ring-tools": ["area", "area"]}}}' \
-    '{"version": 1, "settings": {"touch": {"pen-ring-tools": ["rm -rf ~"]}}}'; do
+    '{"version": 1, "settings": {"touch": {"pen-ring-tools": ["rm -rf ~"]}}}' \
+    '{"version": 1, "settings": {"present": {"scribble": ["<Super>d"]}}}' \
+    '{"version": 1, "settings": {"present": {"pointer-mark": "laser"}}}' \
+    '{"version": 1, "settings": {"present": {"enabled": "on"}}}' \
+    '{"version": 1, "settings": {"screenshot": {"tool-settings": {}}}}' \
+    '{"version": 1, "settings": {"screenshot": {"capture-pin": 1}}}' \
+    '{"version": 1, "settings": {"deskwidgets": {"widgets": ["clock"]}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }

@@ -390,6 +390,19 @@ for example in /usr/share/amethystora/widgets/examples/*/; do
     test -x "${example}widget.sh"
     HOME="${WIDGETS_HOME}" GSETTINGS_BACKEND=memory gjs -m "${WIDGETS_EXTENSION}/check.js" "${example}"
 done
+# A widget on the desktop (plans/beyond/spec-r4-capture.md, R4-19): the same check passes it, a bar position there fails,
+# the bar leaves it to Amethystora UI's deskwidgets module, which runs it with this extension's own runner
+DESK_WIDGET="${WIDGETS_HOME}/desk"
+mkdir -p "${DESK_WIDGET}"
+printf '#!/usr/bin/bash\necho "14:32"\n' >"${DESK_WIDGET}/widget.sh"
+chmod +x "${DESK_WIDGET}/widget.sh"
+echo '{"name": "Clock", "command": "./widget.sh", "place": "desktop", "position": "top-left", "size": "large"}' \
+    >"${DESK_WIDGET}/widget.json"
+HOME="${WIDGETS_HOME}" GSETTINGS_BACKEND=memory gjs -m "${WIDGETS_EXTENSION}/check.js" "${DESK_WIDGET}" >/dev/null
+echo '{"name": "Clock", "command": "./widget.sh", "place": "desktop", "position": "left"}' >"${DESK_WIDGET}/widget.json"
+HOME="${WIDGETS_HOME}" GSETTINGS_BACKEND=memory gjs -m "${WIDGETS_EXTENSION}/check.js" "${DESK_WIDGET}" >/dev/null 2>&1 && false
+grep -q "widget.manifest?.place === 'desktop'" "${WIDGETS_EXTENSION}/extension.js"
+grep -q "get_child('runner.js')" /usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/deskwidgets.js
 rm -rf "${WIDGETS_HOME}"
 # Amethystora Clipboard, Clipboard Indicator's copy that seals its history: enabled, claiming this GNOME, its
 # settings where gsettings finds them and Control's command for keep-history there, nothing of Clipboard
@@ -762,6 +775,35 @@ for pair in work-banners:apps games-banners:held sleep-banners:held games-dock:t
     [[ "$(GSETTINGS_BACKEND=memory gsettings get "${FOCUS}" "${pair%%:*}")" == "'${pair#*:}'" ]]
 done
 [[ "$(grep -oE "^    \['[a-z]+'," "${UI_EXTENSION}/extension.js" | tail -n1)" == "    ['focus'," ]]
+# Present mode and widgets on the desktop (R4-02, R4-19): offered and off, their keys only these; present starts after
+# the pill, whose hold it asks, and widgets on the desktop after the glass, which draws their cards
+PRESENT_SCHEMA=org.gnome.shell.extensions.amethystora-ui.present
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${PRESENT_SCHEMA}" | sort | paste -sd ' ')" == \
+    "ask-on-screen enabled pointer-mark scribble" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRESENT_SCHEMA}" enabled)" == false ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRESENT_SCHEMA}" pointer-mark)" == "'halo'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRESENT_SCHEMA}" ask-on-screen)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRESENT_SCHEMA}" scribble)" == "['<Super><Alt>d']" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.deskwidgets)" == enabled ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled)" == false ]]
+# In order, not side by side: other groups' modules may come between (focus is last, checked with Focus profiles)
+[[ "$(grep -oE "^    \['(pill|glass|tiling|present|deskwidgets|focus)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['pill',     ['glass',     ['tiling',     ['present',     ['deskwidgets',     ['focus'," ]]
+# No other maker's names in what they show or are called
+[[ -z "$(grep -rniE 'macos|mac os|tahoe|genie|mission control|spotlight|launchpad|quick look|stage manager|exposé' \
+    "${UI_EXTENSION}/modules/present.js" "${UI_EXTENSION}/modules/present" "${UI_EXTENSION}/modules/deskwidgets.js" \
+    "${UI_EXTENSION}/modules/screenshot" "${UI_EXTENSION}/schemas/${PRESENT_SCHEMA}.gschema.xml" \
+    /usr/share/amethystora/themed/shell-present.css.tpl)" ]] || { echo "present names another maker's feature"; exit 1; }
+for file in modules/present.js modules/present/mark.js modules/present/scribble.js modules/deskwidgets.js \
+    modules/screenshot/pins.js modules/screenshot/picture.js stylesheets/present.css stylesheets/deskwidgets.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+# Nothing they show is markup, nothing they run is a shell: the present module spawns nothing, the desktop's widgets
+# run only through the widgets extension's runner
+grep -rqE "use_markup = true|set_use_markup\(true\)" "${UI_EXTENSION}/modules/present.js" "${UI_EXTENSION}/modules/present" \
+    "${UI_EXTENSION}/modules/deskwidgets.js" "${UI_EXTENSION}/modules/screenshot/pins.js" && false
+grep -rqE "Util\.spawn|Subprocess|spawn_command_line" "${UI_EXTENSION}/modules/present.js" "${UI_EXTENSION}/modules/present" \
+    "${UI_EXTENSION}/modules/deskwidgets.js" && false
 for file in modules/focus.js modules/focus/icons.js modules/focus/mark.js modules/focus/night.js \
     modules/focus/picture.js modules/focus/power.js modules/focus/profiles.js modules/focus/state.js \
     modules/focus/tile.js modules/focus/triggers.js stylesheets/focus.css; do
@@ -819,7 +861,19 @@ grep -q "Clutter.KEY_e" "${UI_EXTENSION}/modules/screenshot.js"
 grep -q -- "'flatpak', 'run', GRADIA, \`--ocr-file=" "${UI_EXTENSION}/modules/screenshot.js"
 grep -q "^export const GRADIA = 'be.alexandervanhee.gradia';$" "${UI_EXTENSION}/modules/screenshot/capture.js"
 test -s "${UI_EXTENSION}/icons/screenshot/extract-symbolic.svg"
-[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.screenshot)" == "tool-settings" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.screenshot | sort | paste -sd ' ')" == \
+    "capture-pin capture-thumbnail tool-settings" ]]
+# Pin a capture (R4-17): the thumbnail and pinning on as the image ships, the bar's Pin button and Ctrl+P, the pin's two
+# icons drawn for the extension, at most six pinned, and a pinned picture never saved by itself
+for key in capture-thumbnail capture-pin; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.screenshot "${key}")" == true ]]
+done
+grep -q "_('Pin on top')" "${UI_EXTENSION}/modules/screenshot/session.js"
+grep -q "Clutter.KEY_p" "${UI_EXTENSION}/modules/screenshot.js"
+grep -q "^export const MOST = 6;$" "${UI_EXTENSION}/modules/screenshot/pins.js"
+test -s "${UI_EXTENSION}/icons/screenshot/pin-symbolic.svg"
+test -s "${UI_EXTENSION}/icons/screenshot/through-symbolic.svg"
+grep -qE "saveToFolder|replace_contents" "${UI_EXTENSION}/modules/screenshot/pins.js" && false
 # Uninstalling from an app's menu: Flatpak's own command, as the account, and Bazaar for the details
 grep -qF "['uninstall', user ? '--user' : (extra ? installation : '--system'), '-y', id]" "${UI_EXTENSION}/modules/bazaar.js"
 grep -qF 'appstream:' "${UI_EXTENSION}/modules/bazaar.js"
@@ -886,6 +940,13 @@ grep -qx "<super>return" <<<"${KEPT_COMBOS}"
 # The quick note's Super+Alt+N (custom30) is the image's: no tiling key takes it
 grep -qx "<alt><super>n" <<<"${KEPT_COMBOS}"
 [[ -z "$(LC_ALL=C comm -12 <(echo "${TILING_COMBOS}") <(echo "${KEPT_COMBOS}"))" ]]
+# Super+Alt+D is Scribble's (the present module's own key, R4-02): neither the tiling nor a kept binding has it
+if grep -qx "<alt><super>d" <<<"${TILING_COMBOS}"$'\n'"${KEPT_COMBOS}"; then
+    echo "Super+Alt+D is bound by the tiling or a kept binding, and is Scribble's"
+    exit 1
+fi
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.present scribble | keycombos)" == \
+    "<alt><super>d" ]]
 # Super+. is the emoji picker's: neither the tiling nor a kept binding has it
 if grep -qx "<super>period" <<<"${TILING_COMBOS}"$'\n'"${KEPT_COMBOS}"; then
     echo "Super+. is bound by the tiling or a kept binding, and is the emoji picker's"

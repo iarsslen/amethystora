@@ -114,12 +114,83 @@
   background-color: rgba(0, 0, 0, 0.75);
 }
 
-/* The preview card */
-.amethystora-screenshot-card {
-  border: 3.5px solid #1e1e22;
+/* The thumbnail after a capture (board 48): 210 px wide with 10 px round it, corners of 20, the picture 110 px high
+   with corners of 10 (drawn by the picture itself), a row of 32 px buttons with corners of 10. A glass pane; the
+   colours here stand in until a theme is applied. */
+.amethystora-screenshot-thumb {
+  padding: 10px;
+  spacing: 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: rgba(26, 16, 42, 0.92);
+  color: #ffffff;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
+.amethystora-screenshot-thumb-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.amethystora-screenshot-thumb-button:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.amethystora-screenshot-thumb-button:focus {
+  box-shadow: inset 0 0 0 2px -st-accent-color;
+}
+
+.amethystora-screenshot-thumb-pin {
+  background-color: rgba(145, 72, 240, 0.6);
+}
+
+/* A picture pinned on top: corners of 12 (drawn by the picture), its shadow, and a ring 2 px outside it in the accent,
+   amber while clicks pass through it */
+.amethystora-screenshot-pin {
   border-radius: 12px;
-  background-color: #1e1e22;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+.amethystora-screenshot-pin-ring {
+  border: 2px solid rgba(220, 188, 255, 0.6);
+  border-radius: 14px;
+}
+
+.amethystora-screenshot-pin-through .amethystora-screenshot-pin-ring {
+  border-color: rgba(255, 214, 90, 0.8);
+}
+
+/* Its two buttons, 24 px and round, in a small glass pill 6 px in from its corner */
+.amethystora-screenshot-pin-pill {
+  padding: 3px;
+  spacing: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: rgba(26, 16, 42, 0.85);
+  color: #ffffff;
+}
+
+.amethystora-screenshot-pin-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.amethystora-screenshot-pin-button:hover,
+.amethystora-screenshot-pin-button:checked {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.amethystora-screenshot-pin-shared {
+  margin: 0 3px;
+  color: #ffd65a;
 }
 
 .amethystora-screenshot-badge {

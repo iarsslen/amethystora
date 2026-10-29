@@ -80,6 +80,7 @@ the top bar on the left.
 | `Super+Ctrl+Shift+C` | Control: the theme, windows, games, the agent, the image and Amethystora's other settings |
 | `Super+F1` | This manual |
 | `Super+Alt+N` | A quick note into Notes' inbox |
+| `Super+Alt+D` | Draw on the screen, while Present mode is on (`ame desktop present on`) |
 
 ## Appearance
 

@@ -123,8 +123,9 @@ export class Pill {
         this._settings?.run_dispose();
         this._settings = null;
         disposeSettings();
-        // The focus module tells the rule again when it starts
+        // The focus module tells the rule again when it starts, and the present module its mark
         this._focusRule = null;
+        this._presentMark = null;
     }
 
     get _comfort() {
@@ -159,13 +160,33 @@ export class Pill {
         }
         this._toggle('_privacy', on('privacy-dots'), () => new Privacy(this._capture));
         this._toggle('_glow', on('glow'), () => new Glow(this._capture, () => this._reduce()));
-        this._toggle('_hold', on('quiet') || on('quiet-night') || on('digest') || on('later') || this._focusWants(),
+        this._toggle('_hold', on('quiet') || on('quiet-night') || on('digest') || on('later') || this._focusWants() ||
+            !!this._presentMark,
             () => new Hold(this._settings, this._capture, this._activities, (...a) => this.notice(...a), () => this._glass()));
         this._hold?.setFocus(this._focusRule ?? null);
+        this._hold?.setPresenting(!!this._presentMark);
         if (on('live') || on('privacy-dots'))
             this._hideGnomeCapture();
         else
             this._showGnomeCapture();
+    }
+
+    // ---- Present mode (modules/present.js) ----
+
+    // Its mark in the pill (an activity, or null), and banners held while it is there
+    setPresent(mark) {
+        if ((this._presentMark ?? null) === (mark ?? null))
+            return;
+        this._presentMark = mark ?? null;
+        this._activities?.set('present', this._presentMark);
+        // Told before the hold may stop, so that what it held is said once ("N waiting in the list")
+        this._hold?.setPresenting(Boolean(this._presentMark));
+        if (this._settings)
+            this._sync();
+    }
+
+    presentChanged() {
+        this._activities?.update('present');
     }
 
     // ---- A focus profile (modules/focus.js) ----

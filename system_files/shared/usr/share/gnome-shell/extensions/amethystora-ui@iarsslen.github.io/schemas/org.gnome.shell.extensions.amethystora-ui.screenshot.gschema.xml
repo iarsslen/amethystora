@@ -7,5 +7,15 @@
       <summary>The colour and line width each drawing tool last had</summary>
       <description>Written by the screenshot tools as they are used, so that each drawing tool comes back with the colour and width it was left with.</description>
     </key>
+    <key name="capture-thumbnail" type="b">
+      <default>true</default>
+      <summary>A thumbnail after a screenshot</summary>
+      <description>After a capture from the screenshot bar, a thumbnail rests at the bottom right for six seconds, with Edit, Copy, Pin on top, Show in Files and Delete, in place of GNOME's notification. Off, GNOME's notification comes back.</description>
+    </key>
+    <key name="capture-pin" type="b">
+      <default>true</default>
+      <summary>Pin pictures on top</summary>
+      <description>A capture can be pinned above every window, from the thumbnail or from the Pin button in the screenshot bar (Ctrl+P). Off, there is no Pin, and pinned pictures let go.</description>
+    </key>
   </schema>
 </schemalist>
