@@ -5,7 +5,8 @@ When you do, it is ready for you.
 
 ## Opening one
 
-`Super+Return` opens a terminal, and so do `Ctrl+Alt+T` and `Ctrl+Alt+Return`. The terminal is
+The keyboard shortcut `Super+Return` opens a terminal, and so do `Ctrl+Alt+T` and `Ctrl+Alt+Return`, the
+shortcuts most Linux desktops use ([Hotkeys](../keybindings.md#launching)). The terminal is
 kitty, a fast terminal that draws on the graphics card. Its settings are the image's, in
 `/etc/xdg/kitty/kitty.conf`: put a line of your own in `~/.config/kitty/kitty.conf` and yours wins, the rest
 stays as the image has it. Ptyxis is still installed: it is the one with a menu that opens a tab inside any of your

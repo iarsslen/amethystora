@@ -228,6 +228,9 @@ app's network can be taken away.
 GNOME folds an app's notifications in the calendar's list into one stack; a folded stack shows how many it
 holds after the app's name.
 
+**Do Not Disturb** is GNOME's own switch, at the foot of that list: click the clock to open it. While it
+is on, banners do not pop up, and notifications still wait in the list.
+
 ### Quiet
 
 While a window is fullscreen on the main screen, or the screen is shared or recorded, banners are quiet:
@@ -980,7 +983,8 @@ It turns the tiling off, and updates leave it off. Windows then open where GNOME
 them by the title bar. `Super+Up` maximises and `Super+Down` restores, `Super+Left` / `Super+Right` put
 a window on that half of the screen, and `Super+Shift+Left` / `Super+Shift+Right` move it to the next
 monitor. `ame desktop layout tiling` brings the strip back. The first time you log in, a notification
-offers the same choice, and [Control](control.md)'s **Desktop** page has it any time.
+offers the same choice, and [Control](control.md)'s **Desktop** page has it any time, as the
+**Window layout** setting.
 
 ## Windows in the classic layout
 

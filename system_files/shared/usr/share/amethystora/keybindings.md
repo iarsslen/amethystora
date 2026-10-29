@@ -61,6 +61,9 @@ the top bar on the left.
 
 ## Launching
 
+The keyboard shortcuts that open things: the search, a terminal, the browser, Files and Amethystora's
+own apps.
+
 | Key | Action |
 | --- | --- |
 | `Super+Space` | Search and launch |

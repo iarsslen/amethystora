@@ -5,7 +5,10 @@
 Because the system is an image, and the image is the same on every machine. That is what makes
 updates safe and rollbacks instant. Apps come from Flathub, tools from Homebrew, and anything else
 from a container; [Installing software](software.md) shows which is which. In a Fedora container
-(`amepkg containers new --template fedora`), `dnf install` works exactly as you know it.
+(`amepkg containers new --template fedora`), `dnf install` works exactly as you know it. On the
+system itself `dnf` has no package database it can write to; `rpm-ostree install` can add a package to
+the image on this machine, but it is the [last resort](software.md#layering-the-last-resort): every
+layered package makes every update slower.
 
 ## Can I use another browser?
 

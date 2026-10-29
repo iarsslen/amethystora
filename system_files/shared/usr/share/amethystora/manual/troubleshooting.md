@@ -109,8 +109,11 @@ account with `sudo faillock --user <name> --reset`.
 
 ### A DisplayLink dock shows nothing
 
-With Secure Boot on, its driver loads only once Amethystora's key is enrolled:
-`ame security secure-boot`, then restart ([Hardware](hardware.md#secure-boot)).
+The screens on a DisplayLink dock or adapter need its driver, evdi, which the image carries, and
+`displaylink.service`, which starts when the dock is plugged in. With Secure Boot on, the driver loads only
+once Amethystora's key is enrolled: `ame security secure-boot`, then restart
+([Hardware](hardware.md#secure-boot)). Until then the dock's screens stay dark, and
+`systemctl status displaylink.service` says the service was skipped because its condition failed.
 
 ### Switching keyboard layouts
 

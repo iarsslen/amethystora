@@ -351,7 +351,7 @@ and Control has the choice too. kitty takes it at once, and so does the top bar 
 
 ## Icons
 
-Nine icon packs are drawn for Amethystora, each icon in colours of its own, so that a theme has one
+Eight icon packs are drawn for Amethystora, each icon in colours of its own, so that a theme has one
 that reads on its ground and suits its style:
 
 | Pack | Draws each icon as | The themes it comes with |

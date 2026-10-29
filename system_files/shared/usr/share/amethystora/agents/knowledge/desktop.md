@@ -9,28 +9,14 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - Dark style: `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` (or `default`). On
   Amethystora the theme decides it: `amethystora-theme toggle` switches to the theme's light or dark pair,
   which is better than setting the key alone.
-- Text size: `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25`.
-- Accent colour: `ame desktop accent amethyst|iris|sky|lagoon|jade|moss|amber|ember|coral|rose|orchid|slate|theme`
-  (the account's `~/.config/amethystora/accent`, which every theme switch reads); `gsettings set
-  org.gnome.desktop.interface accent-color purple` only moves GNOME's nearest of nine, which the shell and the apps no
-  longer take.
-- The first wallpaper by the time of day: `ame desktop daylight on|off` (on unless turned off; the desktop's
-  `picture-uri` is then `~/.config/amethystora/current/backgrounds/<theme>-daylight.xml`, GNOME's own slideshow).
-- Colours from the wallpaper: `ame desktop colours vivid|soft|mono|off` (`~/.config/amethystora/wallpaper-colours.toml`,
-  written by `/usr/libexec/amethystora-wallpaper-colours`).
-- An accent per workspace: `ame desktop accent-per-workspace on|off`, and `ame desktop accent-per-workspace 3 coral`
-  for one workspace's.
-- Icons: `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|theme`, not
-  `gsettings set ... icon-theme`, which the next theme switch writes over.
+- Text size, to make the text bigger or smaller everywhere: `gsettings set org.gnome.desktop.interface
+  text-scaling-factor 1.25` (1.0 is the normal size; Large Text in Settings, Accessibility, is the same 1.25).
 - Font: `ame desktop font "<family>"|theme`, not `gsettings set ... font-name`, which the next theme switch writes over.
   The monospace font (terminal, code, Text Editor) is `ame desktop mono-font "<family>"|theme`, not
   `monospace-font-name`.
-- The shape of the top bar, menus, notifications, dialogs, buttons and windows: `ame desktop style
-  islands|floating|hairline|capsule|terminal|segments|neon|theme`.
 - Animations: `gsettings set org.gnome.desktop.interface enable-animations false`; the theme transitions stop
   with them.
-- The glass behind the top bar, dock, menus and notifications: `ame desktop glass frost|prism|clear`. Comfort:
-  `ame desktop comfort reduce-transparency|reduce-motion|increase-contrast on|off` (the glass solid; GNOME's
+- Comfort: `ame desktop comfort reduce-transparency|reduce-motion|increase-contrast on|off` (the glass solid; GNOME's
   Reduced Motion; GNOME's High Contrast), and `ame desktop comfort` alone shows all of them and the power saver.
 - The desktop's own sounds are the sound theme `amethystora` (`/usr/share/sounds/amethystora`, the Soft set):
   `ame desktop sounds soft|off` (off is GNOME's `event-sounds` false; apps still make their own). The login chord
@@ -43,6 +29,24 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   `org.gnome.shell.extensions.amethystora-ui.quick` `tile-order` and `tile-hidden` (ids such as `wifi`, `dnd`,
   `battery`, `theme`): `ame desktop quick-settings reset` puts every tile back, `ame desktop quick-settings theme
   on|off` shows or hides the theme swatches. The battery's 80% switch is UPower's charge limit, nothing else.
+
+## Accent, wallpaper, icons and style
+
+- Accent colour: `ame desktop accent amethyst|iris|sky|lagoon|jade|moss|amber|ember|coral|rose|orchid|slate|theme`
+  (the account's `~/.config/amethystora/accent`, which every theme switch reads); `gsettings set
+  org.gnome.desktop.interface accent-color purple` only moves GNOME's nearest of nine, which the shell and the apps no
+  longer take.
+- The first wallpaper by the time of day: `ame desktop daylight on|off` (on unless turned off; the desktop's
+  `picture-uri` is then `~/.config/amethystora/current/backgrounds/<theme>-daylight.xml`, GNOME's own slideshow).
+- Colours from the wallpaper: `ame desktop colours vivid|soft|mono|off` (`~/.config/amethystora/wallpaper-colours.toml`,
+  written by `/usr/libexec/amethystora-wallpaper-colours`).
+- An accent per workspace: `ame desktop accent-per-workspace on|off`, and `ame desktop accent-per-workspace 3 coral`
+  for one workspace's.
+- Icons: `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|theme`, not
+  `gsettings set ... icon-theme`, which the next theme switch writes over.
+- The shape of the top bar, menus, notifications, dialogs, buttons and windows: `ame desktop style
+  islands|floating|hairline|capsule|terminal|segments|neon|theme`.
+- The glass behind the top bar, dock, menus and notifications: `ame desktop glass frost|prism|clear`.
 
 ## Night light and the screen
 

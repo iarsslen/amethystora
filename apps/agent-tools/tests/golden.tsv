@@ -24,9 +24,9 @@ run a windows exe file	manual/software#windows-programs|manual/software#windows-
 install a deb package	manual/faq#how-do-i-install-a-deb-or-an-rpm|manual/software#a-package-file
 how do I run an appimage	manual/faq#how-do-i-run-an-appimage
 change the theme	manual/themes#switching|manual/themes#change-a-theme-or-make-your-own|manual/themes
-change the icon pack	manual/themes#icons|skill/amethystora/themes#*
+change the icon pack	manual/themes#icons*|skill/amethystora/themes*
 make the text bigger	knowledge/desktop#appearance-and-text
-turn on night light	knowledge/desktop#night-light-and-the-screen
+turn on night light	knowledge/desktop#night-light-and-the-screen|manual/desktop#night-light-and-the-screens-colour
 save battery with a power profile	knowledge/desktop#power|manual/hardware#laptops
 change the keyboard layout	knowledge/desktop#keyboard-and-input|manual/troubleshooting#switching-keyboard-layouts
 floating windows like on windows	manual/desktop#classic-windows|manual/desktop#floating-windows
@@ -59,7 +59,7 @@ let the agent run commands as root	manual/ai-agent#root-commands|knowledge/agent
 turn the ai agent off for my kid's account	manual/ai-agent#the-lock|knowledge/agent#the-lock|control/agent-lock|ame/agent/lock
 what did the agent change	manual/ai-agent#history-and-undo|knowledge/agent#records
 enroll the secure boot key with mok	manual/getting-started#1-let-secure-boot-trust-the-image|manual/hardware#secure-boot
-the displaylink dock shows nothing	manual/troubleshooting#a-displaylink-dock-shows-nothing
+the displaylink dock shows nothing	manual/troubleshooting#a-displaylink-dock-shows-nothing|manual/hardware#docks-and-displays
 install command line tools	manual/software#command-line-tools-homebrew
 make a web app for a website	manual/web-apps#install-one|manual/web-apps
 keyboard shortcut to open a terminal	manual/keybindings#launching|manual/terminal#opening-one
@@ -71,11 +71,11 @@ the drawing tablet pen does nothing	manual/hardware#drawing-tablets|knowledge/by
 my server is not reachable from another computer	knowledge/by-design#the-firewall-answers-only-what-a-desktop-needs|manual/security#on-from-the-start
 rebase refused because the image is not signed	knowledge/by-design#only-signed-images-are-installed|manual/updates#signed-updates|manual/developer#an-image-of-your-own
 where are the deployments and how do updates run	knowledge/architecture#how-updates-run|knowledge/architecture#deployments-and-rolling-back|manual/updates
-turn on do not disturb	knowledge/desktop#notifications-and-do-not-disturb
+turn on do not disturb	knowledge/desktop#notifications-and-do-not-disturb|manual/desktop#notifications
 what does ame security dns do	ame/security/dns|manual/security#encrypted-dns
 which service runs network protection	unit/amethystora-ips.service|manual/security#network-protection*|playbook/wifi-dns#network-protection
 change the network protection setting	setting/NETWORK|manual/security#network-protection*|knowledge/by-design#network-protection-blocks-a-connection-only-with-network-block|skill/amethystora/security#the-network
-change the window layout setting	control/layout|manual/desktop#classic-windows
+change the window layout setting	control/layout|manual/desktop#classic-windows|knowledge/desktop#the-dock-and-windows
 what is amethystora-restore	helper/amethystora-restore|playbook/backups#*|manual/security#backups*|skill/amethystora/updates#earlier-versions-of-the-users-files
 xbox wireless adapter does not work	manual/hardware#game-controllers|playbook/device-does-nothing#*
 broadcom wifi card has no driver	manual/hardware#wi-fi
