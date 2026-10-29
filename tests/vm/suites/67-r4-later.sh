@@ -236,8 +236,9 @@ user_bus gdbus call --session --dest org.amethystora.Connect --object-path "/org
     --method org.amethystora.Connect.Device.RejectPairing >/dev/null 2>&1
 kill "${PEER2_PID}" 2>/dev/null
 PEER2_PID=""
-icon() { ev "Main.panel.statusArea['amethystora-connect']?._icon.gicon.get_names()[0]"; }
-computer_icon() { [[ "$(icon)" == computer-symbolic ]]; }
+# The glyph's names in the order they are tried: a laptop's own first (TYPE_ICONS, spec A.5), then the computer's
+icon() { ev "(Main.panel.statusArea['amethystora-connect']?._icon.gicon.get_names() ?? []).join(' ')"; }
+computer_icon() { [[ " $(icon) " == *" computer-symbolic "* ]]; }
 check "A9 the top bar draws the computer" wait_for 10 computer_icon
 
 # A7: off again, it leaves the bus, and its pairing stays
