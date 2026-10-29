@@ -149,7 +149,9 @@ check "13 Done closes the window" wait_for 10 sh -c "! pgrep -u ${NEW} -f 'ameth
 
 # --- 17: the Manual's moving cards -----------------------------------------------------------------------------------
 user_bus systemd-run --user --collect --quiet amethystora-manual "desktop#gestures-and-keys" >/dev/null
-cards_named() { atspi amethystora-manual tree 2>/dev/null | grep -cE "$1"; }
+# The cards by name, each once: the page holds the same eight cards again further down (15 in all, the first one
+# only once), and the tree also names each as a table cell
+cards_named() { atspi amethystora-manual tree 2>/dev/null | grep -oE "button \['[^']*'\]" | grep -E "$1" | sort -u | wc -l; }
 if atspi amethystora-manual wait 20 "Four fingers for Today" >/dev/null 2>&1; then
     same "17 eight cards" "$(cards_named 'button.*(Shake to find|Pinch for the apps|Search anything|Hold Super|Switch windows|Snap layouts|Spread for the desktop|Four fingers for Today), (playing|paused)')" 8
     # A clip plays only in the active window: the Manual is given the focus, as a person's click would
