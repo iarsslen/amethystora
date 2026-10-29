@@ -136,7 +136,13 @@ function step(name, command, args) {
       if (passed) {
         say(`== ${name}: passed in ${minutes(began)}`);
       } else {
-        const tail = fs.readFileSync(`${RUN}/${name}.log`, 'utf8').trimEnd().split('\n').slice(-80).join('\n');
+        // Only the log's last 256 KiB: a build's set -x log runs to hundreds of MB, past a string's length
+        const fd = fs.openSync(`${RUN}/${name}.log`, 'r');
+        const size = fs.fstatSync(fd).size;
+        const end = Buffer.alloc(Math.min(size, 256 * 1024));
+        fs.readSync(fd, end, 0, end.length, size - end.length);
+        fs.closeSync(fd);
+        const tail = end.toString('utf8').trimEnd().split('\n').slice(-80).join('\n');
         say(`== ${name}: FAILED (exit ${code}) after ${minutes(began)}. The end of ${RUN}/${name}.log:\n${tail}`);
       }
       resolve(passed);
