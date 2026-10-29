@@ -753,7 +753,10 @@ activate_files
 check "using Files swaps them" wait_for 3 strength_is "${MANUAL}" 1
 # Two thirds of the brightness, in pixels: one spot of the Manual's window, with dim off and on. pixel NAME POINT,
 # POINT a JavaScript expression giving [x, y] on the stage (the window's middle when left out)
-# The plain window, whose middle is one colour: bottom left, clear of every other window, and not in use
+# The plain window, whose middle is one colour: bottom left, clear of every other window, and not in use. The Manual
+# is put away first: never narrower than 1264 px, it would cover the plain window wherever it went (and a window wholly
+# behind another is rightly not dimmed)
+ev "${WIN}.filter(w => w.get_wm_class() === 'org.amethystora.Manual').forEach(w => w.minimize()); 'min'" >/dev/null
 PLAIN="$(plain)"
 ev "(() => { const a = ${AREA}; global.get_window_actors().map(a => a.meta_window).filter(w => !w.minimized && w.get_wm_class() !== 'org.vmlab.Plain').forEach(w => { const f = w.get_frame_rect(); w.move_frame(true, a.x + a.width - f.width, a.y); }); ${PLAIN}.move_resize_frame(true, a.x, a.y + a.height - 200, 300, 200); return 'placed'; })()" >/dev/null
 activate_files
@@ -797,7 +800,7 @@ light="$(ame_ desktop windows dim off >/dev/null; sleep 1; pixel off)"
 ame_ desktop windows dim on >/dev/null
 sleep 1
 dark="$(pixel on)"
-check "a dimmed window's pixels are at 0.66 of their brightness (± 0.03)" python3 -c \
+check "a dimmed window's pixels are at 0.66 of their brightness (± 0.03; ${dark} of ${light})" python3 -c \
     "import sys; r = ${dark:-0} / max(${light:-1}, 1); sys.exit(0 if abs(r - 0.66) <= 0.03 else 1)"
 # In the overview, the Manual's picture (a clone of its window) is as bright with dim on as with dim off
 PREVIEW="(() => { const find = a => { if (a.metaWindow === ${PLAIN}) return a; for (const c of a.get_children()) { const f = find(c); if (f) return f; } return null; }; const p = find(Main.layoutManager.overviewGroup); const e = p.get_transformed_extents(); return [e.origin.x + e.size.width / 2, e.origin.y + e.size.height / 2]; })()"
@@ -826,7 +829,8 @@ c1="$(ev "JSON.stringify(Object.fromEntries(Object.entries(${W}.counters).filter
 sleep 30
 c2="$(ev "JSON.stringify(Object.fromEntries(Object.entries(${W}.counters).filter(([k]) => k !== 'hold.keymapEvents')))")"
 same "with nothing happening for 30 s, no handler of the module runs" "${c2}" "${c1}"
-ev "globalThis.vmlabBuild = imports.ui?.windowMenu?.WindowMenu?.prototype._buildMenu; import('resource:///org/gnome/shell/ui/windowMenu.js').then(m => { globalThis.vmlabWindowMenu = m.WindowMenu; }); 'k'" >/dev/null
+# The class as GNOME made it, to compare with after the cycles (an import the Eval takes only as an expression)
+ev "(import('resource:///org/gnome/shell/ui/windowMenu.js')).then(m => { globalThis.vmlabWindowMenu = m.WindowMenu; }); 'k'" >/dev/null
 # GNOME 50 turns an extension on and off through its settings, a moment later, and later still in a busy lab: each
 # step waits for the state it asked for (1 on; 2 or 6 off) rather than a fixed time
 ext_state_is() { [[ " $2 " == *" $(ev "Main.extensionManager.lookup('${UUID}').state") "* ]]; }
@@ -842,7 +846,8 @@ sleep 1
 left="$(ev "(() => { const walk = (a, acc) => { for (const c of a.get_children()) { const s = c.get_style_class_name?.() || ''; if (/amethystora-windows/.test(s) || /amethystoraWindows/.test(c.name || '')) acc.push(s || c.name); walk(c, acc); } return acc; }; return walk(Main.layoutManager.uiGroup, []).length + walk(global.window_group, []).length; })()")"
 same "ten disables leave no actor of the module behind" "${left}" 0
 check "Main.overview.toggle is GNOME's own" is_true "!Object.getOwnPropertyDescriptor(Main.overview, 'toggle')"
-check "the window menu is GNOME's own" is_true "!globalThis.vmlabWindowMenu.prototype._buildMenu.toString().includes('_addItem') && !Object.hasOwn(Main.wm._windowMenuManager, 'showWindowMenuForWindow')"
+same "the window menu is GNOME's own (the class wrapped, the instance wrapped)" \
+    "$(ev "[globalThis.vmlabWindowMenu.prototype._buildMenu.toString().includes('_addItem'), Object.hasOwn(Main.wm._windowMenuManager, 'showWindowMenuForWindow')].join(' ')")" "false false"
 check "Super+Z is unbound while it is off" test "$(ev "Main.wm._allowedKeybindings['snap-chooser'] ?? 0")" == 0
 ev "Main.extensionManager.enableExtension('${UUID}'); 'e'" >/dev/null
 sleep 5
