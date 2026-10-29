@@ -29,7 +29,9 @@ atspi() { user_bus python3 "${here}/atspi.py" "$@"; }
 UI="Main.extensionManager.lookup('${UUID}').stateObj.modules"
 H="${UI}.get('hints')"
 shell_up() { [[ "$(ev 'Main.layoutManager._startingUp === false')" == true ]]; }
-reveal_lines() { journalctl -b "_UID=$(id -u "${NEW}")" --no-pager -o cat 2>/dev/null | grep -c "Amethystora Transitions: reveal"; }
+# Counted from this run on: the account is made again with the same number each run, and the boot keeps its lines
+SUITE_SINCE="$(date '+%Y-%m-%d %H:%M:%S')"
+reveal_lines() { journalctl -b --since "${SUITE_SINCE}" "_UID=$(id -u "${NEW}")" --no-pager -o cat 2>/dev/null | grep -c "Amethystora Transitions: reveal"; }
 log_in() {
     printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=%s\n' "$1" >/etc/gdm/custom.conf
     loginctl unlock-sessions
@@ -75,10 +77,13 @@ EOF
 cat >"${HOME_NEW}/.local/share/gnome-shell/extensions/vmlab-eval@lab/extension.js" <<'EOF'
 export default class { enable() { global.context.unsafe_mode = true; } disable() {} }
 EOF
-start="$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/user/org.gnome.Shell@wayland.service | head -n 1)"
-install -d "${HOME_NEW}/.config/systemd/user/org.gnome.Shell@wayland.service.d"
+# GNOME 50 runs the shell from the template org.gnome.Shell@.service, instance user (there is no @wayland unit any
+# more): the drop-in is the instance's, and its ExecStart the template's own (%i expands in it)
+start="$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/user/org.gnome.Shell@.service | head -n 1)"
+[[ -n "${start}" ]] || not_ok "GNOME Shell's user unit has no ExecStart to force animations with"
+install -d "${HOME_NEW}/.config/systemd/user/org.gnome.Shell@user.service.d"
 printf '[Service]\nExecStart=\nExecStart=%s --force-animations\n' "${start}" \
-    >"${HOME_NEW}/.config/systemd/user/org.gnome.Shell@wayland.service.d/vmlab-animations.conf"
+    >"${HOME_NEW}/.config/systemd/user/org.gnome.Shell@user.service.d/vmlab-animations.conf"
 defaults="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions)"
 runuser -u "${NEW}" -- dbus-run-session -- bash -c "gsettings set org.gnome.shell enabled-extensions \"${defaults%]*}, 'vmlab-eval@lab']\"
     gsettings set org.gnome.shell disable-user-extensions false
@@ -95,10 +100,26 @@ MONITOR=$!
 
 # --- 9: the reveal ran once, and left nothing behind -----------------------------------------------------------------
 sleep 3
+echo "# the new account's shell: $(pgrep -a -u "${NEW}" gnome-shell | head -n 1 | cut -c1-120); animations $(ev 'imports.gi.St.Settings.get().enable_animations'); transitions $(ev "Main.extensionManager.lookup('amethystora-transitions@iarsslen.github.io')?.state"); ui $(ev "Main.extensionManager.lookup('${UUID}')?.state")"
+# The reveal plays once GNOME has finished starting, which the lab takes its time over
+revealed() { (($(reveal_lines) >= 1)); }
+wait_for 30 revealed
 same "9 the reveal ran once at this login" "$(reveal_lines)" 1
 same "9 the top bar is whole" "$(ev 'Main.layoutManager.panelBox.opacity')" 255
 same "9 no sky is left in the shell's top group" \
     "$(ev "Main.layoutManager.uiGroup.get_children().filter(c => c.name === 'amethystoraRevealCover').length")" 0
+
+# GNOME's own welcome dialog of a first login (it offers the Tour, which the image keeps), closed as a person would,
+# with Escape, as 10-account.sh does for the lab's account: while it is up it is modal, so nothing else has the keyboard
+# and no tip may show
+shows_welcome() { atspi gnome-shell has "Take Tour"; }
+welcome_gone() { ! atspi gnome-shell has "Take Tour"; }
+if wait_for 60 shows_welcome; then
+    sleep 2
+    keys esc
+    wait_for 10 welcome_gone || keys esc
+    wait_for 20 welcome_gone || not_ok "GNOME's welcome dialog did not close with Escape"
+fi
 
 # --- 12: Pick a look, on top of the Manual's welcome -----------------------------------------------------------------
 wait_for 300 hook_ran || not_ok "12 the first-login setup did not reach the first-look hook" "$(user_systemctl status amethystora-user-setup.service | tail -n 5)"
