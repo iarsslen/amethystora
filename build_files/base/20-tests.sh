@@ -1076,6 +1076,13 @@ test -s "${UI_EXTENSION}/stylesheets/glass.css"
 test -s "${UI_EXTENSION}/stylesheets/dock.css"
 # No extension of the image, ours or another's, may draw with Shell.GLSLEffect: it fails to load on GNOME 51
 [[ -z "$(grep -rn --include='*.js' GLSLEffect /usr/share/gnome-shell/extensions | grep -v ':[0-9]*: *//')" ]]
+# Every module of our extensions parses: one syntax error keeps the whole extension from loading, and nothing else
+# here would notice
+find /usr/share/gnome-shell/extensions/amethystora-*@iarsslen.github.io -name '*.js' -print0 |
+    while IFS= read -r -d '' js; do
+        env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node --check --input-type=module <"${js}" ||
+            { echo "${js} does not parse" >&2; exit 1; }
+    done
 # Every Gio.Settings the shell code of our extensions makes is kept and run_dispose()d on the main thread at disable,
 # never left to the collector: GJS sweeping one while dconf's worker dispatches a change to it deadlocks the shell
 env LD_LIBRARY_PATH=/apps-stage/usr/lib64 NODE_ICU_DATA="$(echo /apps-stage/usr/share/node-*/icudata)" /apps-stage/usr/bin/node /ctx/build_files/shared/test-settings-disposed.mjs \
