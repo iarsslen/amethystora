@@ -178,7 +178,7 @@ BEZEL_KEYS='{"round-corners": ["b"]}'
 SOUND=org.gnome.desktop.sound
 SOUND_KEYS='{"event-sounds": ["b"]}'
 # The look: the accent, Daylight and colours from the wallpaper, which are the account's files that the theme reads (set
-# through their ame desktop commands), and an accent per workspace, the theme module's keys. Each value from its list, the
+# through their `ame desktop` commands), and an accent per workspace, the theme module's keys. Each value from its list, the
 # accents' ids the twelve of ACCENTS in /usr/lib/amethystora/theme/lib.sh (20-tests.sh holds the two together).
 THEME_UI=org.gnome.shell.extensions.amethystora-ui.theme
 LOOK_ACCENTS='["amethyst", "iris", "sky", "lagoon", "jade", "moss", "amber", "ember", "coral", "rose", "orchid", "slate", "theme"]'

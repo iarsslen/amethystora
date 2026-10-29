@@ -106,7 +106,7 @@ fn dconf_reaches_typing(args: &[String]) -> bool {
         && args[1..].iter().any(|arg| arg.starts_with('/') && arg.ends_with('/') && KEYS.starts_with(arg.as_str()))
 }
 
-/// Options of just (and of ame and ujust, which run it) that take a value, and how many
+/// Options of just (and of `ame` and `ujust`, which run it) that take a value, and how many
 const JUST_VALUES: &[(&str, usize)] = &[
     ("--justfile", 1), ("-f", 1), ("--working-directory", 1), ("-d", 1), ("--color", 1), ("--chooser", 1),
     ("--list-heading", 1), ("--list-prefix", 1), ("--dotenv-filename", 1), ("--dotenv-path", 1), ("-E", 1),
