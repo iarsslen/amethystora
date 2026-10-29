@@ -410,12 +410,13 @@ switch (command) {
   case 'restore': {
     const t = Date.now();
     await stopVm(true);
-    const no = refusal(4096);
+    const argv = JSON.parse(fs.readFileSync(`${DIR}/qemu.args`, 'utf8'));
+    // As much memory as the saved guest has (VMLAB_MEM at its start), not the lab's default
+    const no = refusal(Number(argv[argv.indexOf('-m') + 1]) || 4096);
     if (no) throw new Error(`${vm} not restored: ${no}`);
     for (const f of ['push.list', 'push.new']) fs.rmSync(`${DIR}/${f}`, { force: true });
     if (fs.existsSync(`${DIR}/ram.push.list`)) fs.copyFileSync(`${DIR}/ram.push.list`, `${DIR}/push.list`);
     await call('vm_snapshot', { name: vm, action: 'load', tag: 'ram' });
-    const argv = JSON.parse(fs.readFileSync(`${DIR}/qemu.args`, 'utf8'));
     // Its TPM as the VM started it, then QEMU waiting for the state, which carries the TPM's too
     const tpm = argv.find((a) => a.includes('.swtpm'))?.match(/path=([^,]+)/)?.[1];
     if (tpm) {
