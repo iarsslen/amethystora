@@ -12,13 +12,75 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {PressureBarrier} from 'resource:///org/gnome/shell/ui/layout.js';
 
 // GNOME's own feel: this much push within this long
 const THRESHOLD = 100;
 const TIMEOUT = 1000;
 const GLOW = 180;
 const GLOW_FADE = 240;
+
+// A push into a corner: what each hit of either of its two barriers crosses, added up over the last TIMEOUT ms. GNOME's
+// PressureBarrier leaves out a hit that moves along its barrier as far as across it, which a push straight into a
+// corner always nearly does, and on a right edge the pointer stopped at the screen's last pixel reaches only the
+// barrier along the top: half of a diagonal push was lost there, and the top-right corner did not fire. A pointer
+// gliding along an edge adds nothing, and one drifting in slowly too little.
+class CornerPressure {
+    constructor(threshold, timeout, modes, onTrigger) {
+        this._threshold = threshold;
+        this._timeout = timeout;
+        this._modes = modes;
+        this._onTrigger = onTrigger;
+        this._barriers = new Set();
+        this._held = new Set();
+        this._events = [];
+        this._triggered = false;
+    }
+
+    addBarrier(barrier) {
+        this._barriers.add(barrier);
+        barrier.connectObject('hit', (b, event) => this._hit(b, event), 'left', b => this._left(b), this);
+    }
+
+    removeBarrier(barrier) {
+        barrier.disconnectObject(this);
+        this._barriers.delete(barrier);
+        this._held.delete(barrier);
+    }
+
+    destroy() {
+        for (const barrier of [...this._barriers])
+            this.removeBarrier(barrier);
+        this._events = [];
+        this._onTrigger = null;
+    }
+
+    _hit(barrier, event) {
+        this._held.add(barrier);
+        // Once fired, a corner waits for the pointer to leave it
+        if (this._triggered || !(this._modes & Main.actionMode))
+            return;
+        const vertical = barrier.x1 === barrier.x2;
+        const across = Math.abs(vertical ? event.dx : event.dy);
+        const along = Math.abs(vertical ? event.dy : event.dx);
+        if (along > 2 * across)
+            return;
+        this._events = this._events.filter(([time]) => event.time - time < this._timeout);
+        this._events.push([event.time, Math.min(15, across)]);
+        if (this._events.reduce((sum, [, push]) => sum + push, 0) < this._threshold)
+            return;
+        this._triggered = true;
+        this._events = [];
+        this._onTrigger?.();
+    }
+
+    _left(barrier) {
+        this._held.delete(barrier);
+        if (this._held.size)
+            return;
+        this._triggered = false;
+        this._events = [];
+    }
+}
 
 export const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 export const ACTIONS = ['none', 'overview', 'desktop', 'lock', 'note', 'notifications'];
@@ -109,7 +171,7 @@ export class Corners {
         const y = top ? monitor.y : monitor.y + monitor.height;
         const modes = ['overview', 'notifications'].includes(action)
             ? Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW : Shell.ActionMode.NORMAL;
-        const pressure = new PressureBarrier(THRESHOLD, TIMEOUT, modes);
+        const pressure = new CornerPressure(THRESHOLD, TIMEOUT, modes, () => this._fire(monitor, where, action, x, y));
         // Two barriers along the edges that meet there, each holding back a push out of the screen
         const vertical = new Meta.Barrier({
             backend: global.backend, x1: x, x2: x,
@@ -123,7 +185,6 @@ export class Corners {
         });
         pressure.addBarrier(vertical);
         pressure.addBarrier(horizontal);
-        pressure.connect('trigger', () => this._fire(monitor, where, action, x, y));
         this._built.push({monitor, where, action, pressure, barriers: [vertical, horizontal]});
     }
 
