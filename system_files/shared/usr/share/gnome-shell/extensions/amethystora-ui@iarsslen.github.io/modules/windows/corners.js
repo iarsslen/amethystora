@@ -193,7 +193,8 @@ export class Corners {
         // Never over a fullscreen window, unless the overview is open over it
         if (monitor.inFullscreen && !Main.overview.visible)
             return;
-        if (this.run(action))
+        // Locking the screen turns the extension off before run() returns: no glow then, which nothing would take away
+        if (this.run(action) && this._interface)
             this._glow(monitor, where, x, y);
     }
 
