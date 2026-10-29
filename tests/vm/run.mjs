@@ -205,6 +205,59 @@ async function session(vm, seconds) {
   return false;
 }
 
+// --- Memory -----------------------------------------------------------------------------------------------------
+// The lab shares one Linux VM (WSL 2's on Windows) with every other container, and it hung when a build and a VM
+// ran beside other containers and its memory ran out (2026-10-29): the whole of Docker stopped answering. So a VM
+// starts only while no image is being built here, and only when the memory it will take is free: what the kernel
+// calls available, less what the VMs running already have yet to take (QEMU takes a guest's memory as it touches
+// it), less a margin for the lab itself.
+const MARGIN_MB = 1536;
+const DEFAULT_MB = 4096;
+const procs = () => fs.readdirSync('/proc').filter((p) => /^\d+$/.test(p) && Number(p) !== process.pid).map((pid) => {
+  try {
+    return { pid, argv: fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0') };
+  } catch {
+    return null;
+  }
+}).filter(Boolean);
+// What builds an image here, if anything: buildah, or podman building
+function building() {
+  const p = procs().find(({ argv }) => /(^|\/)buildah$/.test(argv[0]) || (/(^|\/)podman$/.test(argv[0]) && argv.includes('build')));
+  return p ? `${p.argv.slice(0, 3).join(' ')} (process ${p.pid})` : '';
+}
+// MB free for one more VM
+function headroom() {
+  const available = Number(fs.readFileSync('/proc/meminfo', 'utf8').match(/^MemAvailable:\s+(\d+)/m)[1]) / 1024;
+  let owed = 0;
+  for (const { pid, argv } of procs().filter(({ argv }) => /qemu-system/.test(argv[0]))) {
+    const size = Number(argv[argv.indexOf('-m') + 1]) || DEFAULT_MB;
+    let rss = 0;
+    try {
+      rss = Number(fs.readFileSync(`/proc/${pid}/status`, 'utf8').match(/^VmRSS:\s+(\d+)/m)?.[1] || 0) / 1024;
+    } catch {
+      // Gone since
+    }
+    owed += Math.max(0, size - rss);
+  }
+  return Math.floor(available - owed - MARGIN_MB);
+}
+// START once a VM of SIZE MB fits, waiting up to WAIT ms for it, else an error. One start at a time, the check and
+// the start together, so that the VM one start made counts in the next one's sum
+let starting = Promise.resolve();
+function admitted(vm, size, startVm, wait = 900000) {
+  const turn = starting.then(async () => {
+    for (const until = Date.now() + wait; ; await sleep(20000)) {
+      const build = building();
+      if (build) throw new Error(`an image is being built in the lab (${build}): no VM starts beside a build`);
+      const free = headroom();
+      if (free >= size) return startVm();
+      if (Date.now() > until) throw new Error(`not enough memory for ${vm}: ${size} MB wanted, ${Math.max(free, 0)} MB free beyond a ${MARGIN_MB} MB margin`);
+    }
+  });
+  starting = turn.catch(() => {});
+  return turn;
+}
+
 // A VM of this run started, as a machine is, or with what a suite asked for its next start
 async function start(machine, request = {}, fresh = false) {
   const m = machineOf(machine);
@@ -212,9 +265,9 @@ async function start(machine, request = {}, fresh = false) {
   if (request.type_passphrase) delete credentials['cryptsetup.passphrase'];
   // A credential asked for as null is left out: {"cryptsetup.passphrase": null} has the TPM open the disk alone
   for (const [key, value] of Object.entries(credentials)) if (value === null) delete credentials[key];
-  await call('vm_start', { name: m.vm, disk: m.disk, from: m.from, memory_mb: m.memory, fresh, spares_gb: m.spares,
-    absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials,
-    screens: m.screens || 1 });
+  await admitted(m.vm, m.memory || DEFAULT_MB, () => call('vm_start', { name: m.vm, disk: m.disk, from: m.from, memory_mb: m.memory, fresh,
+    spares_gb: m.spares, absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {},
+    credentials, screens: m.screens || 1 }));
   if (request.menu_last) await chooseLastEntry(m.vm);
   if (request.menu_edit) await editEntry(m.vm);
   if (request.type_passphrase) await typePassphrase(m.vm);
@@ -548,11 +601,11 @@ async function readyState(m) {
   say(`${lane(m)}waiting for the first boot's Flatpaks (flatpak-preinstall) before keeping the ready state`);
   const began = Date.now();
   for (const until = Date.now() + 3600000; Date.now() < until; await sleep(15000)) {
-    // No answer is no answer, not the end
-    const state = await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20);
-    if (state && !/^(active|activating|reloading)$/.test(state)) break;
+    // Its sub-state: it stays active (exited) once done. No answer is no answer, not the end
+    const state = await guest(m.vm, 'systemctl show -P SubState flatpak-preinstall.service', 20);
+    if (state && !/^(running|start|start-pre|start-post|auto-restart|auto-restart-queued)$/.test(state)) break;
   }
-  say(`${lane(m)}flatpak-preinstall ${await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20)} after ${minutes(began)}; ` +
+  say(`${lane(m)}flatpak-preinstall ${await guest(m.vm, 'systemctl show -P ActiveState,SubState flatpak-preinstall.service | paste -sd/', 20)} after ${minutes(began)}; ` +
     `${await guest(m.vm, 'flatpak list --app --columns=application | wc -l', 30)} apps`);
   await agent(m.vm, { op: 'exec', command: '(sleep 1; systemctl poweroff) >/dev/null 2>&1 &' }, 30).catch(() => {});
   const off = new RegExp(`^${m.vm}: stopped`, 'm');
@@ -575,6 +628,16 @@ async function testParallel() {
   const began = Date.now();
   const plan = planLanes(PARALLEL);
   printPlan(plan);
+  // N VMs have to fit before the first starts (each start is checked again, start() and admitted())
+  const size = MACHINES.default.memory || DEFAULT_MB;
+  const refuse = building() ? `an image is being built in the lab (${building()})` :
+    headroom() < PARALLEL * size ? `--parallel ${PARALLEL} wants ${PARALLEL * size} MB for its VMs, and ${Math.max(headroom(), 0)} MB ` +
+      `are free beyond a ${MARGIN_MB} MB margin: ${Math.max(Math.floor(headroom() / size), 0)} VM(s) of ${size} MB fit now` : '';
+  if (refuse) {
+    say(`== test: not started: ${refuse}`);
+    stages.push({ stage: 'test', passed: false, time: minutes(began), results: [] });
+    return false;
+  }
   // VMs an earlier run left running on the ready state, which a new one would be made under
   for (let k = 1; k <= 12; k++) {
     for (const vm of [`${NAME}-p${k}`, `${NAME}-installer-p${k}`]) await call('vm_stop', { name: vm, force: true }).catch(() => {});
