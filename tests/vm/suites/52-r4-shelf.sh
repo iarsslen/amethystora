@@ -101,6 +101,17 @@ no_shelf_running() { ! shelf_running; }
 received() { [[ -s "${LAB}/received.txt" ]]; }
 win_box() { shelf '.windows[0] | "\(.x) \(.y) \(.width) \(.height)"'; }
 height_now() { shelf '.windows[0].height'; }
+# Ten disables and enables, each waited for: GNOME turns an extension off and on asynchronously (1 on; 2, or 6, off)
+cycle10() {
+    ev "globalThis._vmlabCycled = false; (async () => {
+        const E = Main.extensionManager;
+        const until = async on => { for (let n = 0; n < 50; n++) { const s = E.lookup('${UUID}').state; if (on ? s === 1 : s === 2 || s === 6) return; await new Promise(r => setTimeout(r, 100)); } };
+        for (let i = 0; i < 10; i++) { E.disableExtension('${UUID}'); await until(false); E.enableExtension('${UUID}'); await until(true); }
+        globalThis._vmlabCycled = true;
+    })().catch(e => { globalThis._vmlabCycled = 'ERR ' + e.message; }); 'cycling'" >/dev/null
+    cycled() { [[ "$(ev "String(globalThis._vmlabCycled)")" != false ]]; }
+    wait_for 60 cycled
+}
 since="$(date '+%Y-%m-%d %H:%M:%S')"
 
 if ! has_session; then
@@ -229,6 +240,9 @@ same "S3 the glow spans 120/560 to 440/560 of the screen's height" \
     "$(jq -r '"\(.y | floor) \(.height | floor)"' <<<"${glow}")" "$((my + (mh * 120 + 280) / 560)) $((mh - 2 * ((mh * 120 + 280) / 560)))"
 same "S3 the drag over the glow is read once" "$(shelf .reading)" true
 check "S4 the drop opened the shelf" wait_for 20 one_shelf
+# The module takes the window when it is made and places it once it has a size: read it placed
+shelf_placed() { [[ "$(shelf '.windows[0] | .width > 0 and .above')" == true ]]; }
+wait_for 10 shelf_placed
 win="$(shelf '.windows[0]')"
 same "S4 the shelf is on every workspace and above" "$(jq -r '"\(.sticky) \(.above)"' <<<"${win}")" "true true"
 same "S4 the shelf is 10 px in from the work area's edge" "$(jq -r '.x + .width' <<<"${win}")" "$((ax + aw - 10))"
@@ -324,7 +338,9 @@ check "S11 ...holding the text" wait_for 10 shelf_has "Flight LH 1173"
 leaks="$(grep -rlsF "${MARK}" "${HOME_DIR}" /tmp /var/tmp "/run/user/$(id -u "${TEST_USER}")" /var/lib/systemd/coredump 2>/dev/null |
     grep -v "^${LAB}/" | head -n 5)"
 same "S11 the dropped text is in no file" "${leaks}" ""
-same "S11 the dropped text is on no command line" "$(grep -lsaF "${MARK}" /proc/[0-9]*/cmdline 2>/dev/null | head -n 3)" ""
+# The mark reaches grep on a descriptor: on its command line, grep would find itself
+same "S11 the dropped text is on no command line" \
+    "$(grep -lsaF -f <(printf '%s\n' "${MARK}") /proc/[0-9]*/cmdline 2>/dev/null | head -n 3)" ""
 same "S11 the dropped text is not in the journal" "$(journalctl -b --since "${since}" --no-pager -o cat | grep -cF "${MARK}")" 0
 pkill -u "${TEST_USER}" -f '^/usr/lib/amethystora-shelf/amethystora-shelf' 2>/dev/null
 wait_for 10 no_shelf_running
@@ -346,6 +362,9 @@ drag $((fx + fw / 2)) $((fy + fh / 4)) "${cx}" "${cy}" 2500 1
 sleep 1.8
 check "S10 a shake while dragging opens the card under the pointer" test "$(shelf .card)" != null
 check "S10 the drop on the card opens the shelf" wait_for 20 one_shelf
+# The window is taken in as it is made, before its first frame: placed once it has a size
+on_drop() { [[ "$(shelf '.windows[0] | "\(.x + .width / 2 | floor) \(.y + .height / 2 | floor)"')" == "${cx} ${cy}" ]]; }
+wait_for 10 on_drop
 win="$(shelf '.windows[0]')"
 same "S10 the shelf opens as a row" "$(jq -r .layout <<<"${win}")" row
 same "S10 the row is centred on the drop" "$(jq -r '"\(.x + .width / 2 | floor) \(.y + .height / 2 | floor)"' <<<"${win}")" "${cx} ${cy}"
@@ -357,7 +376,7 @@ check "S13 the light theme renders the shelf's colours" wait_for 20 light_render
 check "S13 ...with no placeholder left" bash -c "! grep -q '{{' '${HOME_DIR}/.config/amethystora/current/theme/shell-shelf.css'"
 
 # --- 12: ten cycles --------------------------------------------------------------------------------------------------------
-ev "for (let i = 0; i < 10; i++) { Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); } 'cycled'" >/dev/null
+cycle10
 sleep 2
 same "S12 after ten cycles the shelf is still sticky and above" "$(shelf '.windows[0] | "\(.sticky) \(.above)"')" "true true"
 same "S12 ...and where it was" "$(shelf '.windows[0] | "\(.x + .width / 2 | floor) \(.y + .height / 2 | floor)"')" "${cx} ${cy}"
@@ -464,14 +483,16 @@ ev "${DK}._closeCard(); 'ok'" >/dev/null
 in_session "ame desktop desks rename aaaaaaaaaaaa Office desk" >/dev/null
 same "D9 a name with a right-to-left override is refused" \
     "$(in_session "ame desktop desks rename aaaaaaaaaaaa \$'a‮b' >/dev/null 2>&1; echo \$?")" 64
-control="$(in_session "amethystora-control-list --json" 2>/dev/null)"
+control="$(in_session "/usr/libexec/amethystora-control-list --json" 2>/dev/null)"
 same "D9 Control lists the desk by its new name" "$(jq -r '.items[] | select(.id == "desk-aaaaaaaaaaaa") | .title' <<<"${control}")" "Office desk"
-same "D9 Control shows no serial number" "$(grep -c 'X1\|X2' <<<"${control}")" 0
+# The serials as words (Steam's entry says X11)
+serials="$(grep -oE '"[^"]*\bX[12]\b[^"]*"' <<<"${control}" | sort -u | paste -sd ' ')"
+same "D9 Control shows no serial number" "${serials}" ""
 in_session "ame desktop desks forget bbbbbbbbbbbb" >/dev/null
 sleep 2
 same "D9 forget takes it away, from the copy too" "$(jq -c '[.desks[].id]' "${DESKS_FILE}.bak")" '["aaaaaaaaaaaa"]'
 echo garbage >"${DESKS_FILE}"
-control="$(in_session "amethystora-control-list --json" 2>/dev/null)"
+control="$(in_session "/usr/libexec/amethystora-control-list --json" 2>/dev/null)"
 same "D10 Control reads the copy while the file is damaged" "$(jq -r '[.items[] | select(.id == "desk-aaaaaaaaaaaa")] | length' <<<"${control}")" 1
 unlock
 same "D10 a damaged file is read from its copy and written again" "$(jq -c '[.desks[].id]' "${DESKS_FILE}")" '["aaaaaaaaaaaa"]'
@@ -491,17 +512,17 @@ at U
 at A
 toast_up() { [[ "$(desks .toast)" != null ]]; }
 check "D11 a toast is up" toast_up
-ev "for (let i = 0; i < 10; i++) { Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); } 'cycled'" >/dev/null
+cycle10
 sleep 1
 same "D11 nothing of desks is left in the shell" \
-    "$(ev "Main.layoutManager.uiGroup.get_children().filter(a => /amethystora-desks/.test(a.style_class ?? '')).length")" 0
+    "$(ev "Main.layoutManager.uiGroup.get_children().filter(a => /amethystora-desks/.test(a.style_class ?? '')).map(a => a.style_class).join(', ')")" ""
 sleep 3
 same "D11 after the cycles desks are on again, no timer left" "$(desks '"\(.on) \(.fileMonitor) \(.timer)"')" "true true false"
 # The cycles started the module again without its stand-in: it read this machine's own screens, as Mutter has them
 same "D13 the screens of this machine make a desk with an id" "$(desks '.here.id | test("^[0-9a-f]{12}$")')" true
 in_session "ame setup save" >/dev/null 2>&1
 same "D12 the setup file carries desks on" "$(jq -c '.settings.desks' "${HOME_DIR}/.config/amethystora/setup.json")" '{"desks":true}'
-same "D12 and no serial number" "$(grep -c 'X1\|serial' "${HOME_DIR}/.config/amethystora/setup.json")" 0
+same "D12 and no serial number" "$(grep -cE '\bX[12]\b|serial' "${HOME_DIR}/.config/amethystora/setup.json")" 0
 in_session "ame desktop desks off" >/dev/null
 same "D2 off again, desks hold nothing" "$(desks '"\(.on) \(.timer) \(.fileMonitor)"')" "false false false"
 
