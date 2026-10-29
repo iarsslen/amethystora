@@ -400,6 +400,15 @@ export class Engine {
             // GNOME shows a window again on its own occasions: one off the screen stays hidden
             if (actor.visible && this._info?.get(window)?.hidden)
                 actor.hide();
+        }, 'effects-completed', actor => {
+            // While GNOME drew the window itself (busy: its own minimize and way back, an open, a change of size) the
+            // strip moved it nowhere; once that is over it is drawn where the strip has it now
+            const now = this._info?.get(window);
+            if (!now?.strip || !now.vis || busy(actor))
+                return;
+            const frame = window.get_frame_rect();
+            actor.translation_x = now.vis.x - frame.x;
+            actor.translation_y = now.vis.y - frame.y;
         }, this);
         return info;
     }
