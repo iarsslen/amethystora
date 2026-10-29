@@ -111,8 +111,10 @@ trap cleanup EXIT
 
 # --- 1-2: the module, and idle is GNOME's clock ---------------------------------------------------------------------
 check "1 the pill module runs" test "$(ev "${UI}.has('pill')")" == true
-same "1 the schema has its seven keys" "$(in_session "gsettings list-keys ${PILL}" | sort | paste -sd ' ')" \
-    "digest digest-times glow live privacy-dots quiet quiet-night"
+# Seven of the pill's own, and Later's two and What's new's (the notify group)
+same "1 the schema has its ten keys" \
+    "$(in_session "gsettings list-keys ${PILL}" | sort | paste -sd ' ')" \
+    "digest digest-times glow later later-times live privacy-dots quiet quiet-night whats-new"
 same "2 idle" "$(st .activity)" '"idle"'
 same "2 the date menu's only child is the pill, GNOME's clock box in it and shown" \
     "$(ev "(() => { const d = ${PILL_ACTOR}; const box = d._clockDisplay.get_parent(); return d.get_n_children() + ' ' + d.get_first_child().style_class + ' ' + (box.get_parent() === d.get_first_child()) + ' ' + box.visible; })()")" \
@@ -186,6 +188,9 @@ check "4a ame desktop comfort reduce-motion on" in_session "ame desktop comfort 
 user_bus systemctl --user stop vmlab-mpris >/dev/null 2>&1
 wait_for 5 idle
 user_bus systemd-run --user --collect --unit=vmlab-mpris python3 "${WORK}/mpris.py" >/dev/null
+# Asked as fast as Eval answers for the first seconds of the change, when the plate would travel
+morphing() { [[ "$(st .motion.morphing)" == true ]]; }
+quick_poll() { local i; for i in $(seq 20); do "$1" && return 0; sleep 0.05; done; return 1; }
 if quick_poll morphing; then not_ok "4a with reduce motion the plate does not travel"; else ok "4a with reduce motion the plate does not travel"; fi
 same "4a ...the bars stand still" "$(st .motion.bars)" false
 # Measured in the shell: from the change to the new content fully shown, every 10 ms
@@ -211,9 +216,15 @@ check "5 the calendar is open" wait_for 3 cal_open
 check "5 the calendar has the quick timer" user_bus python3 "${HERE}/atspi.py" gnome-shell has "Start a 5 minute timer"
 # A pointer click on the button, as a person makes one
 FIVE="(() => { let b = null; const walk = a => { if (!b && a.accessible_name === 'Start a 5 minute timer') b = a; a.get_children().forEach(walk); }; walk(${PILL_ACTOR}.menu.actor); return b; })()"
-keys "click:$(where "${FIVE}")"
+# The timer is the last section of GNOME's scrolled column, under Getting set on a new account: brought into view
+# first, as a person scrolls to it, or the click lands on what the column's end hides it under
+ev "(async () => { const b = ${FIVE}; let s = b?.get_parent(); while (s && !(s instanceof imports.gi.St.ScrollView)) s = s.get_parent();
+    if (s) (await import('resource:///org/gnome/shell/misc/animationUtils.js')).ensureActorVisibleInScrollView(s, b); })(); 'shown'" >/dev/null
+sleep 1
+FIVE_AT="$(where "${FIVE}")"
+keys "click:${FIVE_AT}"
 timer_on() { activity_is timer; }
-check "5 the timer starts in the pill" wait_for 5 timer_on
+if wait_for 5 timer_on; then ok "5 the timer starts in the pill"; else not_ok "5 the timer starts in the pill" "clicked at ${FIVE_AT}"; fi
 check "5 ...over the music" test "$(st .others | grep -c media)" -ge 1
 [[ "$(st .text)" =~ ^\"0[45]:[0-5][0-9]\"$ ]] && ok "5 its text is the time left" || not_ok "5 its text" "$(st .text)"
 left1="$(st .timer.left)"
@@ -228,7 +239,8 @@ before="$(st .timer.left)"
 shell_click "+1 min"
 sleep 0.5
 added=$(($(st .timer.left) - before))
-if ((added >= 58 && added <= 62)); then ok "5 +1 min adds a minute"; else not_ok "5 +1 min" "added ${added}"; fi
+# The timer runs on while the click is found and lands, a few seconds in the lab
+if ((added >= 55 && added <= 62)); then ok "5 +1 min adds a minute"; else not_ok "5 +1 min" "added ${added}"; fi
 shell_click Cancel
 back_to_media() { activity_is media; }
 check "5 Cancel gives the pill back to the music" wait_for 5 back_to_media
@@ -311,7 +323,8 @@ if wait_for 5 mic; then
     same "10 GNOME's microphone icon hidden" "$(ev "Main.panel.statusArea.quickSettings._volumeInput.visible")" false
     ev "${P}.privacy._button.menu.open(); 'open'" >/dev/null
     who="$(ev "${P}.privacy._who('microphone')")"
-    [[ "${who}" == *pw-record* ]] && ok "10 the list names pw-record" || not_ok "10 the list names pw-record" "${who}"
+    # pw-record is a link to pw-cat, which is the name it gives PipeWire
+    [[ "${who}" == *pw-cat* ]] && ok "10 the list names the recording app" || not_ok "10 the list names the recording app" "${who}"
     ev "${P}.privacy._button.menu.close(); 'closed'" >/dev/null
     check "13 ame desktop pill dots off" in_session "ame desktop pill dots off"
     dots_off() { [[ "$(st .dots.visible)" == false && "$(ev "Main.panel.statusArea.quickSettings._volumeInput.visible")" == true ]]; }
@@ -380,7 +393,10 @@ keys "click:$(where "${COPY}")"
 clip="$(ev "new Promise(r => imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => { globalThis.vmlabClip = t; r(); })); 'asked'" >/dev/null; sleep 1; ev "globalThis.vmlabClip")"
 same "14 Copy puts the address on the clipboard" "${clip}" "https://recipes.example.org/lemon-tart"
 check "14 ...and the link stays" link
-shell_click "Not now"
+# The card's Not now, by the pointer as Copy: the pill's own Not now chip comes first by name, has no action, and a
+# click on it while the card is open only closes the card
+NOT_NOW="(() => { let b = null; const walk = a => { if (!b && a.accessible_name === 'Not now') b = a; a.get_children().forEach(walk); }; walk(${P}.clock._card.box); return b; })()"
+keys "click:$(where "${NOT_NOW}")"
 sleep 1.5
 banner_before="$(ev "Main.messageTray._notificationState")"
 gone_to_list() { [[ "$(ev "Main.messageTray.getSources().some(s => s.notifications.some(n => n.title === 'Sam phone sent a link' && n.body === 'https://recipes.example.org/lemon-tart'))")" == true ]] && ! link; }
@@ -440,7 +456,11 @@ elif rm -rf "${TREE}" && mkdir -p "${TREE}/usr/share" && echo vmlab >"${TREE}/us
     check "16 ostree staged it" test -f /run/ostree/staged-deployment
     update() { activity_is update; }
     check "16 the pill says an update is ready within 10 s" wait_for 10 update
-    same "16 ...a quick one" "$(st .text)" '"Ready · quick restart"'
+    # The pill says Ready · restart until the soft reboot's helper, asked through pkexec, answers
+    quick_word() { [[ "$(st .text)" == '"Ready · quick restart"' ]]; }
+    if wait_for 20 quick_word; then ok "16 ...a quick one"; else
+        not_ok "16 ...a quick one" "found: $(st .text)" "the helper: $(/usr/libexec/amethystora-soft-reboot status 2>&1)"
+    fi
     keys "click:$(where "${PILL_ACTOR}")"
     shell_click "Restart now"
     updates_open() { [[ "$(ev "global.get_window_actors().some(a => a.meta_window.get_wm_class() === 'org.amethystora.Updates')")" == true ]]; }
