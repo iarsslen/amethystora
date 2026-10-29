@@ -51,6 +51,27 @@ and per suite, a screenshot after each suite, the guest's journal, `results.json
 `run.sh` prints last. It exits 0 only when everything passed. The `run-tests` skill in `.claude/skills`
 is how an agent runs it and fixes what fails.
 
+### Several VMs at once
+
+```bash
+bash tests/vm/run.sh test --parallel 3              # the suites spread over three VMs
+VMLAB_NAME=x bash tests/vm/run.sh plan --parallel 3 # the lanes it would run, and nothing else
+```
+
+`--parallel N` first makes a ready state: VM `test` starts on the disk, runs the suites `shards.json` calls `prep`
+(the boot, the first-run setup, the sign-in), waits for the first boot's Flatpaks and powers itself off. VMs
+`test-p1` to `test-pN` then start from it, each an overlay on its overlay (`vm_start`'s `from`): nothing is copied,
+and QEMU refuses to start `test` again while one of them runs. The other suites are spread over the N lanes by their
+minutes in `shards.json`, longest first onto the lane that would end soonest; a lane runs its suites in name order,
+`last` ones last. The installer's suites run on `test-installer-pK`, a fresh overlay of that disk, while the ready
+state is being made; the screens suites run together on `test-screens`, from the ready state. A suite `shards.json`
+does not name counts `default_minutes`: give it its minutes from a run's `results.json` once it has one. The VMs
+are deleted at the end (not with `--keep`), the ready state is kept until the next run, and `summary.md` says which
+VM ran each suite and how long each lane took. `--memory MB` gives every VM but the screens one that much memory.
+
+Each suite starts on a machine where only the prep suites ran before it, not every suite before it in name order:
+a suite that needs another's leftovers says so and does the work itself.
+
 ### Suites
 
 A suite is `suites/NN-name.sh`, run as root in the VM beside `lib.sh`, which it sources. It says one line per

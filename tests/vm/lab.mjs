@@ -223,14 +223,23 @@ export const tools = [
       faulty: { type: 'object', description: 'spare disks with bad sectors this time: {"3": [sector, ...]}, each 512-byte sector failing every read with an I/O error' },
       credentials: { type: 'object', description: 'systemd credentials for the guest, {"cryptsetup.passphrase": "..."}' },
       screens: { type: 'integer', description: 'screens of 1280x800 side by side, 1 to 4, default 1' },
+      from: { type: 'string', description: 'another, stopped VM to start as: the new overlay on top of its overlay instead of a disk, with its firmware variables and TPM. While this one exists, that one must not start again (QEMU refuses it while this one runs)' },
     },
     required: ['name'],
     async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false, spares_gb = [],
-      absent = [], system_absent = false, faulty = {}, credentials: extra = {}, screens = 1 }) {
+      absent = [], system_absent = false, faulty = {}, credentials: extra = {}, screens = 1, from }) {
       checkName(name);
-      checkName(disk, 'disk');
       if (running(name)) throw new Error(`VM ${name} is running already`);
-      const base = `${DISKS}/${disk}.qcow2`;
+      // A clone of another VM: its overlay is this one's backing file, nothing of it copied but its few KB of state
+      if (from !== undefined) {
+        checkName(from, 'from');
+        if (from === name) throw new Error('a VM cannot start from itself');
+        if (running(from)) throw new Error(`VM ${from} is running: a VM starts from a stopped one`);
+        if (!fs.existsSync(file(from, 'qcow2'))) throw new Error(`no VM ${from}`);
+      } else {
+        checkName(disk, 'disk');
+      }
+      const base = from !== undefined ? file(from, 'qcow2') : `${DISKS}/${disk}.qcow2`;
       if (!fs.existsSync(base)) throw new Error(`no disk ${disk}: disk_build makes it`);
       if (![1, 2, 3, 4].includes(screens)) throw new Error('screens is 1 to 4');
       if (spares_gb.length > 6) throw new Error('at most 6 spare disks: the machine has six SATA ports');
@@ -245,9 +254,13 @@ export const tools = [
       // The firmware keeps its variables in QEMU (uefi-vars), so that Secure Boot needs no SMM: with SMM, a nested
       // VM hangs as the kernel starts
       if (!fs.existsSync(file(name, 'vars.json'))) {
-        // The disk's own, with the image's certificates enrolled (make-disk.sh), else the firmware's
-        const own = `${DISKS}/${disk}.vars.json`;
+        // The other VM's, or the disk's own, with the image's certificates enrolled (make-disk.sh), else the firmware's
+        const own = from !== undefined ? file(from, 'vars.json') : `${DISKS}/${disk}.vars.json`;
         fs.copyFileSync(secure_boot && fs.existsSync(own) ? own : `${OVMF}/${secure_boot ? 'vars.secboot.json' : 'vars.blank.json'}`, file(name, 'vars.json'));
+      }
+      // ...and its TPM, which a new overlay starts with (an empty one made below otherwise)
+      if (from !== undefined && tpm && !fs.existsSync(file(name, 'tpm')) && fs.existsSync(file(from, 'tpm'))) {
+        fs.cpSync(file(from, 'tpm'), file(name, 'tpm'), { recursive: true });
       }
       const args = ['-name', name, '-enable-kvm', '-machine', 'q35,smm=off', '-cpu', 'host', '-smp', String(cpus),
         '-m', String(memory_mb), '-global', 'ICH9-LPC.disable_s3=1',
@@ -307,7 +320,7 @@ export const tools = [
         await sleep(200);
       }
       if (!running(name)) throw new Error(`QEMU did not start: ${fs.readFileSync(file(name, 'log'), 'utf8').trim()}`);
-      return text(`Started ${name} from ${disk} (${memory_mb} MB, ${cpus} CPUs, Secure Boot ${secure_boot ? 'on' : 'off'}, TPM ${tpm ? 'on' : 'off'}).`);
+      return text(`Started ${name} from ${from !== undefined ? `VM ${from}` : disk} (${memory_mb} MB, ${cpus} CPUs, Secure Boot ${secure_boot ? 'on' : 'off'}, TPM ${tpm ? 'on' : 'off'}).`);
     },
   },
   {
@@ -464,6 +477,8 @@ export const tools = [
       const saved = `${file(name, 'checkpoints')}/${tag}`;
       const flag = { save: '-c', load: '-a', delete: '-d' }[action];
       if (action === 'load' && !fs.existsSync(saved)) throw new Error(`no checkpoint ${tag}`);
+      // qemu-img adds a second snapshot under a tag it has already, and loads the first: a save replaces it
+      if (action === 'save') await run('qemu-img', ['snapshot', '-d', tag, file(name, 'qcow2')]).catch(() => {});
       await run('qemu-img', ['snapshot', flag, tag, file(name, 'qcow2')]);
       if (action === 'save') {
         fs.rmSync(saved, { recursive: true, force: true });

@@ -4,7 +4,8 @@
 // (/vm/runs/last): run.log, one log per stage and per suite, a screenshot after each suite, the guest's
 // journal, results.json, and summary.md, which it prints last.
 //
-//   node run.mjs [all | build | disk | test] [--keep] [--image IMAGE] [--tag TAG] [--suites NN,NN...]
+//   node run.mjs [all | build | disk | test | plan] [--keep] [--image IMAGE] [--tag TAG] [--suites NN,NN...]
+//                [--parallel N] [--memory MB]
 //
 // all (the default) does the three in turn and stops at the first that fails; the others do one, from what
 // the last run left. --keep leaves the VMs running afterwards, for a closer look over MCP. The exit status is
@@ -12,6 +13,15 @@
 // so that two sessions' runs do not take each other's. --image builds amethystora-dx, or either with -nvidia-open or
 // -nvidia-lts, instead of amethystora; --tag builds that stream (beta, which can be on the next Fedora) instead of
 // latest; --suites runs only the suites with those numbers.
+//
+// --parallel N runs the suites in N VMs at once. VM NAME starts on the disk, runs the suites shards.json calls prep
+// (the boot, the first-run setup, the sign-in), waits for the first boot's Flatpaks and powers itself off: that is
+// the ready state, which VMs NAME-p1...NAME-pN start from (lab.mjs's vm_start from: an overlay on its overlay,
+// nothing copied). The other suites are spread over the N lanes by their minutes in shards.json, longest first onto
+// the lane with the least; a suite it does not name counts default_minutes. A lane runs its suites in name order,
+// those that come last after the rest, then its installer suites on NAME-installer-pK, a fresh overlay of the
+// installer disk; the screens suites are one unit, on NAME-screens, also from the ready state. plan prints the
+// lanes and runs nothing. --memory gives every VM but the screens one that much memory (default 4096).
 //
 // A suite is a bash script run as root in the guest, beside lib.sh: one "ok - ...", "not ok - ..." or
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
@@ -29,10 +39,12 @@
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { agent, call, decode, qmp, screendump, serialWrite } from './lab.mjs';
 
-const HERE = path.dirname(new URL(import.meta.url).pathname);
+// A path on Windows too, where plan runs as well (with VMLAB_DIR somewhere writable)
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, '../..');
 const SUITES = `${HERE}/suites`;
 const NAME = process.env.VMLAB_NAME || 'test';
@@ -80,16 +92,29 @@ const MACHINES = {
 const MAX_PHASES = 16;
 const stage = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'all';
 const keep = process.argv.includes('--keep');
+const PARALLEL = option('--parallel') === undefined ? 0 : Number(option('--parallel'));
+if (!Number.isInteger(PARALLEL) || PARALLEL < 0 || PARALLEL > 12) throw new Error('run.mjs: --parallel is 1 to 12');
+if (stage === 'plan' && !PARALLEL) throw new Error('run.mjs: plan needs --parallel N');
+const MEMORY = option('--memory') === undefined ? undefined : Number(option('--memory'));
+if (MEMORY !== undefined && !(Number.isInteger(MEMORY) && MEMORY >= 2048)) throw new Error('run.mjs: --memory is MB, 2048 or more');
+if (MEMORY) for (const m of [MACHINES.default, MACHINES.installer]) m.memory = MEMORY;
+// The machine a function was given, by its kind or as itself (a lane's)
+const machineOf = (machine) => (typeof machine === 'string' ? MACHINES[machine] : machine);
+// How a suite's lines start in the log: with the VM's name when several run at once
+const lane = (m) => (m.lane ? `[${m.vm}] ` : '   ');
 
-const RUN = `/vm/runs/${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}${NAME === 'test' ? '' : `-${NAME}`}`;
-fs.mkdirSync(RUN, { recursive: true });
-const LAST = NAME === 'test' ? '/vm/runs/last' : `/vm/runs/last-${NAME}`;
-fs.rmSync(LAST, { force: true });
-fs.symlinkSync(RUN, LAST);
+// A plan writes nothing: no run folder, and /vm/runs/last left to the run it names
+const RUN = stage === 'plan' ? '' : `/vm/runs/${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}${NAME === 'test' ? '' : `-${NAME}`}`;
+if (RUN) {
+  fs.mkdirSync(RUN, { recursive: true });
+  const LAST = NAME === 'test' ? '/vm/runs/last' : `/vm/runs/last-${NAME}`;
+  fs.rmSync(LAST, { force: true });
+  fs.symlinkSync(RUN, LAST);
+}
 
 const say = (line) => {
   console.log(line);
-  fs.appendFileSync(`${RUN}/run.log`, `${line}\n`);
+  if (RUN) fs.appendFileSync(`${RUN}/run.log`, `${line}\n`);
 };
 const minutes = (began) => `${((Date.now() - began) / 60000).toFixed(1)} min`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -180,12 +205,12 @@ async function session(vm, seconds) {
 
 // A VM of this run started, as a machine is, or with what a suite asked for its next start
 async function start(machine, request = {}, fresh = false) {
-  const m = MACHINES[machine];
+  const m = machineOf(machine);
   const credentials = { ...m.credentials, ...(request.credentials || {}) };
   if (request.type_passphrase) delete credentials['cryptsetup.passphrase'];
   // A credential asked for as null is left out: {"cryptsetup.passphrase": null} has the TPM open the disk alone
   for (const [key, value] of Object.entries(credentials)) if (value === null) delete credentials[key];
-  await call('vm_start', { name: m.vm, disk: m.disk, fresh, spares_gb: m.spares,
+  await call('vm_start', { name: m.vm, disk: m.disk, from: m.from, memory_mb: m.memory, fresh, spares_gb: m.spares,
     absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials,
     screens: m.screens || 1 });
   if (request.menu_last) await chooseLastEntry(m.vm);
@@ -256,7 +281,8 @@ async function typePassphrase(vm) {
 }
 
 async function reboot(machine) {
-  const { vm } = MACHINES[machine];
+  const m = machineOf(machine);
+  const { vm } = m;
   // A power cycle, when the phase asked for one
   let request = null;
   try {
@@ -270,11 +296,11 @@ async function reboot(machine) {
   if (request?.itself) {
     // The phase left something to restart the machine once it ended, as a person would
     await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
-    say('   the machine restarts itself');
+    say(`${lane(m)}the machine restarts itself`);
   } else if (request?.powers_off) {
     // ...or to power it off: started again once QEMU has ended, as a person presses the power button
     await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
-    say('   the machine powers itself off');
+    say(`${lane(m)}the machine powers itself off`);
     const off = new RegExp(`^${vm}: stopped`, 'm');
     for (const began = Date.now(); !off.test((await call('vm_list')).content[0].text); await sleep(5000)) {
       if (Date.now() - began > 900000) throw new Error('the VM did not power itself off within 15 minutes');
@@ -282,7 +308,7 @@ async function reboot(machine) {
     await start(machine);
   } else if (request) {
     await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
-    say(`   power cycle: ${JSON.stringify(request)}`);
+    say(`${lane(m)}power cycle: ${JSON.stringify(request)}`);
     await call('vm_stop', { name: vm });
     await start(machine, request);
   } else {
@@ -302,9 +328,9 @@ async function reboot(machine) {
   // most; then the suite cannot run, rather than skip everything as passed.
   for (let tries = 0; await sessionExpected(vm) && !(await session(vm, 240)); tries++) {
     if (tries === 2) throw new Error('the test account got no session after three boots');
-    say('   no session after this boot: powering the VM off and on again');
+    say(`${lane(m)}no session after this boot: powering the VM off and on again`);
     // What PID 1 and plymouthd wait on, which the power cycle loses: the evidence for the stall
-    fs.writeFileSync(`${RUN}/stalled-boot-${tries + 1}.txt`, await guest(vm, 'cat /proc/1/stack; ' +
+    fs.writeFileSync(`${RUN}/stalled-boot-${m.lane ? `${vm}-` : ''}${tries + 1}.txt`, await guest(vm, 'cat /proc/1/stack; ' +
       'for p in $(pidof plymouthd); do echo "plymouthd $p $(grep ^State /proc/$p/status)"; cat /proc/$p/stack; done; ' +
       'journalctl -b -o short-monotonic --no-pager _PID=1 | grep -v " audit" | tail -n 15', 60));
     await call('vm_stop', { name: vm, force: true });
@@ -338,7 +364,7 @@ async function usb(vm) {
     }
     await qmp(vm, 'device_add', args);
   }
-  say(`   usb: ${JSON.stringify(request)}`);
+  say(`   usb (${vm}): ${JSON.stringify(request)}`);
 }
 
 // The suites and lib.sh into the guest's /run, which a reboot empties
@@ -352,7 +378,8 @@ async function install(vm) {
 }
 
 async function suite(machine, name) {
-  const { vm } = MACHINES[machine];
+  const m = machineOf(machine);
+  const { vm } = m;
   const began = Date.now();
   let output = '';
   let rc = 0;
@@ -373,7 +400,7 @@ async function suite(machine, name) {
       await usb(vm);
       continue;
     }
-    say(`   ${name}: rebooting for phase ${phase + 1}`);
+    say(`${lane(m)}${name}: rebooting for phase ${phase + 1}`);
     await reboot(machine);
   }
   try {
@@ -398,45 +425,194 @@ async function suite(machine, name) {
     skipped: lines.filter((l) => l.startsWith('skip')).length,
     failures,
     time: minutes(began),
+    vm,
   };
-  say(`   ${name}: ${result.passed ? 'passed' : 'FAILED'} (${result.ok} ok, ${failures.length} not ok, ${result.skipped} skipped, exit ${rc}, ${result.time})`);
+  say(`${lane(m)}${name}: ${result.passed ? 'passed' : 'FAILED'} (${result.ok} ok, ${failures.length} not ok, ${result.skipped} skipped, exit ${rc}, ${result.time})`);
   return result;
 }
 
+const couldNot = (name, m, why) => ({ suite: name, passed: false, exit: -1, ok: 0, skipped: 0, failures: [`not ok - the suite could not run: ${why}`], time: '-', vm: m.vm });
+
+// One machine started fresh and NAMES run on it in turn, then its journal kept as JOURNAL.log. With ready, the
+// machine powers itself off afterwards and is left as it is, for VMs to start from (--parallel).
+async function onMachine(m, names, results, journal, ready = false) {
+  const { vm } = m;
+  say(`== test: ${IMAGE} on ${m.from ? `VM ${m.from}` : `disk ${m.disk}`}, VM ${vm}: ${names.join(' ')}`);
+  try {
+    await call('vm_stop', { name: vm, force: true });
+  } catch {
+    // Not running
+  }
+  try {
+    await start(m, {}, true);
+    say(`${lane(m)}${(await call('vm_wait', { name: vm, timeout_s: 900 })).content[0].text}`);
+  } catch (error) {
+    say(`${lane(m)}${vm} did not start: ${error.message}`);
+    for (const name of names) results.push(couldNot(name, m, `${vm} did not start: ${error.message}`));
+    return false;
+  }
+  for (const name of names) {
+    try {
+      results.push(await suite(m, name));
+    } catch (error) {
+      results.push(couldNot(name, m, error.message));
+      say(`${lane(m)}${name}: could not run: ${error.message}`);
+    }
+  }
+  try {
+    const answer = await agent(vm, { op: 'exec', command: 'journalctl -b -p warning --no-pager -o short-monotonic; echo; systemctl --failed --no-pager', timeout: 120 }, 120);
+    fs.writeFileSync(`${RUN}/${journal}.log`, decode(answer.stdout));
+  } catch {
+    // The guest no longer answers: the suites' logs say why
+  }
+  if (ready) return readyState(m);
+  if (!keep) await call('vm_stop', { name: vm }).catch(() => {});
+  return true;
+}
+
 async function test() {
+  if (PARALLEL) return testParallel();
   const began = Date.now();
   const results = [];
   for (const machine of Object.keys(MACHINES)) {
     const names = suitesOf(machine);
-    if (!names.length) continue;
-    const { vm, disk: base } = MACHINES[machine];
-    say(`== test: ${IMAGE} on disk ${base}, VM ${vm}`);
-    try {
-      await call('vm_stop', { name: vm, force: true });
-    } catch {
-      // Not running
-    }
-    await start(machine, {}, true);
-    say(`   ${(await call('vm_wait', { name: vm, timeout_s: 900 })).content[0].text}`);
-    for (const name of names) {
-      try {
-        results.push(await suite(machine, name));
-      } catch (error) {
-        results.push({ suite: name, passed: false, exit: -1, ok: 0, skipped: 0, failures: [`not ok - the suite could not run: ${error.message}`], time: '-' });
-        say(`   ${name}: could not run: ${error.message}`);
-      }
-    }
-    try {
-      const journal = await agent(vm, { op: 'exec', command: 'journalctl -b -p warning --no-pager -o short-monotonic; echo; systemctl --failed --no-pager', timeout: 120 }, 120);
-      fs.writeFileSync(`${RUN}/journal${machine === 'default' ? '' : `-${machine}`}.log`, decode(journal.stdout));
-    } catch {
-      // The guest no longer answers: the suites' logs say why
-    }
-    if (!keep) await call('vm_stop', { name: vm }).catch(() => {});
+    if (names.length) await onMachine(MACHINES[machine], names, results, `journal${machine === 'default' ? '' : `-${machine}`}`);
   }
   fs.writeFileSync(`${RUN}/results.json`, `${JSON.stringify(results, null, 2)}\n`);
   const passed = results.every((r) => r.passed);
   stages.push({ stage: 'test', passed, time: minutes(began), results });
+  return passed;
+}
+
+// --- Several VMs at once (--parallel) -------------------------------------------------------------------------
+
+const SHARDS = JSON.parse(fs.readFileSync(`${HERE}/shards.json`, 'utf8'));
+const kindOf = (f) => suiteHead(f).match(/^# vmlab-vm: (installer|screens)$/m)?.[1] ?? 'default';
+const cost = (f) => SHARDS.minutes[f] ?? SHARDS.default_minutes;
+const inOrder = (names) => [...names].sort().filter((f) => !comesLast(f)).concat([...names].sort().filter(comesLast));
+
+// The lanes: the prep suites first, on VM NAME, then every other suite, as units (one suite, or every screens suite
+// together), longest first onto the lane that would end soonest. The installer's suites need no ready state, so
+// they are placed first and run while the prep VM gets it ready; nothing else starts before the prep has ended.
+function planLanes(n) {
+  const all = fs.readdirSync(SUITES).filter((f) => /^\d\d-.+\.sh$/.test(f)).sort();
+  const wanted = (f) => !ONLY || ONLY.includes(f.slice(0, 2));
+  const units = all.filter((f) => wanted(f) && kindOf(f) !== 'screens' && !SHARDS.prep.includes(f))
+    .map((f) => ({ kind: kindOf(f), suites: [f], minutes: cost(f) }));
+  const screens = all.filter((f) => wanted(f) && kindOf(f) === 'screens');
+  if (screens.length) units.push({ kind: 'screens', suites: screens, minutes: screens.reduce((t, f) => t + cost(f), 0) });
+  const needsReady = units.some((u) => u.kind !== 'installer') || all.some((f) => wanted(f) && SHARDS.prep.includes(f));
+  const prep = needsReady ? all.filter((f) => SHARDS.prep.includes(f) && kindOf(f) === 'default') : [];
+  const prepMinutes = needsReady ? SHARDS.prep_minutes : 0;
+  const lanes = Array.from({ length: n }, (_, i) => ({ lane: i + 1, minutes: i === 0 ? prepMinutes : 0, kinds: new Set(), units: [] }));
+  const place = (list) => {
+    for (const u of list.sort((a, b) => b.minutes - a.minutes || a.suites[0].localeCompare(b.suites[0]))) {
+      const end = (l) => l.minutes + u.minutes + (l.kinds.has(u.kind) ? 0 : SHARDS.boot_minutes);
+      const best = lanes.reduce((a, b) => (end(b) < end(a) ? b : a));
+      best.minutes = end(best);
+      best.kinds.add(u.kind);
+      best.units.push(u);
+    }
+  };
+  place(units.filter((u) => u.kind === 'installer'));
+  if (needsReady) for (const l of lanes) l.minutes = Math.max(l.minutes, prepMinutes);
+  place(units.filter((u) => u.kind !== 'installer'));
+  return {
+    prep,
+    prepMinutes,
+    lanes: lanes.map((l) => {
+      const of = (kind) => inOrder(l.units.filter((u) => u.kind === kind).flatMap((u) => u.suites));
+      return { lane: l.lane, minutes: Math.round(l.minutes), installer: of('installer'), default: of('default'), screens: of('screens') };
+    }),
+  };
+}
+
+function printPlan(p) {
+  say(`Plan for --parallel ${PARALLEL}, by the minutes in shards.json:`);
+  if (p.prep.length) say(`  prep (${NAME}, about ${p.prepMinutes} min with the first boot's Flatpaks): ${p.prep.join(' ')}`);
+  for (const l of p.lanes) {
+    const parts = [['installer', l.installer], ['', l.default], ['screens', l.screens]].filter(([, s]) => s.length)
+      .map(([what, s]) => `${what ? `${what}: ` : ''}${s.join(' ')}`);
+    say(`  lane ${l.lane} (about ${l.minutes} min): ${parts.join(' | ') || '(nothing)'}`);
+  }
+}
+
+// The prep VM, its suites run, kept as the ready state: once the first boot's Flatpaks are in (taken half done,
+// every start installs them again, and the account's shell then starts so slowly that GDM locks the session), and
+// powered off from inside (the power button has GNOME lock the session, and a start from it came up locked). The
+// Flatpaks are asked about in short calls: the guest's helper answers one caller at a time.
+async function readyState(m) {
+  say(`${lane(m)}waiting for the first boot's Flatpaks (flatpak-preinstall) before keeping the ready state`);
+  const began = Date.now();
+  for (const until = Date.now() + 3600000; Date.now() < until; await sleep(15000)) {
+    if (!/^(active|activating)$/.test(await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20))) break;
+  }
+  say(`${lane(m)}flatpak-preinstall ${await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20)} after ${minutes(began)}; ` +
+    `${await guest(m.vm, 'flatpak list --app --columns=application | wc -l', 30)} apps`);
+  await agent(m.vm, { op: 'exec', command: '(sleep 1; systemctl poweroff) >/dev/null 2>&1 &' }, 30).catch(() => {});
+  const off = new RegExp(`^${m.vm}: stopped`, 'm');
+  for (const until = Date.now() + 300000; !off.test((await call('vm_list')).content[0].text); await sleep(2000)) {
+    if (Date.now() > until) {
+      await call('vm_stop', { name: m.vm, force: true });
+      break;
+    }
+  }
+  say(`${lane(m)}ready state kept: VM ${m.vm}, stopped`);
+  return true;
+}
+
+async function testParallel() {
+  const began = Date.now();
+  const plan = planLanes(PARALLEL);
+  printPlan(plan);
+  const results = [];
+  const vms = [];
+  const prepMachine = { ...MACHINES.default, lane: 0 };
+  let prepared = Promise.resolve(true);
+  const laneTimes = [];
+  const runLane = async (l) => {
+    const t = Date.now();
+    // Lane 1 makes the ready state first, which the others wait for once their installer suites are done
+    if (l.lane === 1 && plan.prep.length) {
+      prepared = onMachine(prepMachine, plan.prep, results, 'journal-prep', true)
+        .then((started) => started && results.find((r) => r.suite === SHARDS.prep.at(-1))?.passed !== false);
+      await prepared;
+    }
+    if (l.installer.length) {
+      const m = { ...MACHINES.installer, vm: `${NAME}-installer-p${l.lane}`, lane: l.lane };
+      vms.push(m.vm);
+      await onMachine(m, l.installer, results, `journal-installer-p${l.lane}`);
+    }
+    const ready = await prepared;
+    for (const [kind, names] of [['default', l.default], ['screens', l.screens]]) {
+      if (!names.length) continue;
+      const m = kind === 'default' ? { ...MACHINES.default, vm: `${NAME}-p${l.lane}`, from: NAME, lane: l.lane }
+        : { ...MACHINES.screens, from: NAME, lane: l.lane };
+      vms.push(m.vm);
+      if (!ready) {
+        for (const name of names) results.push(couldNot(name, m, `the ready state was not made (${SHARDS.prep.at(-1)})`));
+        continue;
+      }
+      await onMachine(m, names, results, `journal-${m.vm.slice(NAME.length + 1)}`);
+    }
+    laneTimes.push({ lane: l.lane, time: minutes(t), suites: [...l.installer, ...l.default, ...l.screens].length });
+    say(`== lane ${l.lane}: done in ${minutes(t)}`);
+  };
+  // Lane 1 first: it sets prepared before its first await, which the others then wait on
+  await Promise.all(plan.lanes.map(runLane));
+  if (!keep) {
+    for (const vm of vms) {
+      await call('vm_stop', { name: vm, force: true }).catch(() => {});
+      await call('vm_delete', { name: vm }).catch(() => {});
+    }
+  }
+  // In the order a run on one VM has them
+  const order = Object.keys(MACHINES).flatMap((k) => suitesOf(k));
+  const rank = (r) => (order.includes(r.suite) ? order.indexOf(r.suite) : -1);
+  results.sort((a, b) => rank(a) - rank(b));
+  fs.writeFileSync(`${RUN}/results.json`, `${JSON.stringify(results, null, 2)}\n`);
+  const passed = results.every((r) => r.passed);
+  stages.push({ stage: 'test', passed, time: minutes(began), results, lanes: laneTimes.sort((a, b) => a.lane - b.lane) });
   return passed;
 }
 
@@ -448,9 +624,11 @@ function summary() {
   }
   const tested = stages.find((s) => s.stage === 'test');
   if (tested) {
-    lines.push('', '| Suite | Result | ok | not ok | skipped | Time |', '| --- | --- | --- | --- | --- | --- |');
+    for (const l of tested.lanes || []) lines.push(`- lane ${l.lane}: ${l.time}, ${l.suites} suites`);
+    const vm = tested.lanes ? ['VM'] : [];
+    lines.push('', `| ${['Suite', 'Result', 'ok', 'not ok', 'skipped', 'Time', ...vm].join(' | ')} |`, `|${' --- |'.repeat(6 + vm.length)}`);
     for (const r of tested.results) {
-      lines.push(`| ${r.suite} | ${r.passed ? 'passed' : '**failed**'} | ${r.ok} | ${r.failures.length} | ${r.skipped} | ${r.time} |`);
+      lines.push(`| ${[r.suite, r.passed ? 'passed' : '**failed**', r.ok, r.failures.length, r.skipped, r.time, ...(vm.length ? [r.vm] : [])].join(' | ')} |`);
     }
     for (const r of tested.results.filter((x) => !x.passed)) {
       lines.push('', `## ${r.suite} (exit ${r.exit})`, '', '```', ...(r.failures.length ? r.failures : ['(no "not ok" line: see its log)']), '```');
@@ -462,6 +640,10 @@ function summary() {
   console.log(`\n${text}`);
 }
 
+if (stage === 'plan') {
+  printPlan(planLanes(PARALLEL));
+  process.exit(0);
+}
 // The lab's own files from the commit under test, so that the MCP server is the one this run used
 for (const name of ['agent.py', 'lab.mjs', 'make-disk.sh', 'server.mjs']) {
   fs.copyFileSync(`${HERE}/${name}`, `/opt/amethystora-vm/${name}`);

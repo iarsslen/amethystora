@@ -38,8 +38,14 @@ How to read a failure, try a fix without a full rebuild, and tell the lab's prob
 ## 2. Run
 
 ```bash
-bash tests/vm/run.sh >SCRATCHPAD/run.log 2>&1     # build, disk, test
+bash tests/vm/run.sh --parallel 3 >SCRATCHPAD/run.log 2>&1     # build, disk, test on three VMs at once
 ```
+
+`--parallel N` is the default way to run every suite: a ready state is made once (installed, signed in, the
+first boot's Flatpaks in), and the suites are spread over N VMs started from it, by their minutes in
+`tests/vm/shards.json` (`tests/vm/README.md`, Several VMs at once). Without it, the suites run one after another
+on one VM, as before: the fallback when the lab has no memory to spare for more, and for a few suites
+(`--suites NN,NN`). `summary.md` names the VM each suite ran on; each VM's log lines start with its name.
 
 Start it with `run_in_background: true` and the longest timeout (2 hours); you are told when it ends. Do not
 pipe it into `tail`: that hides its exit status. The run carries on inside the lab even if the command is
