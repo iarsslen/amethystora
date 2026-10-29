@@ -118,6 +118,9 @@ p = GdkPixbuf.Pixbuf.new_from_file(sys.argv[1])
 w, h, n, stride, data = p.get_width(), p.get_height(), p.get_n_channels(), p.get_rowstride(), p.get_pixels()
 total = count = 0
 for y in range(0, h, 2):
+    # Not the band in the middle, where the cover's own words stay sharp
+    if abs(y - h / 2) < 80:
+        continue
     row = y * stride
     for x in range(0, w - 1, 2):
         a, b = data[row + x * n], data[row + (x + 1) * n]
@@ -162,14 +165,27 @@ has_window() { [[ "$(ev "global.display.list_all_windows().some(w => w.get_title
 covered() { [[ "$(st ".guard.covers.map(c => c.title).sort().join(',')")" == "\"$1\"" ]]; }
 # The frame of a window, as x y w h
 frame() { ev "(() => { const r = global.display.list_all_windows().find(w => w.get_title() === '$1').get_frame_rect(); return [r.x, r.y, r.width, r.height].join(' '); })()"; }
-# A screenshot of a window's frame, and how much detail it has
+# A window brought to the front, as a person would before looking at it or holding a click on it: the tiling strip
+# hides the windows it has scrolled away from, and their covers with them
+bring() {
+    ev "(() => { global.display.list_all_windows().find(w => w.get_title() === '$1').activate(global.get_current_time()); return 'up'; })()" >/dev/null
+    shown() { [[ "$(ev "global.display.list_all_windows().find(w => w.get_title() === '$1').get_compositor_private().visible")" == true ]]; }
+    wait_for 10 shown "$1"
+    sleep 1
+}
+# A screenshot of a window's frame, and how much detail it has outside the cover's words (which stay sharp), with no
+# banner over it (GNOME's own notices come and go during a session)
 detail_of() {
     local x y w h
+    bring "$1"
     read -r x y w h <<<"$(frame "$1")"
     rm -f "${WORK}/shot.png"
+    ev "Main.messageTray.bannerBlocked = true; 'blocked'" >/dev/null
+    sleep 1
     user_bus gdbus call --session --dest org.gnome.Shell.Screenshot --object-path /org/gnome/Shell/Screenshot \
         --method org.gnome.Shell.Screenshot.ScreenshotArea "$((x + 20))" "$((y + 60))" "$((w - 40))" "$((h - 120))" false \
         "${WORK}/shot.png" >/dev/null 2>&1
+    ev "Main.messageTray.bannerBlocked = false; 'unblocked'" >/dev/null
     python3 "${WORK}/detail.py" "${WORK}/shot.png" 2>/dev/null || echo 0
 }
 share() { # UNIT ARGS...
@@ -186,7 +202,7 @@ same "1 the schema's keys" "$(GSETTINGS_BACKEND=memory gsettings list-keys "${PR
 same "1 the defaults" "$(for k in share-guard share-guard-private shield network-apps; do GSETTINGS_BACKEND=memory gsettings get "${PRIVACY}" "${k}"; done | paste -sd ' ')" \
     "'blur' true 'tile' false"
 order="$(ev "[...${UI}.keys()].join(' ')")"
-[[ " ${order} " =~ \ connect\ .*\ privacy\ .*\ focus\ $ ]] && ok "1 privacy runs after connect and before focus, focus last" ||
+[[ " ${order} " =~ \ connect\ (.*\ )?privacy\ (.*\ )?focus\ $ ]] && ok "1 privacy runs after connect and before focus, focus last" ||
     not_ok "1 the modules' order" "${order}"
 same "2 nothing shared: no cover, no window watched, no Files proxy, unredirection untouched" \
     "$(st ".guard.covering") $(st ".guard.watched") $(st ".guard.files") $(st ".guard.unredirectDisabled")" "false 0 false false"
@@ -224,6 +240,7 @@ if wait_for 20 started vmlab-share; then
     # the windows take the pointer)
     ev "Main.overview.hide(); 'hidden'" >/dev/null
     sleep 1
+    bring "Lab vault"
     ev "(() => { const Clutter = imports.gi.Clutter; const GLib = imports.gi.GLib;
         const c = ${PV}.guard.coverOf('Lab vault'); const [x, y] = c.get_transformed_position(); const [w, h] = c.get_transformed_size();
         const seat = global.stage.context.get_backend().get_default_seat();
@@ -256,17 +273,36 @@ if wait_for 20 started vmlab-share; then
     check "9 ...and not with share-guard private off" wait_for 5 files_free
     gs reset "${PRIVACY}" share-guard-private
     user_bus systemctl --user stop vmlab-files >/dev/null 2>&1
+    # Files closed goes into the dock's recent apps, and GNOME's own dash redraws only when asked: both settled first
+    sleep 3
+    ev "Main.overview.dash._redisplay(); 'drawn'" >/dev/null
     # Ten disables and enables in the middle of the share, the shield's menu open
     ev "Main.panel.statusArea.quickSettings.menu.open(false); ${PV}.shield.toggle.menu.open(false); 'open'" >/dev/null
-    counts="Main.uiGroup.get_n_children() + ' ' + Main.panel._rightBox.get_n_children() + ' ' + Main.panel.statusArea.quickSettings.menu._grid.get_n_children()"
+    # The shell's own actors in its top layer (the extension's own, which some modules make only when first needed, may
+    # be fewer after a restart, never more), the top bar's right box and the quick settings' grid
+    ours="Main.uiGroup.get_children().filter(c => (c.style_class ?? '').includes('amethystora-')).length"
+    counts="(Main.uiGroup.get_n_children() - ${ours}) + ' ' + Main.panel._rightBox.get_n_children() + ' ' + Main.panel.statusArea.quickSettings.menu._grid.get_n_children()"
     ui_before="$(ev "${counts}")"
+    names="Main.uiGroup.get_children().map(c => c.constructor.name + ':' + (c.name || '') + ':' + (c.style_class || ''))"
+    ev "globalThis.vmlab53 = ${names}; 'kept'" >/dev/null
+    ours_before="$(ev "${ours}")"
     for _ in $(seq 10); do
         ev "Main.extensionManager.disableExtension('${UUID}'); 'off'" >/dev/null
         ev "Main.extensionManager.enableExtension('${UUID}'); 'on'" >/dev/null
     done
     sleep 3
     ev "Main.panel.statusArea.quickSettings.menu.close(false); 'closed'" >/dev/null
-    same "17 ten disables and enables: the shell's own actors as before" "$(ev "${counts}")" "${ui_before}"
+    ev "Main.overview.dash._redisplay(); 'drawn'" >/dev/null
+    ui_after="$(ev "${counts}")"
+    if [[ "${ui_after}" == "${ui_before}" ]]; then
+        ok "17 ten disables and enables: the shell's own actors as before"
+    else
+        not_ok "17 ten disables and enables: the shell's own actors as before" "expected: ${ui_before}" "found: ${ui_after}" \
+            "$(ev "(() => { const n = l => l.reduce((m, k) => (m[k] = (m[k] || 0) + 1, m), {}); const a = n(globalThis.vmlab53), b = n(${names}); return Object.keys({...a, ...b}).filter(k => a[k] !== b[k]).map(k => k + ' ' + (a[k] || 0) + ' -> ' + (b[k] || 0)).join(', '); })()")"
+    fi
+    ours_after="$(ev "${ours}")"
+    [[ "${ours_after}" -le "${ours_before}" ]] && ok "17 ...and no more of the extension's own (${ours_before}, then ${ours_after})" ||
+        not_ok "17 the extension's own actors grew" "${ours_before}, then ${ours_after}"
     leftover="$(ev "global.get_window_actors().map(a => a.get_children().filter(c => c.has_style_class_name?.('amethystora-privacy-cover')).length).reduce((a, b) => a + b, 0)")"
     covers="$(st ".guard.covers.length")"
     if [[ "${covers}" -ge 2 && "${leftover}" == "${covers}" ]]; then
@@ -367,11 +403,19 @@ if [[ -n "${ADDR}" ]]; then
     printf '%s vmlab-53.example\n' "${ADDR}" >>/etc/hosts
     python3 -m http.server --bind "${ADDR}" 18053 >/dev/null 2>&1 &
     SERVER=$!
+    # The program connects once the server listens: a refused connection leaves nothing to list
+    server_up() { [[ -n "$(ss -Htln "sport = :18053")" ]]; }
+    wait_for 20 server_up
     user_bus systemd-run --user --collect --unit=vmlab-hold -- python3 -c "import socket, time; s = socket.create_connection(('${ADDR}', 18053)); time.sleep(120)" >/dev/null
     in_session "ame desktop network-apps on" >/dev/null
     ev "Main.panel.statusArea['amethystora-meters-network'].menu.open(false); 'open'" >/dev/null
     listed() { [[ "$(st ".connections.shown.map(a => a.name + ' ' + a.places.join('|')).join(',')")" == *python3*"vmlab-53.example on this network"* ]]; }
-    check "13 the network menu lists the program, its place named from /etc/hosts, on this network" wait_for 15 listed
+    if wait_for 15 listed; then
+        ok "13 the network menu lists the program, its place named from /etc/hosts, on this network"
+    else
+        not_ok "13 the network menu lists the program, its place named from /etc/hosts, on this network" \
+            "$(st ".connections")" "$(ss -Htn "dport = :18053")"
+    fi
     ev "Main.panel.statusArea['amethystora-meters-network'].menu.close(false); 'closed'" >/dev/null
     same "13 closed: nothing is read" "$(st ".connections.reading")" false
     in_session "ame desktop network-apps off" >/dev/null
@@ -403,7 +447,8 @@ else
     not_ok "14 no clean copy of the photo" "$(ls -la "${PHOTOS}")"
 fi
 clean doc.pdf folder notes.xyz
-same "14 the PDF's copy has no author" "$(exiftool -s -s -s -Author "${PHOTOS}/doc (clean).pdf" 2>&1)" ""
+# poppler's pdfinfo: ExifTool reads no compressed stream without Compress::Zlib, which the image does not carry
+same "14 the PDF's copy has no author" "$(pdfinfo "${PHOTOS}/doc (clean).pdf" 2>&1 | grep -E '^Author:|Error')" ""
 mixed() { [[ "$(files_said)" == *'2 files were left as they were: not a kind it can clean.'* ]]; }
 check "14 a folder and a .xyz are left as they were, and said" wait_for 5 mixed
 same "14 ...no copy of either" "$(ls "${PHOTOS}" | grep -c 'clean).xyz\|folder (clean)')" 0
@@ -486,6 +531,10 @@ if wait_for 30 ready_is 1; then
     waiting() { [[ "$(st ".away.waiting")" == true ]]; }
     check "15 the phone left: a minute's wait starts" wait_for 10 waiting
     check "15 a minute later, nobody at the machine: the screen locks" wait_for 90 locked_is yes
+    # Unlocked once the shell has finished locking: GNOME says locked when its curtain starts down, and an unlock
+    # before it is down is undone a second later (the extension, off on the lock screen, then stays off)
+    lock_down() { [[ "$(ev "Main.sessionMode.currentMode")" == unlock-dialog ]]; }
+    wait_for 20 lock_down
     loginctl unlock-sessions
     wait_for 30 locked_is no
     wait_for 60 privacy_ready
