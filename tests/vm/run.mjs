@@ -5,7 +5,7 @@
 // journal, results.json, and summary.md, which it prints last.
 //
 //   node run.mjs [all | build | disk | test | plan] [--keep] [--image IMAGE] [--tag TAG] [--suites NN,NN...]
-//                [--parallel N] [--memory MB]
+//                [--parallel N [--reuse]] [--memory MB]
 //
 // all (the default) does the three in turn and stops at the first that fails; the others do one, from what
 // the last run left. --keep leaves the VMs running afterwards, for a closer look over MCP. The exit status is
@@ -21,7 +21,8 @@
 // the lane with the least; a suite it does not name counts default_minutes. A lane runs its suites in name order,
 // those that come last after the rest, then its installer suites on NAME-installer-pK, a fresh overlay of the
 // installer disk; the screens suites are one unit, on NAME-screens, also from the ready state. plan prints the
-// lanes and runs nothing. --memory gives every VM but the screens one that much memory (default 4096).
+// lanes and runs nothing. --memory gives every VM but the screens one that much memory (default 4096). --reuse
+// starts from the ready state an earlier run made on the same disk, when there is one, instead of making it again.
 //
 // A suite is a bash script run as root in the guest, beside lib.sh: one "ok - ...", "not ok - ..." or
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
@@ -95,6 +96,7 @@ const keep = process.argv.includes('--keep');
 const PARALLEL = option('--parallel') === undefined ? 0 : Number(option('--parallel'));
 if (!Number.isInteger(PARALLEL) || PARALLEL < 0 || PARALLEL > 12) throw new Error('run.mjs: --parallel is 1 to 12');
 if (stage === 'plan' && !PARALLEL) throw new Error('run.mjs: plan needs --parallel N');
+const REUSE = process.argv.includes('--reuse');
 const MEMORY = option('--memory') === undefined ? undefined : Number(option('--memory'));
 if (MEMORY !== undefined && !(Number.isInteger(MEMORY) && MEMORY >= 2048)) throw new Error('run.mjs: --memory is MB, 2048 or more');
 if (MEMORY) for (const m of [MACHINES.default, MACHINES.installer]) m.memory = MEMORY;
@@ -466,7 +468,8 @@ async function onMachine(m, names, results, journal, ready = false) {
     // The guest no longer answers: the suites' logs say why
   }
   if (ready) return readyState(m);
-  if (!keep) await call('vm_stop', { name: vm }).catch(() => {});
+  // A lane's VM is stopped even with --keep, which then only keeps it: the next one in the lane needs its memory
+  if (!keep || m.lane) await call('vm_stop', { name: vm }).catch(() => {});
   return true;
 }
 
@@ -503,7 +506,7 @@ function planLanes(n) {
   if (screens.length) units.push({ kind: 'screens', suites: screens, minutes: screens.reduce((t, f) => t + cost(f), 0) });
   const needsReady = units.some((u) => u.kind !== 'installer') || all.some((f) => wanted(f) && SHARDS.prep.includes(f));
   const prep = needsReady ? all.filter((f) => SHARDS.prep.includes(f) && kindOf(f) === 'default') : [];
-  const prepMinutes = needsReady ? SHARDS.prep_minutes : 0;
+  const prepMinutes = needsReady && !(REUSE && reusable()) ? SHARDS.prep_minutes : 0;
   const lanes = Array.from({ length: n }, (_, i) => ({ lane: i + 1, minutes: i === 0 ? prepMinutes : 0, kinds: new Set(), units: [] }));
   const place = (list) => {
     for (const u of list.sort((a, b) => b.minutes - a.minutes || a.suites[0].localeCompare(b.suites[0]))) {
@@ -545,7 +548,9 @@ async function readyState(m) {
   say(`${lane(m)}waiting for the first boot's Flatpaks (flatpak-preinstall) before keeping the ready state`);
   const began = Date.now();
   for (const until = Date.now() + 3600000; Date.now() < until; await sleep(15000)) {
-    if (!/^(active|activating)$/.test(await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20))) break;
+    // No answer is no answer, not the end
+    const state = await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20);
+    if (state && !/^(active|activating|reloading)$/.test(state)) break;
   }
   say(`${lane(m)}flatpak-preinstall ${await guest(m.vm, 'systemctl is-active flatpak-preinstall.service', 20)} after ${minutes(began)}; ` +
     `${await guest(m.vm, 'flatpak list --app --columns=application | wc -l', 30)} apps`);
@@ -557,14 +562,24 @@ async function readyState(m) {
       break;
     }
   }
+  // Marked with the disk it was made on, for --reuse
+  fs.writeFileSync(READY, diskDigest());
   say(`${lane(m)}ready state kept: VM ${m.vm}, stopped`);
   return true;
 }
+const READY = `/vm/vms/${NAME}.ready`;
+const diskDigest = () => (fs.existsSync(`/vm/disks/${NAME}.digest`) ? fs.readFileSync(`/vm/disks/${NAME}.digest`, 'utf8').trim() : '?');
+const reusable = () => fs.existsSync(READY) && fs.readFileSync(READY, 'utf8') === diskDigest() && fs.existsSync(`/vm/vms/${NAME}.qcow2`);
 
 async function testParallel() {
   const began = Date.now();
   const plan = planLanes(PARALLEL);
   printPlan(plan);
+  // VMs an earlier run left running on the ready state, which a new one would be made under
+  for (let k = 1; k <= 12; k++) {
+    for (const vm of [`${NAME}-p${k}`, `${NAME}-installer-p${k}`]) await call('vm_stop', { name: vm, force: true }).catch(() => {});
+  }
+  await call('vm_stop', { name: MACHINES.screens.vm, force: true }).catch(() => {});
   const results = [];
   const vms = [];
   const prepMachine = { ...MACHINES.default, lane: 0 };
@@ -573,7 +588,10 @@ async function testParallel() {
   const runLane = async (l) => {
     const t = Date.now();
     // Lane 1 makes the ready state first, which the others wait for once their installer suites are done
-    if (l.lane === 1 && plan.prep.length) {
+    if (l.lane === 1 && plan.prep.length && REUSE && reusable()) {
+      say(`== test: the ready state of an earlier run, VM ${NAME} (--reuse): no prep suites`);
+    } else if (l.lane === 1 && plan.prep.length) {
+      fs.rmSync(READY, { force: true });
       prepared = onMachine(prepMachine, plan.prep, results, 'journal-prep', true)
         .then((started) => started && results.find((r) => r.suite === SHARDS.prep.at(-1))?.passed !== false);
       await prepared;

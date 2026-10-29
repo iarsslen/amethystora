@@ -67,7 +67,9 @@ minutes in `shards.json`, longest first onto the lane that would end soonest; a 
 state is being made; the screens suites run together on `test-screens`, from the ready state. A suite `shards.json`
 does not name counts `default_minutes`: give it its minutes from a run's `results.json` once it has one. The VMs
 are deleted at the end (not with `--keep`), the ready state is kept until the next run, and `summary.md` says which
-VM ran each suite and how long each lane took. `--memory MB` gives every VM but the screens one that much memory.
+VM ran each suite and how long each lane took. `--memory MB` gives every VM but the screens one that much memory;
+`--reuse` starts from the ready state the last run made on the same disk instead of making it again (`run.sh test
+--parallel 3 --reuse --suites 11,12`, to run a few suites again after a fix).
 
 Each suite starts on a machine where only the prep suites ran before it, not every suite before it in name order:
 a suite that needs another's leftovers says so and does the work itself.
