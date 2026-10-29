@@ -84,6 +84,10 @@ async function boot() {
     say('putting back the files pushed before the restart');
     await apply(readList(`${DIR}/push.list`), { usrOnly: true });
   }
+  if (fs.existsSync(`${DIR}/apps.installed`)) {
+    say('putting back the apps program live.sh app built');
+    await installApps();
+  }
 }
 // The signed-in state `ready` kept: a stopped VM of its own, VM-ready, which a fresh start of VM is cloned from
 // (vm_start's from: an overlay on its overlay, its firmware variables and TPM copied), as run.sh --parallel does
@@ -124,8 +128,23 @@ async function stopVm(force) {
   }
   if (running()) await call('vm_stop', { name: vm, force: true });
 }
+// The apps' one program (live.sh app built it into DIR/amethystora-apps), hard-linked to each app's path as 13-apps.sh
+// does, and the agent's tools when a build of them was left beside it; each written beside its place first, since a
+// running program's file cannot be written over
+async function installApps() {
+  await write('/usr/lib/amethystora-apps/amethystora-apps.live', fs.readFileSync(`${DIR}/amethystora-apps`), '0755');
+  await root(`mv -f /usr/lib/amethystora-apps/amethystora-apps.live /usr/lib/amethystora-apps/amethystora-apps
+    for app in manual security update notes logs backups control phone shelf; do
+      mkdir -p /usr/lib/amethystora-$app
+      ln -f /usr/lib/amethystora-apps/amethystora-apps /usr/lib/amethystora-$app/amethystora-$app; done
+    restorecon -F /usr/lib/amethystora-apps/amethystora-apps`);
+  if (fs.existsSync(`${DIR}/amethystora-agent-tools`)) {
+    await write('/usr/libexec/amethystora-agent-tools.live', fs.readFileSync(`${DIR}/amethystora-agent-tools`), '0755');
+    await root('mv -f /usr/libexec/amethystora-agent-tools.live /usr/libexec/amethystora-agent-tools && restorecon -F /usr/libexec/amethystora-agent-tools');
+  }
+}
 function forget() {
-  for (const f of ['push.list', 'push.new', 'files']) fs.rmSync(`${DIR}/${f}`, { recursive: true, force: true });
+  for (const f of ['push.list', 'push.new', 'files', 'apps.installed']) fs.rmSync(`${DIR}/${f}`, { recursive: true, force: true });
 }
 
 // --- Pushing files ----------------------------------------------------------------------------------------------
@@ -478,14 +497,9 @@ switch (command) {
     passed = await suite(args[0]);
     break;
   case 'app':
-    // The apps' one program (live.sh app built it into DIR/amethystora-apps), hard-linked to each app's path as
-    // 13-apps.sh does; written beside it first, since a running program's file cannot be written over
-    await write('/usr/lib/amethystora-apps/amethystora-apps.live', fs.readFileSync(`${DIR}/amethystora-apps`), '0755');
-    await root(`mv -f /usr/lib/amethystora-apps/amethystora-apps.live /usr/lib/amethystora-apps/amethystora-apps
-      for app in manual security update notes logs backups control phone shelf; do
-        mkdir -p /usr/lib/amethystora-$app
-        ln -f /usr/lib/amethystora-apps/amethystora-apps /usr/lib/amethystora-$app/amethystora-$app; done
-      restorecon -F /usr/lib/amethystora-apps/amethystora-apps`);
+    await installApps();
+    // Put back after each restart, as the pushed files are, until a reset
+    fs.writeFileSync(`${DIR}/apps.installed`, '');
     say('the apps program replaced: windows opened from now on run it');
     break;
   case 'exec': {
