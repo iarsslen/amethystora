@@ -40,7 +40,7 @@ import {PowerHold} from './focus/power.js';
 import {CHOICES, OFF, PROFILES, SCHEMA, profileLines, profileName, readProfile} from './focus/profiles.js';
 import {FocusState} from './focus/state.js';
 import {FocusTile} from './focus/tile.js';
-import {GameTrigger, NightTrigger, forgetGame, forgetNight} from './focus/triggers.js';
+import {GameTrigger, NightTrigger, forgetGame, forgetNight, nightTurnedOn} from './focus/triggers.js';
 import {timeOfDay} from './pill/text.js';
 
 const HOUR = 3600;
@@ -195,8 +195,13 @@ export class Focus {
         case 'ends':
             this._armEnd();
             break;
-        case 'trigger-games':
         case 'trigger-sleep':
+            // Turned on now: an Off picked while it was off sets nothing aside
+            if (this._settings.get_boolean('trigger-sleep') && !this._nightTrigger)
+                nightTurnedOn();
+            this._syncTriggers();
+            break;
+        case 'trigger-games':
             this._syncTriggers();
             break;
         }

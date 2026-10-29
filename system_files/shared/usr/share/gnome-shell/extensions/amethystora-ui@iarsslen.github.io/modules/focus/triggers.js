@@ -41,12 +41,21 @@ const STEAM_GAME = /^steam_app_[0-9]+$/;
 // with the windows it had then (a game started again has others)
 let nightWas = null;
 let sunWas = null;
+// When the Sleep trigger was last turned on by its key in this shell (s): an Off picked before then, while it was off,
+// sets nothing aside (off-at says when Off was last picked, whether or not a trigger held then)
+let nightOnSince = 0;
 let gameNow = null;
 let gameAside = null;
 
 // A trigger turned off by its key forgets what it knew
 export function forgetNight() {
     nightWas = null;
+    nightOnSince = 0;
+}
+
+// The Sleep trigger turned on by its key
+export function nightTurnedOn() {
+    nightOnSince = Math.floor(Date.now() / 1000);
 }
 
 export function forgetGame() {
@@ -211,7 +220,7 @@ export class NightTrigger {
             let start = at(span.from);
             if (start > new Date())
                 start = at(span.from, -1);
-            this._dismissed = this._offAt() >= Math.floor(start.getTime() / 1000);
+            this._dismissed = this._offAt() >= Math.max(Math.floor(start.getTime() / 1000), nightOnSince);
         }
         nightWas = this.holding;
         this._arm(span, hour);
