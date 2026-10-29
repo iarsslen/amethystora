@@ -14,6 +14,7 @@
 #
 # The reader's socket needs a lab-only SELinux rule, loaded here and removed at the end: a real reader is a USB
 # device, which fprintd's policy already allows.
+# vmlab-paths: @sf/usr/libexec/amethystora-duress* packaging/fprintd/*
 source "$(dirname "$0")/lib.sh"
 
 WORK=/run/vmlab-duress

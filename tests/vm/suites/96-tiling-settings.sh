@@ -8,6 +8,7 @@
 #   - a shortcut bound while the tiling runs works at once: on a real keyboard (uinput), Super+Left, the new
 #     "previous window" key and the live switcher move the keyboard between Files windows, which Ctrl+W then closes.
 # The lab's machine has one screen, so a workspace on each screen (screens.js) is checked in the headless shell only.
+# vmlab-paths: @ui/*tiling* @ui/prefs.js
 source "$(dirname "$0")/lib.sh"
 
 OWN=/run/vmlab-96

@@ -4,6 +4,7 @@
 # and a program run from the downloads folder, each done in the test account's own session. Falco (BEHAVIOUR)
 # runs, and stays under the memory its unit allows. The audit rules are written at boot, so the profile goes on,
 # then the machine restarts.
+# vmlab-paths: @sf/usr/libexec/amethystora-security-* @sf/usr/share/amethystora/audit/* @sf/usr/libexec/amethystora-behaviour* @sf/usr/lib/systemd/system/amethystora-*
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"

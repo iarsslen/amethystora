@@ -19,6 +19,7 @@
 #   - nothing of Amethystora UI throws meanwhile.
 # Not covered here: several screens (a set's places name screens by connector, which one lab screen cannot vary).
 # It leaves the account as it found it, however it ends: every key reset, sets.json as it was, its windows closed.
+# vmlab-paths: @ui/extension.js @ui/*sets* @ui/*workspaces* @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

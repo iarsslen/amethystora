@@ -11,6 +11,7 @@
 # defaults, the locked ones not writable, the login screen's notice shown, an extension turned off off, the agent's
 # limits and a Security switch the image's; the Brewfile hook installs the file's formula once. The machine is left with its
 # deployments as they were.
+# vmlab-paths: @sf/usr/libexec/amethystora-setup @sf/usr/libexec/amethystora-brand @sf/usr/libexec/amethystora-image-policy @sf/usr/libexec/amethystora-image-check @sf/usr/libexec/amethystora-login-background
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/41-image-setup

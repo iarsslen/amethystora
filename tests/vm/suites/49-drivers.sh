@@ -13,6 +13,7 @@
 #   takes all of it away again.
 # - Waiting firmware updates said once by the update alert (fwupdmgr and notify-send stood in for), and the
 #   report's firmware check.
+# vmlab-paths: @sf/usr/libexec/amethystora-driver-* @sf/usr/libexec/amethystora-gpu-check @sf/usr/lib/modprobe.d/*
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/49-drivers

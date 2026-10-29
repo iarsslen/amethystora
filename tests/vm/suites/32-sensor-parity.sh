@@ -5,6 +5,7 @@
 # lab runs the image's own kernel, so the default keys falling back to the audit rules here means they will
 # on the machines too, with the cost back. A machine set to keep the audit rules is skipped, and 30-detection
 # covers the audit path.
+# vmlab-paths: apps/sensor/* @sf/usr/libexec/amethystora-security-* @sf/usr/share/amethystora/audit/* @sf/usr/libexec/amethystora-audit-* @sf/usr/libexec/amethystora-hardening
 source "$(dirname "$0")/lib.sh"
 
 HISTORY=/var/log/amethystora-security-events.jsonl

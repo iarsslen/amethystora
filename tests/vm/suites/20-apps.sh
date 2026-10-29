@@ -2,6 +2,7 @@
 # Amethystora's own apps open in the test account's session and stay open: each started as its launcher does,
 # given 25 seconds, then closed as quitting closes it. Control is left open for the screenshot run.mjs takes
 # afterwards. None may leave a core dump.
+# vmlab-paths: apps/* @sf/usr/lib/amethystora-* @sf/usr/bin/amethystora-* @sf/usr/share/applications/*
 source "$(dirname "$0")/lib.sh"
 
 if ! has_session; then

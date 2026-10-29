@@ -11,6 +11,7 @@
 #   - editing a profile while it is on, ten disables and enables mid-profile, Control and the setup file;
 #   - a real lock and unlock: Sleep's Night Light as the person left it, the hold taken again, Off kept;
 #   - Steam: its own window is no game, a game it starts (class steam_app_N) is, and ends when that window closes.
+# vmlab-paths: @ui/extension.js @ui/*focus* @sf/*themed/shell-focus* @sf/usr/libexec/amethystora-setup* @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

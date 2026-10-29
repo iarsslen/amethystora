@@ -5,6 +5,7 @@
 # security.conf written by hand, as from a text console. A decoy key left from before is taken back with the audit
 # log off. Last, TRIGGER_UNIT reaches the weekly scan's ExecCondition=: with VIRUS_SCAN=manual, its timer's start
 # is skipped and one by hand is not. The machine's own security.conf is put back at the end.
+# vmlab-paths: @sf/usr/libexec/amethystora-security-* @sf/usr/share/amethystora/audit/* @sf/usr/libexec/amethystora-hardening @sf/usr/lib/systemd/system/amethystora-* @sf/*just/security.just
 source "$(dirname "$0")/lib.sh"
 
 CONFIG=/usr/libexec/amethystora-security-config

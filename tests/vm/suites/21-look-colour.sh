@@ -13,6 +13,7 @@
 #   - an accent per workspace: the sets, the switch, the state file the apps read, Notes taking it, one workspace's
 #     accent, off is off.
 # It leaves the account on the Amethystora theme, no accent, no colours, Daylight on, accent per workspace off.
+# vmlab-paths: @ui/extension.js @ui/*theme* @ui/*workspaces* @sf/usr/libexec/amethystora-wallpaper-colours @sf/usr/bin/amethystora-theme @sf/usr/lib/amethystora/theme/* @sf/*themed/* @sf/usr/share/amethystora/themes/* @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # An account for the suites after this one, logged in on the screen as a person would be: an administrator
 # (wheel), signed in by GDM, past GNOME's first-run setup. Its first login runs the per-account setup.
+# vmlab-paths: @sf/usr/share/amethystora/user-setup.hooks.d/* @ui/*hints*
 source "$(dirname "$0")/lib.sh"
 
 if ! getent passwd "${TEST_USER}" >/dev/null; then

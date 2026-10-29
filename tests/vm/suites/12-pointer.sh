@@ -12,6 +12,7 @@
 #   - the dense-screen rule, as a pure function and applied to the account's cursor-size, never over the account's own;
 #   - nothing of Amethystora UI throws meanwhile.
 # It leaves the account as it found it: shake grow, dense on, cursor-size reset, no pointer of its own, theme amethystora.
+# vmlab-paths: @ui/extension.js @ui/*pointer* @sf/usr/share/icons/amethystora-pointer-* @sf/usr/lib/amethystora/theme/* @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

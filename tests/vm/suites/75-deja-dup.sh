@@ -5,6 +5,7 @@
 # list installed it and when it was installed by hand (as `ame apps flatpaks` did from the old Brewfile); and that
 # an account whose Déjà Dup backed it up on a schedule is told once, at its next login, when Déjà Dup is gone,
 # and not while it is still there.
+# vmlab-paths: @sf/usr/share/flatpak/* @sf/usr/share/amethystora/user-setup.hooks.d/19-deja-dup.sh
 source "$(dirname "$0")/lib.sh"
 cd /
 

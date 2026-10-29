@@ -2,6 +2,7 @@
 # The NVIDIA images on the lab's machine, which has no NVIDIA card: they start, carry the driver their flavor names
 # (NVIDIA's closed driver of its 580 branch on -nvidia-lts, its open one on -nvidia-open), signed with the key the
 # image enrolls, and the GPU check offers the image without the driver. Skipped on any other image.
+# vmlab-paths: @sf/usr/libexec/amethystora-gpu-check* @sf/usr/libexec/amethystora-driver-* @sf/usr/libexec/amethystora-mok-status
 source "$(dirname "$0")/lib.sh"
 
 same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }

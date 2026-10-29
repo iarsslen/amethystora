@@ -6,6 +6,7 @@
 # memory and opens its /proc/PID/mem for writing is said each time; and the same between two processes of one
 # Flatpak is recorded and not said. The session's programs are user services (in_session), as the sensor has to
 # count them: their login uid is the account's.
+# vmlab-paths: apps/sensor/* @sf/usr/lib/bootc/* @sf/usr/libexec/amethystora-security-watch @sf/usr/share/amethystora/debuggers
 source "$(dirname "$0")/lib.sh"
 
 HISTORY=/var/log/amethystora-security-events.jsonl

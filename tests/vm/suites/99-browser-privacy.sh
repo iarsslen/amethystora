@@ -4,6 +4,7 @@
 # preferences they lock, the studies feature) and not only as a file; browser protection turned on and off beside
 # it without dropping it, then privacy off, and the policy folders as empty as the image ships them. The report's
 # check and the security watcher see exactly what the switch wrote and say nothing louder than a note.
+# vmlab-paths: @sf/usr/libexec/amethystora-browser-policy @sf/usr/share/amethystora/browser-policy/*
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"

@@ -11,6 +11,7 @@
 #   - the glass has its picture of the screen and the theme's colours.
 # Two Files windows and the quick settings are left open for the screenshot run.mjs takes after the suite: the strip,
 # the glass of the top bar and a menu, and the lights.
+# vmlab-paths: @ui/* @sf/*themed/* @sf/usr/share/icons/* @sf/usr/lib/amethystora/theme/*
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

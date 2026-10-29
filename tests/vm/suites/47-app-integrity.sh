@@ -5,6 +5,7 @@
 # said to it, the system's own object and initramfs), and put back. What each check cost, with nothing new and
 # after an update. Then the two reaches of the app permissions that load code into an app or change the others,
 # and odd processes' library from a home and session environment.
+# vmlab-paths: @sf/usr/libexec/amethystora-integrity @sf/usr/libexec/amethystora-app-permissions @sf/usr/lib/systemd/system/amethystora-integrity*
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"

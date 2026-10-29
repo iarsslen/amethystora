@@ -6,6 +6,7 @@
 # back, committed from a checkout of hard links into the repository, as 89-soft-reboot.sh makes its updates;
 # both are deployed unstaged, as 60-vanilla.sh does, since a staged deployment is lost at restart on the lab's
 # disks. The machine is left with its deployments as they were.
+# vmlab-paths: @sf/usr/libexec/amethystora-audit-* @sf/usr/share/amethystora/audit/* @sf/usr/libexec/amethystora-security-config
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/39-old-audit-rules

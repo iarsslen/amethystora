@@ -9,6 +9,7 @@
 #   - the app grid's six folders and the row of the apps used most.
 # The lab renders in software, where GNOME turns animations off: the new account's shell is started with
 # --force-animations (a drop-in of its own user unit), and the lab's Eval extension is its, as in the other suites.
+# vmlab-paths: @ui/*hints* @ui/*appgrid* @sf/usr/share/amethystora/user-setup.hooks.d/* @sf/usr/libexec/amethystora-layout-offer @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

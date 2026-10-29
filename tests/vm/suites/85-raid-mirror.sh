@@ -11,6 +11,7 @@
 #               this one expect it
 #   single      the boot menu's entry gone with the second disk
 # Before 90-control-switch.sh, which must stay the last suite.
+# vmlab-paths: @sf/usr/libexec/amethystora-raid* @sf/usr/lib/systemd/system/amethystora-raid* @sf/usr/lib/dracut/*
 source "$(dirname "$0")/lib.sh"
 
 RAID=/usr/libexec/amethystora-raid

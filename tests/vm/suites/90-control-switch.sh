@@ -10,6 +10,7 @@
 #   3. Started on it: the image, the card's state, the developer groups card; then Start over, both questions
 #      answered yes, with a file left in /etc, /var and the home folder.
 #   4. Started on the new installation: what it kept and what it left on the disk.
+# vmlab-paths: @sf/usr/libexec/amethystora-control-list apps/control/*
 source "$(dirname "$0")/lib.sh"
 
 IMAGE_INFO=/usr/share/amethystora/image-info.json

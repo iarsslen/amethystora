@@ -4,6 +4,7 @@
 # rewrites them and a window that is open reads them again and stays open (SIGUSR1); and the prompt is the powerline
 # one, drawn from the same palette: user@host, the folder and, in a git repository, its branch, each followed by
 # Nerd Fonts' arrow, then the command on a line of its own.
+# vmlab-paths: @sf/etc/xdg/kitty/* @sf/*themed/kitty* @sf/*themed/starship* @sf/usr/bin/amethystora-theme @sf/usr/lib/amethystora/theme/*
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"

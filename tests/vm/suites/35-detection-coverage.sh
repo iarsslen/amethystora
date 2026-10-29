@@ -11,6 +11,7 @@
 # Features that need a kernel the lab cannot give benignly (SELinux denials, BPF programs) are skipped with
 # their reason; the full Atomic Red Team sweep and the week of `record` on real machines stay the maintainer's,
 # as the plan says.
+# vmlab-paths: @sf/usr/libexec/amethystora-security-* @sf/usr/share/amethystora/audit/* @sf/usr/libexec/amethystora-home-snapshot @sf/usr/lib/systemd/system/amethystora-*
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"

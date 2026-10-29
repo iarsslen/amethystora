@@ -11,6 +11,7 @@
 #   - the numbers while Super is held; the edges; hiding when touched; this workspace's apps only;
 #   - disable and enable ten times leaving nothing; every key off leaves the base connections; lock and unlock.
 # Four screens are 11-dock-screens.sh's.
+# vmlab-paths: @ui/extension.js @ui/*dock* @sf/*themed/shell-dock* @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

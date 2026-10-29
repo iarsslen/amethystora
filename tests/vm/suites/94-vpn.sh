@@ -5,6 +5,7 @@
 # (by alias, which Fedora's blacklist would stop) while l2tp_eth stays blocked, strict kernel mode is the one thing
 # that takes IPsec away, and libreswan starts and stops without a denial. No server is run here; connecting to one
 # is not tested.
+# vmlab-paths: @sf/usr/lib/modprobe.d/* @sf/usr/libexec/amethystora-hardening
 source "$(dirname "$0")/lib.sh"
 
 SINCE="$(date '+%F %T')"

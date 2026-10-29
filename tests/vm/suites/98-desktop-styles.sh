@@ -13,6 +13,7 @@
 #   - every font the themes and Control name is installed.
 # The account is left on Tokyo Night, the neon style, with a Files window and the quick settings open, for the
 # screenshot run.mjs takes after the suite.
+# vmlab-paths: @ui/*style* @sf/*themed/* @sf/usr/lib/amethystora/theme/* @sf/usr/bin/amethystora-theme @sf/usr/share/icons/amethystora-*
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

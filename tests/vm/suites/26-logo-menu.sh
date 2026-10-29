@@ -6,6 +6,7 @@
 #      hiding its entry and nothing installing it; back and leftmost after the screen lock. Then the account
 #      given the list of extensions an account kept from before the swap, for the next login.
 #   2. After a restart and that login: the new extension turned on by the image's own hook, and leftmost.
+# vmlab-paths: @sf/usr/share/gnome-shell/extensions/amethystora-logo-menu@*
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-logo-menu@iarsslen.github.io

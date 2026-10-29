@@ -17,6 +17,7 @@
 #   Phases 7-10:   after a restart; the second half back; the kernel arguments back; the package taken away
 #   Phase 11:      after a restart, all as it was; locked for 18 hours: the machine powers off
 #   Phase 12:      started again; locked-poweroff off; nothing left over
+# vmlab-paths: @sf/usr/libexec/amethystora-hardening @sf/usr/lib/sysctl.d/* @sf/usr/lib/modprobe.d/* @sf/usr/lib/firewalld/*
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/92-hardening

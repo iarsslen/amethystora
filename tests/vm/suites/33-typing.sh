@@ -11,6 +11,7 @@
 # nothing wrapped, expanding through GNOME's own input method in Text Editor, kitty and a GTK 4 window, never in password,
 # PIN or number fields or the shell's own, beside Mozc, not in X11 apps (as documented), the file and its helper, Control's
 # Typing group, nothing logged, the cost per key, ten disables and enables, and the lock screen.
+# vmlab-paths: @ui/extension.js @ui/*typing* @ui/*emoji* @sf/usr/libexec/amethystora-text-shortcuts @sf/*themed/shell-emoji* @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

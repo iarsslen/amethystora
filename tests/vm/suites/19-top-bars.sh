@@ -11,6 +11,7 @@
 #   - Super+Ctrl+B hides the bar of the screen the pointer is on, and shows it again;
 #   - nothing of Amethystora UI throws, and ten disable/enable cycles leave no bar behind.
 # The VM draws in software, where GNOME turns its animations off: the peek is checked by its state, not its slide.
+# vmlab-paths: @ui/extension.js @ui/*bars* @sf/*themed/shell-bars* @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

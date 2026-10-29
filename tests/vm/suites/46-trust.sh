@@ -10,6 +10,7 @@
 #   Secure Boot (a VM started without it) the argument deciding it, and the image's own modules with it.
 # - Developer groups: nobody is joined by the image, `ame system dx-group` joins and leaves (asking first for
 #   the ones that amount to root), the report names who is in one of those, Control lists them.
+# vmlab-paths: @sf/usr/libexec/amethystora-hardening @sf/usr/libexec/amethystora-signed-updates* @sf/usr/libexec/amethystora-control-list @sf/usr/share/amethystora/developer-groups @sf/etc/containers/*
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/46-trust
