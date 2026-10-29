@@ -172,9 +172,8 @@ export class Scribble {
     }
 
     _buildToolbar() {
+        // A press on the bar, between its buttons too, draws nothing (_onToolbar)
         const bar = new St.BoxLayout({style_class: 'amethystora-present-toolbar', reactive: true});
-        // A press on the bar between its buttons draws nothing
-        bar.connect('button-press-event', () => Clutter.EVENT_STOP);
         this._toolButtons = new Map();
         for (const [tool, icon, name] of [['pen', 'pen', _('Pen')], ['highlighter', 'highlight', _('Highlighter')]]) {
             const button = new St.Button({
@@ -241,7 +240,15 @@ export class Scribble {
 
     // ---- Drawing ----
 
+    // On the toolbar, an event is left to its buttons: Clutter drops the click gestures of a pointer as soon as an actor
+    // stops one of its events, so none is stopped there
+    _onToolbar(event) {
+        return this._toolbar?.contains(global.stage.get_event_actor(event)) ?? false;
+    }
+
     _press(event) {
+        if (this._onToolbar(event))
+            return Clutter.EVENT_PROPAGATE;
         if (event.get_button() !== Clutter.BUTTON_PRIMARY)
             return Clutter.EVENT_STOP;
         this._begin(event);
@@ -256,16 +263,16 @@ export class Scribble {
     }
 
     _motion(event) {
-        if (this._stroke) {
-            const [x, y] = event.get_coords();
-            if (this._stroke.full) {
-                const {x: lx, y: ly} = this._stroke.last;
-                this._stroke = new Stroke(this._ink, this._tool, this._colour);
-                this._strokes.push(this._stroke);
-                this._stroke.add(lx, ly);
-            }
-            this._stroke.add(x, y);
+        if (!this._stroke)
+            return Clutter.EVENT_PROPAGATE;
+        const [x, y] = event.get_coords();
+        if (this._stroke.full) {
+            const {x: lx, y: ly} = this._stroke.last;
+            this._stroke = new Stroke(this._ink, this._tool, this._colour);
+            this._strokes.push(this._stroke);
+            this._stroke.add(lx, ly);
         }
+        this._stroke.add(x, y);
         return Clutter.EVENT_STOP;
     }
 
@@ -276,6 +283,8 @@ export class Scribble {
 
     _touch(event) {
         const type = event.type();
+        if (!this._stroke && this._onToolbar(event))
+            return Clutter.EVENT_PROPAGATE;
         if (type === Clutter.EventType.TOUCH_BEGIN)
             this._begin(event);
         else if (type === Clutter.EventType.TOUCH_UPDATE)

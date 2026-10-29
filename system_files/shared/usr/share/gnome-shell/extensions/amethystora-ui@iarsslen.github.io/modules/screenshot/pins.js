@@ -185,6 +185,10 @@ class Pin {
         }
         if (button !== Clutter.BUTTON_PRIMARY || this._grab)
             return Clutter.EVENT_PROPAGATE;
+        // A press on the pill is its buttons': their click gestures see it too, and a grab here would take the click
+        // from them
+        if (this.pill.contains(global.stage.get_event_actor(event)))
+            return Clutter.EVENT_PROPAGATE;
         const [x, y] = event.get_coords();
         this._start = {x, y, ax: this.actor.x, ay: this.actor.y};
         this._dragging = false;
