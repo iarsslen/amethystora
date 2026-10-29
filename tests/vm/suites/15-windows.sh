@@ -375,14 +375,16 @@ ame_ desktop windows corner bottom-left notifications >/dev/null
 sleep 1
 push=()
 for i in $(seq 10); do push+=("rel:-20,20"); done
-keys move:0.01,0.99 "${push[@]}" sleep:500
+# Through the middle first: the drift above left the pointer held at the top right corner's barrier, and the lab's
+# absolute pointer jumping from there straight across the screen is stopped part way (a person's never jumps)
+keys move:0.5,0.5 sleep:300 move:0.01,0.99 "${push[@]}" sleep:500
 check "a push into the bottom left corner opens the notifications" wait_for 3 is_true "Main.panel.statusArea.dateMenu.menu.isOpen"
 keys esc
 ame_ desktop windows corner bottom-right lock >/dev/null
 sleep 1
 push=()
 for i in $(seq 10); do push+=("rel:20,20"); done
-keys move:0.99,0.99 "${push[@]}" sleep:500
+keys move:0.5,0.5 sleep:300 move:0.99,0.99 "${push[@]}" sleep:500
 SESSION="$(loginctl show-user "${TEST_USER}" -p Display --value)"
 locked() { [[ "$(loginctl show-session "${SESSION}" -p LockedHint --value)" == yes ]]; }
 check "a push into the bottom right corner locks the screen" wait_for 10 locked
@@ -393,7 +395,7 @@ ame_ desktop windows corner top-left desktop >/dev/null
 sleep 1
 push=()
 for i in $(seq 10); do push+=("rel:-20,-20"); done
-keys move:0.01,0.01 "${push[@]}" sleep:800
+keys move:0.5,0.5 sleep:300 move:0.01,0.01 "${push[@]}" sleep:800
 check "a push into the top left corner shows the desktop" wait_for 3 is_true "${W}.desktop.out"
 fired="$(ev "${W}.counters.cornerFired ?? 0")"
 keys move:0.3,0.3 sleep:500 move:0.01,0.01 sleep:300 "${push[@]}" sleep:800
@@ -407,7 +409,9 @@ same "every corner back at none, no barrier is left" "$(barriers)" 0
 ame_ desktop windows show-desktop on >/dev/null
 sleep 1
 # A point of wallpaper no window covers, near a corner of the work area
-# Every window against the right edge first, so that the lab's small screen keeps some wallpaper free
+# Every window against the right edge first, so that the lab's small screen keeps some wallpaper free. The Manual is
+# put away for this part: it is never narrower than 1264 px, nearly the whole of the lab's screen
+ev "${WIN}.filter(w => w.get_wm_class() === 'org.amethystora.Manual').forEach(w => w.minimize()); 'min'" >/dev/null
 ev "global.get_window_actors().map(a => a.meta_window).filter(w => !w.minimized).forEach(w => { const a = ${AREA}; const f = w.get_frame_rect(); w.move_frame(true, a.x + a.width - f.width, a.y); }); 'moved'" >/dev/null
 sleep 1
 empty="$(ev "(() => { const a = ${AREA}; const pts = []; for (let y = a.y + 20; y < a.y + a.height - 10; y += 40) for (let x = a.x + 20; x < a.x + a.width - 10; x += 40) pts.push([x, y]); const free = pts.find(([x, y]) => !global.get_window_actors().some(w => { const r = w.meta_window.get_frame_rect(); return !w.meta_window.minimized && x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height; })); return free ? (free[0] / global.screen_width).toFixed(5) + ',' + (free[1] / global.screen_height).toFixed(5) : 'none'; })()")"
@@ -417,7 +421,7 @@ slivers() {
     ev "(() => { const a = ${AREA}; return ${W}.desktop.windows().every(w => { const f = w.frame; const L = f.x + w.tx, T = f.y + w.ty; const vw = Math.min(L + f.width, a.x + a.width) - Math.max(L, a.x); const vh = Math.min(T + f.height, a.y + a.height) - Math.max(T, a.y); return (w.tx !== 0 ? vw : vh) === 28; }); })()"
 }
 if [[ "${empty}" == none ]]; then
-    not_ok "no point of the wallpaper is free of windows"
+    not_ok "no point of the wallpaper is free of windows" "$(ev "JSON.stringify(global.get_window_actors().map(a => { const w = a.meta_window; const f = w.get_frame_rect(); return [w.get_wm_class(), w.get_window_type(), w.get_workspace()?.index(), w.minimized, [f.x, f.y, f.width, f.height].join(String.fromCharCode(44))]; }))")"
 else
     keys "click:${empty}"
     check "a click on empty wallpaper slides the windows out" wait_for 3 out
@@ -436,10 +440,11 @@ else
     check "a double click never leaves windows out without the layer" guarded
     if is_true "${W}.desktop.out"; then keys esc; fi
     wait_for 3 back
+    # Another window in use before the windows go out: a change of focus while they are out brings them back
+    ev "Main.activateWindow(${WIN}.find(w => w.get_wm_class() === 'org.vmlab.Bold')); 'b'" >/dev/null
     keys "click:${empty}"
     wait_for 3 out
     sliver="$(ev "(() => { const w = ${W}.desktop.windows().find(w => w.title && ${WIN}.find(m => m.get_title() === w.title)?.get_wm_class() === 'org.gnome.Nautilus'); if (!w) return 'none'; const f = w.frame; const a = ${AREA}; const L = Math.max(f.x + w.tx, a.x), T = Math.max(f.y + w.ty, a.y), R = Math.min(f.x + w.tx + f.width, a.x + a.width), B = Math.min(f.y + w.ty + f.height, a.y + a.height); return (((L + R) / 2) / global.screen_width).toFixed(5) + ',' + (((T + B) / 2) / global.screen_height).toFixed(5); })()")"
-    ev "Main.activateWindow(${WIN}.find(w => w.get_wm_class() === 'org.vmlab.Bold')); 'b'" >/dev/null
     if [[ "${sliver}" != none ]]; then
         keys "click:${sliver}"
         check "a click on Files' sliver brings every window back" wait_for 3 back
@@ -552,12 +557,20 @@ PLACES="${STATE_DIR}/places.json"
 ame_ desktop windows places on >/dev/null
 ev "$(plain).move_resize_frame(true, 100, 120, 900, 600); 'm'" >/dev/null
 sleep 1
+echo "# before closing: the plain window at $(rect_of "$(plain)"), desktop out $(ev "${W}.desktop.out"), kept $(ev "${W}.keep.copy !== null"), maximized $(ev "$(plain).get_maximize_flags?.() ?? $(plain).is_maximized()"), places $(ev "(() => { const p = ${W}.places; const w = $(plain); const t = imports.gi.GLib.get_monotonic_time(); return JSON.stringify({grabbed: p._grabbed === w, other: p._grabbed ? p._grabbed.get_title() : null, unplaced: p._unplaced.has(w), quiet: p._quietUntil - t, moved: (p._moved.get(w) ?? 0) - t, kept: ${W}.isKept?.(w), watched: p._watched.has(w), siblings: p._siblings(w, 'org.vmlab.Plain').length}); })()")"
 ev "$(plain).delete(0); 'closed'" >/dev/null
 check "places.json is written within 3 s" wait_for 4 test -s "${PLACES}"
-place="$(jq -c '.arrangements | to_entries[0] | [.key, (.value.apps["org.vmlab.Plain"].places[0] | [.x, .y, .w, .h])]' "${PLACES}" 2>/dev/null)"
+# The file is there from the steps before: what counts is the place the window had as it closed, which the module
+# writes a moment later (once its records settle), so the file is read again until it holds that place, 3 s at most
 monitor_xy="$(ev "Main.layoutManager.primaryMonitor.x + ',' + Main.layoutManager.primaryMonitor.y")"
-same "it holds this arrangement and the window's place" "$(sed 's/"\([^:]*\):.*",/"\1",/' <<<"${place}")" \
-    "[\"$(ev "global.backend.get_monitor_manager().get_logical_monitors()[0].get_monitors()[0].get_connector()")\",[$((100 - ${monitor_xy%,*})),$((120 - ${monitor_xy#*,})),900,600]]"
+want_place="[\"$(ev "global.backend.get_monitor_manager().get_logical_monitors()[0].get_monitors()[0].get_connector()")\",[$((100 - ${monitor_xy%,*})),$((120 - ${monitor_xy#*,})),900,600]]"
+place_now() {
+    jq -c '.arrangements | to_entries[0] | [.key, (.value.apps["org.vmlab.Plain"].places[0] | [.x, .y, .w, .h])]' "${PLACES}" 2>/dev/null |
+        sed 's/"\([^:]*\):.*",/"\1",/'
+}
+place_kept() { [[ "$(place_now)" == "${want_place}" ]]; }
+wait_for 4 place_kept
+same "it holds this arrangement and the window's place" "$(place_now)" "${want_place}"
 check "and its copy is the same" cmp -s "${PLACES}" "${PLACES}.bak"
 open_plain
 wait_for 30 at_least org.vmlab.Plain 1
