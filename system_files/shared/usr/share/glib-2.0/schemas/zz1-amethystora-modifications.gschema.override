@@ -124,3 +124,8 @@ switch-to-application-6=['<Alt>6']
 switch-to-application-7=['<Alt>7']
 switch-to-application-8=['<Alt>8']
 switch-to-application-9=['<Alt>9']
+
+# Super+. is the emoji picker's (Amethystora UI's emoji module). IBus, which every text field types through, would
+# take Super+. and Super+; for its own emoji panel first, and the picker never opened there
+[org.freedesktop.ibus.panel.emoji]
+hotkey=@as []
