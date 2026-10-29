@@ -43,6 +43,11 @@ fi
 [[ "$(${config} --profile)" == thorough ]] && ok "the profile is still thorough after the restart" ||
     not_ok "the profile is $(${config} --profile) after the restart"
 
+# Prime the watcher, as 30 and 32 do: the first run of a part just switched on (PROCESSES: no processes-seen yet)
+# only records where things stand, so on a machine no earlier suite ran it on, the first technique below would
+# fall into that run and not be said.
+check "the security watcher primes" systemctl start amethystora-security-watch.service
+
 # Where the history stands at the start of phase 2: the chains check looks across all of phase 2, since a
 # chain forms as soon as two of this account's tactics are in the half-hour window, which may be an earlier
 # watcher run than the one that adds the step we last triggered.
