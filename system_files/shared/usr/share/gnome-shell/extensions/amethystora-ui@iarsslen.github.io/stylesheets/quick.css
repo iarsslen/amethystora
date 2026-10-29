@@ -23,6 +23,13 @@
   border-radius: 20px;
 }
 
+/* A border adds to those 184: the privacy shield's 1 px ring (stylesheets/privacy.css) is taken off its width, or every
+   column of the grid would be 186 */
+.quick-settings.amethystora-quick .quick-toggle-has-menu.amethystora-privacy-tile {
+  min-width: 182px;
+  max-width: 182px;
+}
+
 /* No hairline round a tile (the glass gives GNOME's one); Increase contrast draws its own outline */
 .quick-settings.amethystora-quick .quick-toggle,
 .quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle-menu-button {
