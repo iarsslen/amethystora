@@ -159,7 +159,8 @@ FIXTURE
 }
 # GetToday as the shell asks it
 shell_today() {
-    ev "(() => { const G = imports.gi; try { return JSON.stringify(G.Gio.DBus.session.call_sync('org.amethystora.Notes', '/org/amethystora/Notes/Today', 'org.amethystora.Notes.Today1', 'GetToday', null, new G.GLib.VariantType('(suas)'), G.Gio.DBusCallFlags.NO_AUTO_START, 2000, null).deepUnpack()); } catch (e) { return 'error'; } })()"
+    ev "(() => { const G = imports.gi; try { return JSON.stringify(G.Gio.DBus.session.call_sync('org.amethystora.Notes', '/org/amethystora/Notes/Today', 'org.amethystora.Notes.Today1', 'GetToday', null, new G.GLib.VariantType('(suas)'), G.Gio.DBusCallFlags.NO_AUTO_START, 2000, null).deepUnpack()); } catch (e) { return 'error'; } })()" |
+        sed -E 's/[\\]+"/"/g'
 }
 notes_windows() {
     ev "global.display.list_all_windows().filter(w => w.get_wm_class() === 'org.amethystora.Notes' && w.showing_on_its_workspace()).map(w => w.get_title()).join('|')"
@@ -284,7 +285,8 @@ check "the saved task is in the vault, due today" oven_due
 # again, and Notes stays; nothing but Notes' own files changed in the home meanwhile
 keys ctrl+2 ctrl+n "text:dentist tomorrow 9am" return
 sleep 2
-keys alt+f4
+# The image closes a window with Super+W (Alt+F4 is not bound)
+keys super+w
 wait_for 20 no_today
 check "Notes' window closed with a reminder to come: locked" no_today
 check "...and still running" test -n "$(notes_pids)"
@@ -361,9 +363,13 @@ ev "${files}.make_fullscreen(); 1" >/dev/null
 wait_for 10 ev_is "Main.layoutManager.panelBox.visible" false
 check "a fullscreen window hides the bar" ev_is "Main.layoutManager.panelBox.visible" false
 P="Main.layoutManager.primaryIndex"
+# A push against the top edge: GNOME's pressure barrier counts at most 15 px of each step, and wants 100 within a
+# second, so it takes at least seven steps against the edge (and one to reach it)
+PUSH=(move:0.5,0.05)
+for _ in $(seq 12); do PUSH+=("rel:0,-30"); done
 animations true
 peek_record Main.layoutManager.panelBox Main.panel
-keys move:0.5,0.05 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30
+keys "${PUSH[@]}"
 wait_for 5 ev_is "${B}.peeking(${P})" true
 check "pushing against the top edge brings it down" ev_is "${B}.peeking(${P}) && Main.layoutManager.panelBox.visible" true
 wait_for 2 ev_is "Main.panel.translation_y" 0
@@ -379,7 +385,7 @@ peek_stop
 # Pushed again while it goes, it comes back from where it is
 # The second push is made by the barrier's own code (_peek, what its trigger runs) from the shell, at the moment the bar
 # has started up, which no push from here could time; the bar must turn back without having been hidden
-keys move:0.5,0.05 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30
+keys "${PUSH[@]}"
 wait_for 5 ev_is "${B}.peeking(${P})" true
 wait_for 2 ev_is "Main.panel.translation_y" 0
 ev "(() => { const bars = ${B}, P = ${P}, box = Main.layoutManager.panelBox; const r = globalThis.__again = {during: false, hid: false}; const a = Main.panel.connect('notify::translation-y', p => { if (r.during && p.translation_y === 0) r.back = true; if (!r.during && bars._peeks.get(P)?.going && p.translation_y < 0) { r.during = true; r.from = p.translation_y; bars._peek(P); } }); const b = box.connect('notify::visible', x => { if (!x.visible) r.hid = true; }); globalThis.__againUndo = () => { Main.panel.disconnect(a); box.disconnect(b); }; return 1; })()" >/dev/null
@@ -392,7 +398,7 @@ keys move:0.5,0.5
 wait_for 5 ev_is "${B}.peeking(${P})" false
 animations false
 in_session "ame desktop top-bar peek off" >/dev/null
-keys move:0.5,0.05 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30
+keys "${PUSH[@]}"
 sleep 2
 check "with the peek off, the same push leaves it hidden" ev_is "${B}.peeking(${P}) || Main.layoutManager.panelBox.visible" false
 in_session "ame desktop top-bar peek on" >/dev/null

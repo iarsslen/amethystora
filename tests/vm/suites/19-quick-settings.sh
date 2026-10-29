@@ -94,6 +94,7 @@ cleanup() {
     fi
     in_session "pkill -x paplay" >/dev/null 2>&1
     [[ -n "${LAB2:-}" ]] && pa unload-module "${LAB2}" >/dev/null
+    [[ -n "${LAB3:-}" ]] && pa unload-module "${LAB3}" >/dev/null
     [[ -n "${SINK:-}" ]] && pa set-default-sink "${SINK}" >/dev/null
     gs reset "${QUICK}" tile-order
     gs reset "${QUICK}" tile-hidden
@@ -110,6 +111,11 @@ same "1 the quick module runs" "$(ev "${UI}.has('quick')")" true
 open_menu
 tiles="$(ids)"
 for id in wired dark-style night-light dnd power-mode; do
+    # GNOME shows Night Light only where Mutter can change the gamma, which the lab's virtual screen cannot
+    if [[ ${id} == night-light && "$(ev "String(global.backend.get_monitor_manager().night_light_supported)")" == false ]]; then
+        skip "2 the night-light tile - the lab's screen has no gamma, so GNOME hides it"
+        continue
+    fi
     [[ ",${tiles}," == *",${id},"* ]] && ok "2 the ${id} tile is there" || not_ok "2 the ${id} tile is there" "tiles: ${tiles}"
 done
 [[ ",${tiles}," != *",battery,"* ]] && ok "2 no battery tile without a battery" || not_ok "2 no battery tile" "tiles: ${tiles}"
@@ -155,7 +161,7 @@ check "5 tile-hidden is ['dnd']" wait_for 5 hidden_dnd
 same "5 the Hidden row holds it while arranging" "$(ev "${Q}.arrangeable().some(a => ${Q}.hiddenActor(a) && ${Q}.idOf(a) === 'dnd')")" true
 
 # --- 6. Moving a tile, against GNOME's order (power mode comes before dark style), by dragging it -------------------
-[[ ",$(ids)," == *",power-mode,"*",dark-style,"* ]] && ok "6 GNOME has power mode before dark style" ||
+[[ ",$(ids)," == *",power-mode,"*"dark-style,"* ]] && ok "6 GNOME has power mode before dark style" ||
     not_ok "6 GNOME has power mode before dark style" "$(ids)"
 settled() { [[ "$(ev "${Q}.tiles().every(t => t.translation_x === 0 && t.translation_y === 0 && t.opacity === 255)")" == true ]]; }
 # Let go outside every tile: the tiles slide back and nothing is written
@@ -192,7 +198,7 @@ check "7 ame desktop quick-settings reset" in_session "ame desktop quick-setting
 same "7 tile-order empty" "$(gs get "${QUICK}" tile-order)" "@as []"
 same "7 tile-hidden empty" "$(gs get "${QUICK}" tile-hidden)" "@as []"
 [[ ",$(ids)," == *",dnd,"* ]] && ok "7 Do Not Disturb is back" || not_ok "7 Do Not Disturb is back" "$(ids)"
-[[ ",$(ids)," == *",power-mode,"*",dark-style,dnd,"* ]] && ok "7 in GNOME's order" || not_ok "7 in GNOME's order" "$(ids)"
+[[ ",$(ids)," == *",power-mode,"*"dark-style,dnd,"* ]] && ok "7 in GNOME's order" || not_ok "7 in GNOME's order" "$(ids)"
 
 # --- 8. The theme block -----------------------------------------------------------------------------------------------
 open_menu
@@ -280,6 +286,8 @@ EOF
 
     SINK="$(pa get-default-sink)"
     LAB2="$(pa load-module module-null-sink sink_name=lab2 sink_properties=device.description=Lab2)"
+    # The lab's own sink is PipeWire's dummy output, which GNOME does not list: a second stand-in, so that there are two to pick from
+    LAB3="$(pa load-module module-null-sink sink_name=lab3 sink_properties=device.description=Lab3)"
     ev "${QS}.menu.close(); 'closed'" >/dev/null
     tone 2
     sleep 1
@@ -296,7 +304,9 @@ EOF
     user_bus systemctl --user stop vmlab-tone-2 >/dev/null 2>&1
     pa set-default-sink "${SINK}" >/dev/null
     pa unload-module "${LAB2}" >/dev/null
+    pa unload-module "${LAB3}" >/dev/null
     LAB2=""
+    LAB3=""
 fi
 
 # --- 11, 12. The battery ----------------------------------------------------------------------------------------------------
@@ -319,7 +329,7 @@ same "12 the battery tile comes first" "$(ids | cut -d, -f1)" battery
 subtitle="$(ev "${Q}.batterySubtitle()")"
 [[ "${subtitle}" =~ ^86\ ?%\ ·\ until\ [0-9] ]] && ok "12 it says the charge and until when (${subtitle})" ||
     not_ok "12 it says the charge and until when" "found: ${subtitle}"
-row="$(ev "JSON.stringify(${Q}.batteryRow())" | sed 's/\\"/"/g')"
+row="$(ev "JSON.stringify(${Q}.batteryRow())" | sed -E 's/[\\]+"/"/g')"
 [[ "$(jq -r .title <<<"${row}")" =~ ^Keep\ the\ battery\ at\ 80\ ?%$ && "$(jq -r .active <<<"${row}")" == false ]] &&
     ok "12 Keep the battery at 80%, off" || not_ok "12 Keep the battery at 80%, off" "found: ${row}"
 ev "${Q}._battery.tile.menu.open(); 'open'" >/dev/null
