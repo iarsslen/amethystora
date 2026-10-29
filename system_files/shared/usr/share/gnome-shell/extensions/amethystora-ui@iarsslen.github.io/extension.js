@@ -38,6 +38,8 @@ import {Motion} from './modules/motion.js';
 import {Sounds} from './modules/sounds.js';
 import {Bezel} from './modules/bezel.js';
 import {Captions} from './modules/captions.js';
+import {Access} from './modules/access.js';
+import {Touch} from './modules/touch.js';
 import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
@@ -74,6 +76,8 @@ const MODULES = [
     ['sounds', Sounds],
     ['bezel', Bezel],
     ['captions', Captions],
+    ['access', Access],
+    ['touch', Touch],
     ['focus', Focus],
 ];
 

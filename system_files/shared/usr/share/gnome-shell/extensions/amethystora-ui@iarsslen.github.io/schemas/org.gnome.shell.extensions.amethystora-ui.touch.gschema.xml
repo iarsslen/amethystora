@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the touch module (modules/touch.js): touch mode and the pen ring, both off until chosen. Written by
+     ame desktop touch, Control and the setup file. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.touch" path="/org/gnome/shell/extensions/amethystora-ui/touch/">
+    <key name="touch-mode" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="follow"/>
+        <choice value="on"/>
+      </choices>
+      <default>'off'</default>
+      <summary>Touch mode</summary>
+      <description>A taller top bar, a larger dock, roomier menus and Today from the right edge. follow is on while the computer is folded into a tablet (its hinge's tablet switch), on is always, off is never.</description>
+    </key>
+    <key name="pen-ring" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="ring"/>
+        <choice value="strip"/>
+      </choices>
+      <default>'off'</default>
+      <summary>The pen's tools</summary>
+      <description>What the pen's side button opens: six tools around the pen's tip (ring), or in a column at the screen's edge (strip). off turns them and their shortcut off.</description>
+    </key>
+    <key name="pen-ring-tools" type="as">
+      <default>['scribble', 'area', 'note', 'text', 'right-click', 'back']</default>
+      <summary>The pen's tools, in order</summary>
+      <description>From the top, clockwise: scribble, area, note, text, right-click and back, each once.</description>
+    </key>
+    <key name="pen-ring-key" type="as">
+      <default><![CDATA[['<Super><Control>p']]]></default>
+      <summary>Open the pen's tools</summary>
+      <description>Bound only while the pen's tools are on; the pen's side button sends it once ame desktop touch pen-button has set the pen up.</description>
+    </key>
+  </schema>
+</schemalist>

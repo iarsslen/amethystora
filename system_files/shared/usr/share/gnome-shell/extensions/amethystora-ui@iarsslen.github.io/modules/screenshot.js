@@ -45,12 +45,32 @@ export class Screenshot {
         this._save = Object.getOwnPropertyDescriptor(ui, '_saveScreenshot');
         const open = ui.open;
         ui.open = (mode, ...rest) => this._onOpen(open, mode, rest);
-        ui._saveScreenshot = () => this._take('normal');
+        // The pen's Text tool (modules/touch/ring.js) asks for one capture to go to Extract Text
+        ui._saveScreenshot = () => this._take(this._forText && !this._ui?._castButton?.checked ? 'extract' : 'normal');
 
         // Before GNOME's keys, and before Escape closes the UI, so that the text field can take it
         ui.connectObject(
             'captured-event', (actor, event) => this._onEvent(event),
-            'closed', () => this._endSession(), this);
+            'closed', () => {
+                this._forText = false;
+                this._endSession();
+            }, this);
+    }
+
+    // GNOME's screenshot UI on a selection, whose capture copies the text in it (through Gradia), for the pen's Text
+    // tool. False when Gradia is not there to read the text.
+    openForText() {
+        if (!this._ui || !gradiaInstalled())
+            return false;
+        this._forText = true;
+        Promise.resolve(this._ui.open()).then(() => {
+            // GNOME did not open it (a recording runs): the next capture is an ordinary one
+            if (!this._ui?.visible)
+                this._forText = false;
+            else if (this._ui._selectionButton)
+                this._ui._selectionButton.checked = true;
+        }).catch(logError);
+        return true;
     }
 
     disable() {

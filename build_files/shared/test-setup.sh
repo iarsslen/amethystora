@@ -266,6 +266,31 @@ done <<<"${listed}"
 saved="$(sed -n 's/^FOCUS_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
 [[ "${saved}" == "${listed}" ]] ||
     { echo "the manifest saves other focus keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+# Seeing and reading, and touch and pen: every key of their schemas but whether a filter or the ruler is drawn this moment
+# and the shortcuts, each of the schema's type, range or choices; the pen's tools by name; and the manifest saves the same
+for table in ACCESS:org.gnome.shell.extensions.amethystora-ui.access TOUCH:org.gnome.shell.extensions.amethystora-ui.touch; do
+    name="${table%%:*}" id="${table#*:}"
+    TABLE="$(bash -c "$(sed -n "/^${name}_KEYS='/,/'\$/p" "${SETUP}")"'; printf "%s" "${'"${name}"'_KEYS}"')"
+    listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
+    schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${id}" | grep -vxE 'filter-on|ruler-shown|.*-key' | sort)"
+    [[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+        { echo "${name}_KEYS and ${id} differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+    while read -r key; do
+        range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${id}" "${key}" | tr '\n' ' ' | xargs)"
+        case "${range}" in
+            "type b") want='["b"]' ;;
+            "type as") want='["as","pen-tools"]' ;;
+            "range i "*) want="$(jq -cn --arg r "${range#range i }" '["i"] + ($r | split(" ") | map(tonumber))')" ;;
+            enum*) want="$(jq -cn --arg r "${range#enum }" '["s", ($r | split(" ") | sort)]')" ;;
+            *) want="? ${range}" ;;
+        esac
+        got="$(jq -c --arg k "${key}" '.[$k] | if .[0] == "s" then [.[0], (.[1] | sort)] else . end' <<<"${TABLE}")"
+        [[ "${got}" == "${want}" ]] || { echo "${name}_KEYS has ${key} as ${got}, the schema as ${want}"; false; }
+    done <<<"${listed}"
+    saved="$(sed -n "s/^${name}_KEYS=(\(.*\))\$/\1/p" "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+    [[ "${saved}" == "${listed}" ]] ||
+        { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+done
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -314,6 +339,11 @@ org.gnome.shell.extensions.amethystora-ui.dock magnify 'swell'
 org.gnome.shell.extensions.amethystora-ui.dock folders @a{sas} {}
 org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD']
 org.gnome.shell.extensions.amethystora-ui.bezel round-corners false
+org.gnome.shell.extensions.amethystora-ui.access filter 'none'
+org.gnome.shell.extensions.amethystora-ui.access filter-strength 100
+org.gnome.shell.extensions.amethystora-ui.access read-aloud false
+org.gnome.shell.extensions.amethystora-ui.touch touch-mode 'off'
+org.gnome.shell.extensions.amethystora-ui.touch pen-ring-tools ['scribble', 'area', 'note', 'text', 'right-click', 'back']
 org.gnome.desktop.sound event-sounds true
 org.gnome.shell.extensions.amethystora-ui.theme accent-per-workspace false
 org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'sky', 'coral', 'jade', 'amber', 'orchid']
@@ -445,7 +475,9 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.bezel = {"round-corners": true} | .settings.sound = {"event-sounds": false}
     | .settings.transitions = {"reveal": false} | .settings.hints = {"enabled": false} | .settings.appgrid = {"recent": false}
     | .settings.power = {"busy-app": false}
-    | .settings.focus = {"games-power": "as-set", "trigger-sleep": true, "work-apps": ["org.gnome.Nautilus.desktop"]}' \
+    | .settings.focus = {"games-power": "as-set", "trigger-sleep": true, "work-apps": ["org.gnome.Nautilus.desktop"]}
+    | .settings.access = {"filter": "deutan", "filter-strength": 75}
+    | .settings.touch = {"touch-mode": "follow", "pen-ring-tools": ["area", "back"]}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -468,6 +500,9 @@ grep -qxF "  ~ the app grid's recent: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the power module's busy-app: false, in place of true" <<<"${out}"
 grep -qxF '  ~ focus profiles'"'"' games-power: "as-set", in place of "performance"' <<<"${out}"
 grep -qxF "  ~ focus profiles' trigger-sleep: true, in place of false" <<<"${out}"
+grep -qxF '  ~ seeing and reading'"'"'s filter: "deutan", in place of "none"' <<<"${out}"
+grep -qxF "  ~ seeing and reading's filter-strength: 75, in place of 100" <<<"${out}"
+grep -qxF '  ~ touch and pen'"'"'s touch-mode: "follow", in place of "off"' <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus games-power "as-set"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep true" "${LOG}"
@@ -478,6 +513,9 @@ grep -qx "gsettings set org.gnome.shell.extensions.amethystora-transitions revea
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.hints enabled false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.appgrid recent false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.power busy-app false" "${LOG}"
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.access filter "deutan"' "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.access filter-strength 75" "${LOG}"
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.touch pen-ring-tools ["area","back"]' "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
@@ -598,7 +636,19 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"focus": {"sleep-accent": "teal"}}}' \
     '{"version": 1, "settings": {"focus": {"work-apps": ["rm -rf ~"]}}}' \
     '{"version": 1, "settings": {"focus": {"work-apps": ["a.desktop", "a.desktop"]}}}' \
-    '{"version": 1, "settings": {"focus": {"trigger-games": "on"}}}'; do
+    '{"version": 1, "settings": {"focus": {"trigger-games": "on"}}}' \
+    '{"version": 1, "settings": {"access": {"filter-on": false}}}' \
+    '{"version": 1, "settings": {"access": {"ruler-shown": true}}}' \
+    '{"version": 1, "settings": {"access": {"read-aloud-key": ["<Super>s"]}}}' \
+    '{"version": 1, "settings": {"access": {"filter": "red"}}}' \
+    '{"version": 1, "settings": {"access": {"filter-strength": 10}}}' \
+    '{"version": 1, "settings": {"access": {"filter-strength": 50.5}}}' \
+    '{"version": 1, "settings": {"access": {"read-aloud-speed": "3"}}}' \
+    '{"version": 1, "settings": {"touch": {"touch-mode": "tablet"}}}' \
+    '{"version": 1, "settings": {"touch": {"pen-ring-key": ["<Super>p"]}}}' \
+    '{"version": 1, "settings": {"touch": {"pen-ring-tools": []}}}' \
+    '{"version": 1, "settings": {"touch": {"pen-ring-tools": ["area", "area"]}}}' \
+    '{"version": 1, "settings": {"touch": {"pen-ring-tools": ["rm -rf ~"]}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }

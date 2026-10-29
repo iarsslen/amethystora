@@ -2541,3 +2541,215 @@ app-grid WHAT="" VALUE="":
             exit 64
             ;;
     esac
+
+# Easier to see and read: colour filters over the whole screen, a reading ruler that follows the pointer
+# (Super+Ctrl+R shows and hides it) and the selected text read aloud on this computer (Super+Ctrl+S), each off
+# until chosen here.
+# Colour filters, the reading ruler and reading aloud: how each is set, or choose one
+[positional-arguments]
+access *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.access
+    usage() {
+        echo "usage: ame desktop access [filter none|protan|deutan|tritan|grey|on|off | strength 25-100 | ruler off|band|dim|underline|show|hide | read-aloud on|off | read-aloud-speed 0.75|1|1.5|2]"
+        exit 64
+    }
+    value() { gsettings get "${schema}" "$1" | tr -d "'"; }
+    if [[ $# -eq 0 ]]; then
+        filter="$(value filter)"
+        strength="$(value filter-strength)"
+        if [[ "${filter}" != none && "$(value filter-on)" == false ]]; then
+            echo "$(eval_gettext "Colour filter: \${filter}, \${strength}%, switched off in quick settings")"
+        else
+            echo "$(eval_gettext "Colour filter: \${filter}, \${strength}%")"
+        fi
+        ruler="$(value ruler)"
+        echo "$(eval_gettext "Reading ruler: \${ruler} (Super+Ctrl+R shows and hides it)")"
+        if [[ "$(value read-aloud)" == true ]]; then state=on; else state=off; fi
+        speed="$(value read-aloud-speed)"
+        echo "$(eval_gettext "Read aloud: \${state}, at \${speed}× (Super+Ctrl+S reads the selection)")"
+        exit 0
+    fi
+    [[ $# -eq 2 ]] || usage
+    case "$1:$2" in
+        filter:none)
+            gsettings set "${schema}" filter none
+            echo "$(gettext "Colour filters are off.")"
+            ;;
+        filter:protan | filter:deutan | filter:tritan | filter:grey)
+            gsettings set "${schema}" filter "$2"
+            gsettings set "${schema}" filter-on true
+            echo "$(gettext "The colour filter is on. Its tile in quick settings switches it off and on, and picks another filter or strength. Screenshots are saved without it; a recording of a whole screen shows it.")"
+            ;;
+        filter:on | filter:off)
+            [[ "$(value filter)" != none ]] || { echo "$(gettext "Choose a filter first: ame desktop access filter protan, deutan, tritan or grey.")"; exit 1; }
+            if [[ "$2" == on ]]; then gsettings set "${schema}" filter-on true; else gsettings set "${schema}" filter-on false; fi
+            ;;
+        strength:*)
+            [[ "$2" =~ ^[0-9]{2,3}$ ]] && (( $2 >= 25 && $2 <= 100 )) || usage
+            gsettings set "${schema}" filter-strength "$((10#$2))"
+            ;;
+        ruler:off)
+            gsettings set "${schema}" ruler off
+            echo "$(gettext "The reading ruler is off.")"
+            ;;
+        ruler:band | ruler:dim | ruler:underline)
+            gsettings set "${schema}" ruler "$2"
+            gsettings set "${schema}" ruler-shown true
+            echo "$(gettext "The reading ruler is on and follows the pointer. Super+Ctrl+R hides it and shows it again.")"
+            ;;
+        ruler:show | ruler:hide)
+            [[ "$(value ruler)" != off ]] || { echo "$(gettext "Choose a ruler first: ame desktop access ruler band, dim or underline.")"; exit 1; }
+            if [[ "$2" == show ]]; then gsettings set "${schema}" ruler-shown true; else gsettings set "${schema}" ruler-shown false; fi
+            ;;
+        read-aloud:on)
+            gsettings set "${schema}" read-aloud true
+            echo "$(gettext "Read aloud is on: select some text and press Super+Ctrl+S. It is read on this computer with the screen reader's voice, and nothing is sent anywhere.")"
+            ;;
+        read-aloud:off)
+            gsettings set "${schema}" read-aloud false
+            echo "$(gettext "Read aloud is off.")"
+            ;;
+        read-aloud-speed:0.75 | read-aloud-speed:1 | read-aloud-speed:1.5 | read-aloud-speed:2)
+            gsettings set "${schema}" read-aloud-speed "$2"
+            ;;
+        *) usage ;;
+    esac
+
+# Touch and pen: touch mode sizes the shell for a fingertip (follow: while the computer is folded into a tablet), and
+# the pen's tools open around the pen's tip from its side button (Super+Ctrl+P). Both are off until chosen here.
+# pen-button on sets every pen this account has used, and every pen attached now that has no serial number of its own,
+# to send the tools' shortcut from its side button, keeping what it was; off puts that back.
+# Touch mode, the pen's tools and the pen's button: how each is set, or choose one
+[positional-arguments]
+touch *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.touch
+    stylus=org.gnome.desktop.peripherals.tablet.stylus
+    styli=/org/gnome/desktop/peripherals/stylus
+    kept="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/pen-button"
+    tools=(scribble area note text right-click back)
+    usage() {
+        echo "usage: ame desktop touch [mode off|follow|on | pen-ring off|ring|strip | pen-tools TOOL... | pen-button on|off]"
+        exit 64
+    }
+    value() { gsettings get "${schema}" "$1" | tr -d "'"; }
+    # The pens whose settings Mutter reads, as "known ID": those GNOME has settings for and those the pen ring has
+    # seen (each by its serial number, or by its tablet for a pen without one); and as "tablet ID", for each tablet
+    # attached now, the settings its pens without a serial number of their own are read from
+    pens() {
+        {
+            dconf list "${styli}/" 2>/dev/null | sed 's|/$||'
+            cat "${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/pens" 2>/dev/null || true
+        } | grep -E '^([0-9a-f]{1,16}|default-[0-9a-f]{4}:[0-9a-f]{4})$' | sort -u | sed 's/^/known /' || true
+        local event props
+        for event in /sys/class/input/event*; do
+            [[ -e "${event}" ]] || continue
+            props="$(udevadm info -q property -p "${event}" 2>/dev/null || true)"
+            grep -qx 'ID_INPUT_TABLET=1' <<<"${props}" || continue
+            grep -qx 'ID_INPUT_TABLET_PAD=1' <<<"${props}" && continue
+            printf 'default-%s:%s\n' "$(cat "${event}/device/id/vendor" 2>/dev/null)" "$(cat "${event}/device/id/product" 2>/dev/null)"
+        done | grep -E '^default-[0-9a-f]{4}:[0-9a-f]{4}$' | sort -u | sed 's/^/tablet /' || true
+    }
+    pen_button() {
+        local pen kind binding action key n=0 t=0 seen=" "
+        binding="$(gsettings get "${schema}" pen-ring-key | sed -n "s/^\['\([^']*\)'.*/\1/p")"
+        if [[ "$1" == off ]]; then
+            [[ -r "${kept}" ]] || { echo "$(gettext "No pen was set up for the tools.")"; return 0; }
+            while IFS=$'\t' read -r pen action key; do
+                [[ "${pen}" =~ ^([0-9a-f]{1,16}|default-[0-9a-f]{4}:[0-9a-f]{4})$ ]] || continue
+                # Only a button still set as on left it: one changed since in Settings is the person's
+                [[ "$(gsettings get "${stylus}:${styli}/${pen}/" button-action)" == "'keybinding'" &&
+                    "$(gsettings get "${stylus}:${styli}/${pen}/" button-keybinding)" == "'${binding}'" ]] || continue
+                gsettings set "${stylus}:${styli}/${pen}/" button-action "${action}"
+                gsettings set "${stylus}:${styli}/${pen}/" button-keybinding "${key#-}"
+            done <"${kept}"
+            rm -f "${kept}" "${kept}.bak"
+            echo "$(gettext "The pens' side buttons do what they did before.")"
+            return 0
+        fi
+        [[ -n "${binding}" ]] || { echo "$(gettext "The tools have no shortcut to send.")"; return 1; }
+        mkdir -p "$(dirname "${kept}")"
+        [[ -e "${kept}" ]] && cp "${kept}" "${kept}.bak"
+        cp "${kept}" "${kept}.tmp" 2>/dev/null || : >"${kept}.tmp"
+        while read -r kind pen; do
+            [[ "${seen}" == *" ${pen} "* ]] && continue
+            seen+="${pen} "
+            # What it was is kept once, so that a second run never keeps the tools' own shortcut as the old value
+            if ! grep -q "^${pen}"$'\t' "${kept}.tmp"; then
+                action="$(gsettings get "${stylus}:${styli}/${pen}/" button-action | tr -d "'")"
+                key="$(gsettings get "${stylus}:${styli}/${pen}/" button-keybinding | tr -d "'")"
+                printf '%s\t%s\t%s\n' "${pen}" "${action}" "${key:--}" >>"${kept}.tmp"
+            fi
+            gsettings set "${stylus}:${styli}/${pen}/" button-action keybinding
+            gsettings set "${stylus}:${styli}/${pen}/" button-keybinding "${binding}"
+            if [[ "${kind}" == known ]]; then n=$((n + 1)); else t=$((t + 1)); fi
+        done < <(pens)
+        mv -f "${kept}.tmp" "${kept}"
+        [[ "${n}" -eq 0 ]] ||
+            echo "$(eval_ngettext "The side button of \${n} pen used here now opens the tools." "The side buttons of \${n} pens used here now open the tools." "${n}")"
+        [[ "${t}" -eq 0 ]] ||
+            echo "$(eval_ngettext "On \${t} tablet attached now, a pen without a serial number of its own opens them too." "On \${t} tablets attached now, a pen without a serial number of its own opens them too." "${t}")"
+        [[ "${n}" -gt 0 || "${t}" -gt 0 ]] || echo "$(gettext "No pen found.")"
+        echo "$(gettext "A pen with a serial number of its own that was not used here yet: open the tools once with Super+Ctrl+P, touch them with the pen and run this again, or choose Super+Ctrl+P for its button in Settings, under Wacom Tablet.")"
+    }
+    if [[ $# -eq 0 ]]; then
+        mode="$(value touch-mode)"
+        ring="$(value pen-ring)"
+        echo "$(eval_gettext "Touch mode: \${mode}")"
+        echo "$(eval_gettext "The pen's tools: \${ring} (Super+Ctrl+P, or the pen's side button)")"
+        exit 0
+    fi
+    case "$1" in
+        mode)
+            [[ $# -eq 2 ]] || usage
+            case "$2" in
+                off) echo "$(gettext "Touch mode is off.")" ;;
+                follow) echo "$(gettext "Touch mode follows the hinge: on while the computer is folded into a tablet. The Touch mode tile in quick settings changes it for now.")" ;;
+                on) echo "$(gettext "Touch mode is on: a taller top bar, a larger dock, roomier menus and Today from the right edge.")" ;;
+                *) usage ;;
+            esac
+            gsettings set "${schema}" touch-mode "$2"
+            ;;
+        pen-ring)
+            [[ $# -eq 2 ]] || usage
+            case "$2" in
+                off)
+                    gsettings set "${schema}" pen-ring off
+                    echo "$(gettext "The pen's tools are off.")"
+                    ;;
+                ring | strip)
+                    gsettings set "${schema}" pen-ring "$2"
+                    echo "$(gettext "The pen's tools are on: Super+Ctrl+P opens them.")"
+                    if [[ -t 0 && -t 1 ]] && gum confirm "$(gettext "Make the pen's side button open them too?")"; then
+                        pen_button on
+                    else
+                        echo "$(gettext "To open them from the pen's side button: ame desktop touch pen-button on")"
+                    fi
+                    ;;
+                *) usage ;;
+            esac
+            ;;
+        pen-tools)
+            shift
+            [[ $# -ge 1 && $# -le 6 ]] || usage
+            list=()
+            for tool in "$@"; do
+                [[ " ${tools[*]} " == *" ${tool} "* ]] || usage
+                [[ " ${list[*]} " != *" '${tool}' "* ]] || usage
+                list+=("'${tool}'")
+            done
+            gsettings set "${schema}" pen-ring-tools "[$(IFS=,; echo "${list[*]}" | sed 's/,/, /g')]"
+            ;;
+        pen-button)
+            [[ $# -eq 2 && ( "$2" == on || "$2" == off ) ]] || usage
+            pen_button "$2"
+            ;;
+        *) usage ;;
+    esac

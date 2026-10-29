@@ -178,6 +178,8 @@ read_in_background dense gsettings get org.gnome.shell.extensions.amethystora-ui
 read_in_background glass gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.glass
 read_in_background motion gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.motion
 read_in_background bezel gsettings get org.gnome.shell.extensions.amethystora-ui.bezel round-corners
+read_in_background access gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.access
+read_in_background touch gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.touch
 read_in_background hints gsettings get org.gnome.shell.extensions.amethystora-ui.hints enabled
 read_in_background app-grid gsettings get org.gnome.shell.extensions.amethystora-ui.appgrid recent
 read_in_background sound gsettings list-recursively org.gnome.desktop.sound
@@ -402,6 +404,49 @@ USAGE="ame desktop captions on|off"
 item appearance captions switch "${ gettext "Live captions"; }" \
     "${ gettext "Captions under speech the computer plays, made on this computer. The first time downloads an English speech model of 39 MiB; while on, they hold about 230 MB of memory."; }" \
     "${CAPTIONS}" desktop#live-captions
+GROUP=""
+
+# Seeing and reading (org.gnome.shell.extensions.amethystora-ui.access): colour filters, the reading ruler and reading
+# aloud, each off until chosen, each an ame desktop access command
+ACCESS="${ said access; }"
+access_key() { value_of "${ACCESS}" "$1" "'?([^']*)'?\$"; }
+access_reason() { [[ "${ ended access; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+GROUP="${ gettext "Seeing and reading"; }"
+choice none "${ gettext "Off"; }" "" false ame desktop access filter none
+choice protan "${ gettext "Red (protan)"; }" "${ gettext "Pulls apart reds and greens for an eye that sees red weakly"; }" false ame desktop access filter protan
+choice deutan "${ gettext "Green (deutan)"; }" "${ gettext "Pulls apart reds and greens for an eye that sees green weakly"; }" false ame desktop access filter deutan
+choice tritan "${ gettext "Blue-yellow"; }" "${ gettext "Pulls apart blues and yellows"; }" false ame desktop access filter tritan
+choice grey "${ gettext "Grey"; }" "${ gettext "The whole screen in grey, for fewer distractions"; }" false ame desktop access filter grey
+access_reason
+[[ "${ access_key filter; }" != none && "${ access_key filter-on; }" == false ]] &&
+    DETAIL="${ gettext "Switched off for now in quick settings."; }"
+USAGE="ame desktop access filter none|protan|deutan|tritan|grey"
+item appearance colour-filter choice "${ gettext "Colour filter"; }" \
+    "${ gettext "The whole screen, every app, through a filter. Screenshots are saved without it."; }" \
+    "${ access_key filter; }" themes#colour-filters
+choice 50 "${ gettext "Half"; }" "" false ame desktop access strength 50
+choice 75 "${ gettext "¾"; }" "" false ame desktop access strength 75
+choice 100 "${ gettext "Full"; }" "" false ame desktop access strength 100
+access_reason
+[[ "${ access_key filter; }" == none ]] && DETAIL="${ gettext "Used once a filter is chosen."; }"
+USAGE="ame desktop access strength 25-100"
+item appearance colour-filter-strength choice "${ gettext "Filter strength"; }" "" \
+    "${ access_key filter-strength; }" themes#colour-filters
+choice off "${ gettext "Off"; }" "" false ame desktop access ruler off
+choice band "${ gettext "Band"; }" "${ gettext "A highlighter's band across the line under the pointer"; }" false ame desktop access ruler band
+choice dim "${ gettext "Dim the rest"; }" "${ gettext "Everything but the line under the pointer veiled"; }" false ame desktop access ruler dim
+choice underline "${ gettext "Underline"; }" "${ gettext "A line in the accent under the line you read"; }" false ame desktop access ruler underline
+access_reason
+USAGE="ame desktop access ruler off|band|dim|underline"
+item appearance reading-ruler choice "${ gettext "Reading ruler"; }" \
+    "${ gettext "Follows the pointer, for anyone who loses their line. Super+Ctrl+R shows and hides it."; }" \
+    "${ access_key ruler; }" themes#the-reading-ruler
+switch_choices false ame desktop access read-aloud
+access_reason
+USAGE="ame desktop access read-aloud on|off"
+item appearance read-aloud switch "${ gettext "Read the selection aloud"; }" \
+    "${ gettext "Select text and press Super+Ctrl+S: the screen reader's voice reads it, on this computer."; }" \
+    "$([[ "${ access_key read-aloud; }" == true ]] && echo on || echo off)" themes#reading-aloud
 GROUP=""
 
 FONT_SET=theme
@@ -693,6 +738,37 @@ for name in pinch spread down today; do
     USAGE="ame desktop windows gesture ${name} on|off"
     item desktop "windows-gesture-${name}" switch "${title}" "" "${ onoff "gesture-${name}"; }" desktop#touchpad-gestures
 done
+GROUP=""
+
+# Touch and pen (org.gnome.shell.extensions.amethystora-ui.touch): touch mode, and the pen's tools, which ask about the
+# pen's button in a terminal when turned on
+TOUCH="${ said touch; }"
+touch_key() { value_of "${TOUCH}" "$1" "'?([^']*)'?\$"; }
+touch_reason() { [[ "${ ended touch; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+GROUP="${ gettext "Touch and pen"; }"
+choice off "${ gettext "Off"; }" "" false ame desktop touch mode off
+choice follow "${ gettext "Follow the hinge"; }" "${ gettext "On while the computer is folded into a tablet"; }" false ame desktop touch mode follow
+choice on "${ gettext "Always"; }" "" false ame desktop touch mode on
+touch_reason
+USAGE="ame desktop touch mode off|follow|on"
+item desktop touch-mode choice "${ gettext "Touch mode"; }" \
+    "${ gettext "A taller top bar, a larger dock, roomier menus and Today from the right edge."; }" \
+    "${ touch_key touch-mode; }" desktop#touch-mode
+choice off "${ gettext "Off"; }" "" false ame desktop touch pen-ring off
+choice ring "${ gettext "Ring"; }" "${ gettext "Six tools around the pen's tip"; }" true ame desktop touch pen-ring ring
+choice strip "${ gettext "Strip"; }" "${ gettext "The tools in a column at the screen's edge"; }" true ame desktop touch pen-ring strip
+touch_reason
+USAGE="ame desktop touch pen-ring off|ring|strip"
+item desktop pen-ring choice "${ gettext "The pen's tools"; }" \
+    "${ gettext "Scribble, a screenshot of an area, a note, the text in an area, right click and back, from the pen's side button or Super+Ctrl+P."; }" \
+    "${ touch_key pen-ring; }" desktop#the-pen-ring
+COMMAND=(ame desktop touch pen-button on)
+BUTTON="${ gettext "Set up"; }"
+touch_reason
+[[ "${ touch_key pen-ring; }" == off ]] && DETAIL="${ gettext "Used once the pen's tools are on."; }"
+USAGE="ame desktop touch pen-button on|off"
+item desktop pen-button action "${ gettext "The pen's side button"; }" \
+    "${ gettext "Makes the side button of each pen open the tools, keeping what it did to give back."; }" "" desktop#the-pen-ring
 GROUP=""
 
 # The dock (org.gnome.shell.extensions.amethystora-ui.dock): how it moves, what it holds and where it lives, each an

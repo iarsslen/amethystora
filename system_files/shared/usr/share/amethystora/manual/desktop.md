@@ -535,6 +535,43 @@ off they stay still.
 ![Shake to find](media/shake-to-find.webm) ![Pinch for the apps](media/pinch-apps.webm) ![Search anything](media/super-space.webm) ![Hold Super](media/hold-super.webm)
 ![Switch windows](media/super-tab.webm) ![Snap layouts](media/snap-layouts.webm) ![Spread for the desktop](media/spread-desktop.webm) ![Four fingers for Today](media/four-left-today.webm)
 
+## Touch and pen
+
+For a computer you touch or draw on, Control's **Desktop** page has a group **Touch and pen**, and `ame desktop touch`
+alone shows how each is set. Both are off until you choose them.
+
+### Touch mode
+
+The desktop sized for a fingertip: the top bar 12 px taller with larger text, the dock's icons up to 64 px, menus with
+rows at least 44 px high, and **Today from the right edge**: a handle there, and a swipe in from that edge opens the
+calendar menu. Apps keep their own sizes.
+
+- `ame desktop touch mode follow` turns it on while the computer is folded into a tablet: Mutter tells by the
+  hinge's tablet switch, or by a touch screen with no mouse or touchpad where there is no switch. GNOME's on-screen
+  keyboard follows the same signal by itself.
+- `ame desktop touch mode on` keeps it on; `off` turns it off.
+
+While it is chosen, quick settings has a **Touch mode** tile. Some hinges report the wrong thing: a click on the tile
+changes it until the hinge next moves (or until you log out), without changing your choice.
+
+### The pen ring
+
+Six tools at the pen's tip: **Scribble** (drawing on the screen, where present mode offers it), **Area** (a screenshot
+of an area), **Note** (a quick note into Notes), **Text** (the text in an area, copied, with Gradia), **Right click**
+and **Back**, each run where the ring was opened. Move the pen toward a tool to light it, then touch the screen, or
+carry on past the ring's edge. A touch in the middle, `Escape` or a click outside closes it.
+
+- `ame desktop touch pen-ring ring` turns the ring on; `strip` shows the tools in a column at the screen's edge
+  instead; `off` turns them off. `Super+Ctrl+P` opens them.
+- The pen's side button opens them once it sends that shortcut: `ame desktop touch pen-button on` sets it up for each
+  pen whose settings GNOME has or that has touched the tools, and for pens without a serial number of their own on the
+  tablets attached now, keeping what each button did; `ame desktop touch pen-button off` gives that back, where the
+  button still does what it set. A pen with a serial number of its own (most Wacom pens) is known only once it has
+  been used: open the tools with `Super+Ctrl+P`, touch them with the pen and run it again, or choose `Super+Ctrl+P`
+  for its button in Settings, under **Wacom Tablet**. The command says which it set.
+- `ame desktop touch pen-tools area note text right-click back` picks the tools and their order, from the top,
+  clockwise.
+
 ## Tips
 
 The first time a feature can help, a small card next to it says how, with **Got it**: shaking the mouse to find the

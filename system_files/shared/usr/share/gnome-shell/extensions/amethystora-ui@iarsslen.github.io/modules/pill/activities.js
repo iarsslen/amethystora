@@ -14,8 +14,10 @@
 //
 // A focus profile's mark (modules/focus/mark.js) comes last: it says what the desktop is set to, not what happens.
 
-export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'timer', 'news', 'media', 'update', 'quiet',
-    'focus'];
+// Reading aloud (modules/access/speech.js) comes after what waits for the person and before what runs by itself: the
+// person has just asked for it.
+export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'reading', 'timer', 'news', 'media',
+    'update', 'quiet', 'focus'];
 
 // At most this many others are listed in a card
 const OTHERS = 3;

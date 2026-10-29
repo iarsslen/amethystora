@@ -89,6 +89,9 @@ the top bar on the left.
 | `Super+Ctrl+Shift+Space` | Pick a theme |
 | `Super+Ctrl+Space` | Next wallpaper for this theme |
 | `Super+Ctrl+D` | Switch between the light and dark theme |
+| `Super+Ctrl+R` | Show or hide the reading ruler, once you choose one (`ame desktop access ruler band`) |
+| `Super+Ctrl+S` | Read the selected text aloud, or stop, once you turn it on (`ame desktop access read-aloud on`) |
+| `Super+Ctrl+P` | The pen's tools, once you turn them on (`ame desktop touch pen-ring ring`) |
 
 The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name>`,
 `amethystora-theme bg next`, or `ame desktop theme`.

@@ -1,0 +1,28 @@
+/* The access module (modules/access.js): the reading ruler's pieces and reading aloud's speaker in the live pill. The
+   underline's colour is the theme's accent (themed/shell-access.css.tpl); the band and the veil are the board's own,
+   a highlighter's yellow and a dark veil, which read on every theme. */
+
+.amethystora-access-ruler-band {
+  background-color: rgba(255, 214, 90, 0.28);
+  border: 0 solid rgba(200, 150, 20, 0.6);
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.amethystora-access-ruler-veil {
+  background-color: rgba(20, 10, 35, 0.55);
+}
+
+.amethystora-access-ruler-underline {
+  border-radius: 2px;
+  background-color: #9148f0;
+}
+
+.amethystora-access-reading {
+  spacing: 8px;
+}
+
+.amethystora-access-speaker {
+  width: 15px;
+  height: 15px;
+}

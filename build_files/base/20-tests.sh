@@ -876,6 +876,10 @@ KEPT_COMBOS="$(
         GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter.wayland.keybindings restore-shortcuts
         GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter.keybindings cancel-input-capture
         GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.windows snap-chooser
+        # The reading ruler's, reading aloud's and the pen's tools' (Super+Ctrl+R, S and P)
+        GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.access ruler-key
+        GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.access read-aloud-key
+        GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.touch pen-ring-key
     } | keycombos
 )"
 grep -qx "<super>return" <<<"${KEPT_COMBOS}"
@@ -2065,6 +2069,83 @@ GSETTINGS_BACKEND=memory ame desktop sounds loud >/dev/null 2>&1 && false
 GSETTINGS_BACKEND=memory ame desktop screen-corners maybe >/dev/null 2>&1 && false
 GSETTINGS_BACKEND=memory ame desktop sounds off >/dev/null
 GSETTINGS_BACKEND=memory ame desktop screen-corners on >/dev/null
+# Seeing and reading, touch and pen (plans/beyond/spec-r4-access.md; manual: themes.md#seeing-and-reading,
+# desktop.md#touch-and-pen): the access and touch modules' keys, everything off for a new account, their three shortcuts
+# Super+Ctrl+R, S and P (the board's Super+Alt+R is the tiling's and Super+Alt+S GNOME's screen reader), both modules
+# after bezel and before focus. The filter is an effect with a Cogl snippet, the screenshots it sets aside are GNOME's
+# own calls; reading aloud runs only spd-say with "--" before the text, which the image has as Orca's; the pen's tools
+# run only Notes' quick note; nothing is markup. GNOME's stylus settings have the keybinding action pen-button sets.
+ACCESS=org.gnome.shell.extensions.amethystora-ui.access
+TOUCH=org.gnome.shell.extensions.amethystora-ui.touch
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${ACCESS}" | sort | paste -sd ' ')" == \
+    "filter filter-on filter-strength read-aloud read-aloud-key read-aloud-speed ruler ruler-key ruler-shown" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TOUCH}" | sort | paste -sd ' ')" == \
+    "pen-ring pen-ring-key pen-ring-tools touch-mode" ]]
+for pair in filter:"'none'" filter-strength:100 ruler:"'off'" read-aloud:false read-aloud-speed:"'1'" \
+    ruler-key:"['<Super><Control>r']" read-aloud-key:"['<Super><Control>s']"; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${ACCESS}" "${pair%%:*}")" == "${pair#*:}" ]]
+done
+for pair in touch-mode:"'off'" pen-ring:"'off'" pen-ring-key:"['<Super><Control>p']" \
+    pen-ring-tools:"['scribble', 'area', 'note', 'text', 'right-click', 'back']"; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${TOUCH}" "${pair%%:*}")" == "${pair#*:}" ]]
+done
+# In order, not side by side: other groups' modules may come between (focus is last, checked with Focus profiles)
+[[ "$(grep -oE "^    \['(bezel|access|touch|focus)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['bezel',     ['access',     ['touch',     ['focus'," ]]
+OTHER_COMBOS="$(XDG_CURRENT_DESKTOP=GNOME GSETTINGS_BACKEND=memory gsettings list-recursively |
+    grep -v "^org.gnome.shell.extensions.amethystora-ui.\(access\|touch\) " | keycombos)"
+OTHER_COMBOS+=$'\n'"$(grep -h -d skip -e "^binding=" /etc/dconf/db/distro.d/* | keycombos)"
+for combo in "<control><super>r" "<control><super>s" "<control><super>p"; do
+    if grep -qx "${combo}" <<<"${OTHER_COMBOS}"; then
+        echo "${combo} is bound elsewhere, and is the reading ruler's, reading aloud's or the pen's tools'"
+        exit 1
+    fi
+done
+for file in modules/access.js modules/access/filter.js modules/access/matrices.js modules/access/ruler.js \
+    modules/access/speech.js modules/access/lines.js modules/touch.js modules/touch/mode.js modules/touch/ring.js \
+    stylesheets/access.css stylesheets/touch.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-access.css.tpl
+test -s /usr/share/amethystora/themed/shell-touch.css.tpl
+grep -q "extends Clutter.Effect" "${UI_EXTENSION}/modules/access/filter.js"
+grep -q "Clutter.LayerNode.new_to_framebuffer" "${UI_EXTENSION}/modules/access/filter.js"
+grep -q "Cogl.SnippetHook.FRAGMENT" "${UI_EXTENSION}/modules/access/filter.js"
+# What is drawn over windows holds off direct scanout while it shows: the filter, the ruler and the pen's ring
+for file in access/filter.js access/ruler.js touch/ring.js; do
+    grep -q "disable_unredirect()" "${UI_EXTENSION}/modules/${file}"
+    grep -q "enable_unredirect()" "${UI_EXTENSION}/modules/${file}"
+done
+# Nothing wraps GNOME's screenshot calls: a screenshot is a paint for no screen, which the filter leaves alone
+[[ -z "$(grep -rn "Screenshot.prototype" "${UI_EXTENSION}/modules/access.js" "${UI_EXTENSION}/modules/access")" ]]
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/access.js" \
+    "${UI_EXTENSION}/modules/access" "${UI_EXTENSION}/modules/touch.js" "${UI_EXTENSION}/modules/touch")" ]]
+# Reading aloud starts spd-say alone, twice: each sentence on its standard input (never its command line, which every
+# account can read) and its stop; the pen's tools start Notes' quick note alone
+[[ "$(grep -rhoE "Subprocess\.new\([A-Za-z_\[]+" "${UI_EXTENSION}/modules/access.js" "${UI_EXTENSION}/modules/access" |
+    sort | paste -sd ' ')" == "Subprocess.new([SPD_SAY Subprocess.new(argv" ]]
+grep -q "const argv = \[SPD_SAY, '--pipe-mode'," "${UI_EXTENSION}/modules/access/speech.js"
+grep -q "communicate_utf8_async(" "${UI_EXTENSION}/modules/access/speech.js"
+[[ "$(grep -rhoE "Subprocess\.new\([A-Za-z_\[]+" "${UI_EXTENSION}/modules/touch.js" "${UI_EXTENSION}/modules/touch" |
+    sort | paste -sd ' ')" == "Subprocess.new([NOTES" ]]
+[[ -z "$(grep -rnE 'Util\.spawn|spawn_command_line|GLib\.spawn' "${UI_EXTENSION}/modules/access.js" \
+    "${UI_EXTENSION}/modules/access" "${UI_EXTENSION}/modules/touch.js" "${UI_EXTENSION}/modules/touch")" ]]
+command -v spd-say >/dev/null
+rpm -q speech-dispatcher-utils speech-dispatcher-espeak-ng espeak-ng >/dev/null
+GSETTINGS_BACKEND=memory gsettings range org.gnome.desktop.peripherals.tablet.stylus:/org/gnome/desktop/peripherals/stylus/x/ \
+    button-action | grep -qx "'keybinding'"
+GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.peripherals.tablet.stylus:/org/gnome/desktop/peripherals/stylus/x/ |
+    grep -qx button-keybinding
+for recipe in access touch; do
+    grep -q "^${recipe} \*ARGS:" /usr/share/amethystora/just/desktop.just
+    grep -qx "desktop::${recipe}" <<<"$(ame --summary | tr ' ' '\n')"
+done
+GSETTINGS_BACKEND=memory ame desktop access filter red >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop access strength 10 >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop touch mode tablet >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop touch pen-tools area area >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop access filter deutan >/dev/null
+GSETTINGS_BACKEND=memory ame desktop touch pen-tools area back >/dev/null
 # First start (manual: desktop.md#the-reveal-at-login, #tips, #the-app-grid, #gestures-and-keys). The reveal at login, a
 # key of the transitions extension, its own file, imported; ame desktop transition reveal on|off
 TRANSITIONS_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io

@@ -197,6 +197,16 @@ export class Pill {
         this._activities?.update('focus');
     }
 
+    // Reading the selection aloud (modules/access/speech.js), or null when it ends
+    setReading(activity) {
+        if (this._activities && this._activities.get('reading') !== activity)
+            this._activities.set('reading', activity);
+    }
+
+    readingChanged() {
+        this._activities?.update('reading');
+    }
+
     _toggle(name, wanted, make) {
         if (wanted && !this[name]) {
             const part = make();

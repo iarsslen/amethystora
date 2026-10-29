@@ -264,6 +264,53 @@ For a desktop that is calmer or clearer, Control's **Appearance** page has a **C
 - **The power saver**, the profile you pick in the quick settings' power menu, makes the glass solid and every
   animation take half its time for as long as it is on. Nothing here turns the power saver on by itself.
 
+## Seeing and reading
+
+GNOME has a screen reader, zoom and large text, in Settings under **Accessibility**. Amethystora adds three things
+there are no switches for, in Control's **Appearance** page, group **Seeing and reading**, and with
+`ame desktop access`, which alone shows how each is set. All three are off until you choose them.
+
+### Colour filters
+
+A filter over the whole screen, every app and the desktop itself:
+
+- **Red (protan)** and **Green (deutan)** pull apart the reds and greens that an eye with a red or a green weakness
+  mixes up, by moving what that eye misses into the colours it sees well: `ame desktop access filter deutan`.
+- **Blue-yellow** does the same for blues and yellows: `ame desktop access filter tritan`.
+- **Grey** draws everything in grey, for fewer distractions: `ame desktop access filter grey`.
+
+The strength is **Half**, **¾** or **Full** (`ame desktop access strength 75`; any number from 25 to 100). While a
+filter is chosen, quick settings has a **Colour filter** tile: its switch turns the filter off and on again, and its
+menu picks another filter or strength. `ame desktop access filter none` takes the filter and the tile away.
+
+The pointer is not filtered. **Screenshots are saved without the filter**, in the apps' own colours, so that a picture
+you send looks right to everyone; on the screen, the screenshot tool is filtered like the rest. **A recording or a
+screen share of a whole screen shows the filter**, since it is what the screen shows; one of an area or of a window
+does not. While a filter is on, a game shown full screen is drawn through the desktop like any window, and each screen
+is drawn once more for every frame, which costs a little speed.
+
+### The reading ruler
+
+A band that follows the pointer, for anyone who loses their line: dyslexia, tired eyes, long pages. It lies across the
+window you are using while the pointer is over it, else across the screen, and is as tall as a line of text: taller
+when you make the text larger in Settings. **Super+Ctrl+R** hides it and shows it again.
+
+- **Band**: a highlighter's yellow band: `ame desktop access ruler band`.
+- **Dim the rest**: the window (or screen) above and below the line is veiled: `ame desktop access ruler dim`.
+- **Underline**: a line in the theme's accent under the line you read: `ame desktop access ruler underline`.
+
+`ame desktop access ruler off` turns it off, and its shortcut with it. The ruler shows in screenshots.
+
+### Reading aloud
+
+With `ame desktop access read-aloud on`, select some text in any app and press **Super+Ctrl+S**: it is read aloud with
+the voice the screen reader uses, on this computer; nothing is sent anywhere, and no screen reader needs to be on. The
+live pill says **Reading aloud** with the speed, which steps through 1×, 1.5×, 2× and 0.75× from the next sentence
+(the speeds are about that), and **Stop**; **Super+Ctrl+S** again stops too. Stopping also cuts short the sentence the
+screen reader is saying at that moment, if one is. A long selection is read up to about
+twenty thousand characters. The voice is eSpeak NG through Speech Dispatcher, the same as Orca's; other voices that
+Speech Dispatcher knows can be set in its own settings.
+
 ## Fonts
 
 Each theme is written in a font of its own, used by the desktop and the applications:

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the access module (modules/access.js): colour filters, the reading ruler and reading aloud, all off
+     until chosen. Written by ame desktop access, Control, the colour filter's tile and the setup file. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.access" path="/org/gnome/shell/extensions/amethystora-ui/access/">
+    <key name="filter" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="protan"/>
+        <choice value="deutan"/>
+        <choice value="tritan"/>
+        <choice value="grey"/>
+      </choices>
+      <default>'none'</default>
+      <summary>Colour filter</summary>
+      <description>A filter over the whole screen: protan and deutan pull reds and greens apart, tritan blues and yellows, grey takes the colour away. none turns colour filters off, and their tile goes from quick settings.</description>
+    </key>
+    <key name="filter-on" type="b">
+      <default>true</default>
+      <summary>The chosen filter is drawn</summary>
+      <description>The colour filter tile's switch: off keeps the filter chosen without drawing it.</description>
+    </key>
+    <key name="filter-strength" type="i">
+      <range min="25" max="100"/>
+      <default>100</default>
+      <summary>How strongly the colour filter works</summary>
+      <description>In per cent of the full filter. The tile offers 50, 75 and 100.</description>
+    </key>
+    <key name="ruler" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="band"/>
+        <choice value="dim"/>
+        <choice value="underline"/>
+      </choices>
+      <default>'off'</default>
+      <summary>Reading ruler</summary>
+      <description>A band that follows the pointer, the rest dimmed around it, or a line under it. off turns the ruler and its shortcut off.</description>
+    </key>
+    <key name="ruler-shown" type="b">
+      <default>true</default>
+      <summary>The reading ruler is shown</summary>
+      <description>What the ruler's shortcut switches while a ruler is chosen.</description>
+    </key>
+    <key name="ruler-key" type="as">
+      <default><![CDATA[['<Super><Control>r']]]></default>
+      <summary>Show or hide the reading ruler</summary>
+      <description>Bound only while a ruler is chosen.</description>
+    </key>
+    <key name="read-aloud" type="b">
+      <default>false</default>
+      <summary>Read the selection aloud</summary>
+      <description>While on, the shortcut reads the selected text aloud on this computer, with the voice the screen reader uses.</description>
+    </key>
+    <key name="read-aloud-speed" type="s">
+      <choices>
+        <choice value="0.75"/>
+        <choice value="1"/>
+        <choice value="1.5"/>
+        <choice value="2"/>
+      </choices>
+      <default>'1'</default>
+      <summary>How fast the selection is read</summary>
+      <description>About this many times the voice's normal speed.</description>
+    </key>
+    <key name="read-aloud-key" type="as">
+      <default><![CDATA[['<Super><Control>s']]]></default>
+      <summary>Read the selection aloud, or stop</summary>
+      <description>Bound only while reading aloud is on.</description>
+    </key>
+  </schema>
+</schemalist>

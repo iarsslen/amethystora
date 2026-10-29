@@ -33,6 +33,8 @@ import {EASE, EDGES, scaleFactor} from './util.js';
 
 // The largest icon. GNOME's next size up is 64, so a bound on the height between the two leaves 48 the largest.
 const LARGEST = 48;
+// In touch mode (modules/touch.js) GNOME's next size, for a fingertip
+const LARGEST_TOUCH = 64;
 // A call for attention: two shakes of up to 15 degrees at the start of every three seconds
 const WIGGLE_EVERY = 3000;
 const WIGGLE_TIME = 500;
@@ -331,7 +333,8 @@ class AmethystoraDockDash extends Dash.Dash {
         // GNOME takes the dash's top and bottom margins off the bound across the row; on a side dock those centre it
         // along the row instead, and are given back
         const along = vertical ? this.margin_top + this.margin_bottom : 0;
-        this.setMaxSize(Math.max(0, length - ends), around + (LARGEST + 4) * scale + along);
+        const largest = this._dock.touchMode ? LARGEST_TOUCH : LARGEST;
+        this.setMaxSize(Math.max(0, length - ends), around + (largest + 4) * scale + along);
     }
 
     vfunc_scroll_event() {

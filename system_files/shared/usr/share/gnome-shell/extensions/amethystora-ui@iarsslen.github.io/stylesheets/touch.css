@@ -1,0 +1,108 @@
+/* The touch module (modules/touch.js): touch mode's sizes and the pen's tools. Every rule of touch mode starts from the
+   class the module puts on the shell's top group while it is active, one class more than the desktop styles' own
+   rules, so that it wins whatever the style. The colours that follow the theme are in themed/shell-touch.css.tpl; the
+   neutral ones here only stand in until a theme has been applied. */
+
+/* ---- Touch mode: the board's bar 12 px taller (46 px with the floating style's 1 px edges, from 34), its text a
+   fifth larger, rows for a fingertip ---- */
+
+#uiGroup.amethystora-touch #panel {
+  height: 44px;
+  font-size: 1.2em;
+}
+
+#uiGroup.amethystora-touch.amethystora-style-floating #panel {
+  border-radius: 17px;
+}
+
+#uiGroup.amethystora-touch #panel .panel-button {
+  -natural-hpadding: 16px;
+  -minimum-hpadding: 10px;
+}
+
+#uiGroup.amethystora-touch .popup-menu-item {
+  min-height: 44px;
+  spacing: 18px;
+}
+
+/* The handle at the right edge, for Today */
+.amethystora-touch-handle {
+  width: 6px;
+  height: 80px;
+  border-radius: 3px;
+  background-color: rgba(239, 228, 255, 0.5);
+}
+
+/* The hint, once a session */
+.amethystora-touch-hint {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background-color: rgba(26, 16, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #efe4ff;
+}
+
+/* ---- The pen's tools ---- */
+
+/* The ring: a disc 196 px across, a dot 10 px at the pen, six tools 58 px across */
+.amethystora-touch-ring-disc {
+  border-radius: 98px;
+  background-color: rgba(26, 16, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
+.amethystora-touch-ring-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #efe4ff;
+}
+
+.amethystora-touch-ring-tool {
+  border-radius: 29px;
+  spacing: 2px;
+  background-color: rgba(26, 16, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #efe4ff;
+}
+
+.amethystora-touch-ring-tool .amethystora-touch-tool-label {
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+/* The strip: a column in the glass at the screen's edge */
+.amethystora-touch-strip {
+  padding: 8px;
+  spacing: 4px;
+  border-radius: 20px;
+  background-color: rgba(26, 16, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+  color: #efe4ff;
+}
+
+.amethystora-touch-strip-tool {
+  padding: 9px 12px;
+  spacing: 10px;
+  border-radius: 14px;
+}
+
+.amethystora-touch-strip-tool .amethystora-touch-tool-label {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.amethystora-touch-tool-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* A tool the pen points at */
+.amethystora-touch-ring-tool:lit,
+.amethystora-touch-strip-tool:lit {
+  background-color: rgba(239, 228, 255, 0.16);
+}

@@ -22,7 +22,8 @@
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
-#                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus, power}: the window
+#                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus, power,
+#                access, touch}: the window
 #                layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
@@ -41,7 +42,10 @@
 #                accent, Daylight, colours from the wallpaper and an accent per workspace (LOOK_KEYS), the reveal at
 #                login, the tips and the app grid's row of recent apps (TRANSITIONS_KEYS, HINTS_KEYS, APPGRID_KEYS), what
 #                each focus profile does and its two triggers (FOCUS_KEYS; never the profile on now, when it ends, or
-#                a saved set it names, which are this machine's), and no other GNOME
+#                a saved set it names, which are this machine's), colour filters, the reading ruler and reading
+#                aloud (ACCESS_KEYS; never whether a filter or the ruler is drawn this moment), touch mode and the
+#                pen's tools (TOUCH_KEYS; never the pens' own buttons, GNOME's settings of this machine's pens), and
+#                no other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
 #                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
@@ -215,6 +219,17 @@ FOCUS_KEYS='{
     "sleep-power": ["s", ["as-set", "performance", "power-saver"]], "sleep-accent": ["s", '"${LOOK_ACCENTS}"'],
     "sleep-wallpaper": ["s", ["as-set", "night"]], "sleep-grey": ["b"]
 }'
+# Seeing and reading: the colour filter and its strength, the reading ruler and reading aloud. Never filter-on or
+# ruler-shown (whether they are drawn this moment) or the shortcuts, which are the image's.
+ACCESS=org.gnome.shell.extensions.amethystora-ui.access
+ACCESS_KEYS='{
+    "filter": ["s", ["none", "protan", "deutan", "tritan", "grey"]], "filter-strength": ["i", 25, 100],
+    "ruler": ["s", ["off", "band", "dim", "underline"]], "read-aloud": ["b"], "read-aloud-speed": ["s", ["0.75", "1", "1.5", "2"]]
+}'
+# Touch and pen: touch mode and the pen's tools, by name. Never the shortcut, or the pens' buttons, which GNOME keeps per pen.
+TOUCH=org.gnome.shell.extensions.amethystora-ui.touch
+TOUCH_KEYS='{"touch-mode": ["s", ["off", "follow", "on"]], "pen-ring": ["s", ["off", "ring", "strip"]],
+    "pen-ring-tools": ["as", "pen-tools"]}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -240,6 +255,8 @@ def valid($spec): $spec as [$t, $a, $b] |
         and (.value | type == "array" and length >= 2 and all(.[]; type == "string" and test("^[A-Za-z0-9._+-]+[.]desktop$"))))
     elif $t == "as" and $a == "launchers" then type == "array" and length <= 32 and (unique | length) == length
         and all(.[]; type == "string" and test("^[A-Za-z0-9._+-]+[.]desktop$"))
+    elif $t == "as" and $a == "pen-tools" then type == "array" and length >= 1 and length <= 6 and (unique | length) == length
+        and all(.[]; type == "string" and IN("scribble", "area", "note", "text", "right-click", "back"))
     elif $t == "s" then type == "string" and IN($a[])
     else false end;
 def wanted($spec): $spec as [$t, $a, $b] |
@@ -253,6 +270,7 @@ def wanted($spec): $spec as [$t, $a, $b] |
     elif $a == "ids" then "a list of different tiles' names, each lower-case letters, digits and hyphens"
     elif $a == "breaks" then "a list of eyesight and movement, each once"
     elif $a == "launchers" then "a list of 32 different launcher IDs at most, each NAME.desktop"
+    elif $a == "pen-tools" then "a list of one to six of scribble, area, note, text, right-click and back, each once"
     elif $a == "accents" then "a list of one to 36 accents, each theme or one of the twelve accents' names"
     elif $t == "folders" then "folders by name (1 to 40 characters), each with two launcher IDs or more"
     elif $t == "ad" then "a list of numbers"
@@ -342,7 +360,7 @@ if type != "object" then "it is not a JSON object" else
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
             "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look", "transitions",
-            "hints", "appgrid", "focus", "power"]; "settings."),
+            "hints", "appgrid", "focus", "power", "access", "touch"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -451,6 +469,14 @@ if type != "object" then "it is not a JSON object" else
             at("focus"; only($focus | keys; "settings.focus."),
                 (if type == "object" then to_entries[] | select(.key | IN($focus | keys[])) | $focus[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.focus.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("access"; only($access | keys; "settings.access."),
+                (if type == "object" then to_entries[] | select(.key | IN($access | keys[])) | $access[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.access.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("touch"; only($touch | keys; "settings.touch."),
+                (if type == "object" then to_entries[] | select(.key | IN($touch | keys[])) | $touch[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.touch.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -470,6 +496,7 @@ check() {
         --argjson look "${LOOK_KEYS}" \
         --argjson transitions "${TRANSITIONS_KEYS}" --argjson hints "${HINTS_KEYS}" --argjson appgrid "${APPGRID_KEYS}" \
         --argjson focus "${FOCUS_KEYS}" --argjson power "${POWER_KEYS}" \
+        --argjson access "${ACCESS_KEYS}" --argjson touch "${TOUCH_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -611,7 +638,7 @@ current() {
             value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
-        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power; do
+        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -626,6 +653,8 @@ current() {
                 appgrid) schema="${APPGRID}" ;;
                 power) schema="${POWER}" ;;
                 focus) schema="${FOCUS}" ;;
+                access) schema="${ACCESS}" ;;
+                touch) schema="${TOUCH}" ;;
             esac
             while read -r key; do
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
@@ -639,7 +668,8 @@ current() {
         done < <(jq -r '.settings.look // {} | keys[]' <<<"$1")
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
         workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
-        bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}, power: {}};
+        bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}, power: {}, access: {},
+        touch: {}};
         . * $x)'
 }
 
@@ -773,10 +803,12 @@ def brew($x; $k): $x.brew[$k] // [];
         + if $v == null then {ok: false, why: "this machine has no such pill setting"} else {} end),
     ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
         | {area: "pill", action: "remove", key: $k, from: .value}),
-    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus", "power") as $a
+    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus", "power",
+        "access", "touch") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
-        + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners"}[$a] // $a) setting"} else {} end),
+        + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners",
+            access: "seeing and reading", touch: "touch and pen"}[$a] // $a) setting"} else {} end),
       ($hs[$a] // {} | to_entries[] | .key as $k | select($fs[$a] // {} | has($k) | not)
         | {area: $a, action: "remove", key: $k, from: .value})),
     ($fs.look // {} | to_entries[] | .key as $k | $now.look[$k] as $v
@@ -847,11 +879,13 @@ def text:
           else ", \(.from | tojson) here, back to the image's" end
     elif .area == "quick" or .area == "bars" or .area == "today" or .area == "breaks"
         or .area == "search" or .area == "emoji" or .area == "bezel" or .area == "sound"
-        or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" or .area == "power" then
+        or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" or .area == "power"
+        or .area == "access" or .area == "touch" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
             search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's",
             transitions: "the transitions'", hints: "the tips'", appgrid: "the app grid's",
-            focus: "focus profiles'", power: "the power module's"}[.area]
+            focus: "focus profiles'", power: "the power module's",
+            access: "seeing and reading's", touch: "touch and pen's"}[.area]
         + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
@@ -1094,7 +1128,7 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1109,6 +1143,8 @@ add_all() {
             appgrid) schema="${APPGRID}" label="the app grid's" ;;
             power) schema="${POWER}" label="the power module's" ;;
             focus) schema="${FOCUS}" label="focus profiles'" ;;
+            access) schema="${ACCESS}" label="seeing and reading's" ;;
+            touch) schema="${TOUCH}" label="touch and pen's" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
         for change in "${changes[@]}"; do
@@ -1209,7 +1245,7 @@ remove_all() {
     for name in "${names[@]}"; do
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1224,6 +1260,8 @@ remove_all() {
             appgrid) schema="${APPGRID}" label="the app grid's" ;;
             power) schema="${POWER}" label="the power module's" ;;
             focus) schema="${FOCUS}" label="focus profiles'" ;;
+            access) schema="${ACCESS}" label="seeing and reading's" ;;
+            touch) schema="${TOUCH}" label="touch and pen's" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
         for name in "${names[@]}"; do

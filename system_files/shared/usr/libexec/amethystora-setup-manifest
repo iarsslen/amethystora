@@ -128,6 +128,12 @@ POWER_KEYS=(battery-details busy-app)
 # now, when it ends, or a saved set a profile names
 FOCUS=org.gnome.shell.extensions.amethystora-ui.focus
 FOCUS_KEYS=(trigger-games trigger-sleep work-banners work-apps work-sounds work-dock work-lighter work-night-light work-power work-accent work-wallpaper work-grey games-banners games-apps games-sounds games-dock games-lighter games-night-light games-power games-accent games-wallpaper games-grey sleep-banners sleep-apps sleep-sounds sleep-dock sleep-lighter sleep-night-light sleep-power sleep-accent sleep-wallpaper sleep-grey)
+# Seeing and reading, and touch and pen, which amethystora-setup's ACCESS_KEYS and TOUCH_KEYS take; never whether a
+# filter or the ruler is drawn this moment, or the shortcuts
+ACCESS=org.gnome.shell.extensions.amethystora-ui.access
+ACCESS_KEYS=(filter filter-strength ruler read-aloud read-aloud-speed)
+TOUCH=org.gnome.shell.extensions.amethystora-ui.touch
+TOUCH_KEYS=(touch-mode pen-ring pen-ring-tools)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -218,6 +224,8 @@ settings() {
         changed "${APPGRID}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${APPGRID_KEYS[@]}") -
         changed "${FOCUS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${FOCUS_KEYS[@]}") -
         changed "${POWER}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${POWER_KEYS[@]}") -
+        changed "${ACCESS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${ACCESS_KEYS[@]}") -
+        changed "${TOUCH}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${TOUCH_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -240,14 +248,15 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     --arg pill "${PILL}" --arg quick "${QUICK}" --arg bars "${BARS}" --arg today "${TODAY}" --arg breaks "${BREAKS}" \
     --arg search "${SEARCH}" --arg emoji "${EMOJI}" --arg bezel "${BEZEL}" --arg sound "${SOUND}" \
     --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" \
-    --arg focus "${FOCUS}" --arg power "${POWER}" '
+    --arg focus "${FOCUS}" --arg power "${POWER}" --arg access "${ACCESS}" --arg touch "${TOUCH}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
             elif .schema == $search then .key == "open" elif .schema == $emoji then .key == "emoji-picker"
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
-                $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid, $focus, $power) | not end))
+                $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid, $focus, $power,
+                $access, $touch) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -274,7 +283,9 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $hints)] | if length > 0 then {hints: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $appgrid)] | if length > 0 then {appgrid: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $focus)] | if length > 0 then {focus: (map({(.key): .value}) | add)} else {} end)
-    + ([$all[] | select(.schema == $power)] | if length > 0 then {power: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $power)] | if length > 0 then {power: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $access)] | if length > 0 then {access: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $touch)] | if length > 0 then {touch: (map({(.key): .value}) | add)} else {} end)')"
 
 # The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
 # (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)

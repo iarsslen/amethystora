@@ -231,6 +231,15 @@ export class Dock {
             this._rebuild();
     }
 
+    // Touch mode (modules/touch.js): icons up to GNOME's next size, in memory
+    setTouch(on) {
+        if (!!on === !!this.touchMode)
+            return;
+        this.touchMode = !!on;
+        if (this.settings)
+            this._rebuild();
+    }
+
     // A screen added, taken away or rearranged, or another edge: the docks are made again
     _rebuild() {
         this.fan?.close(true);

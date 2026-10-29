@@ -1772,7 +1772,7 @@ msgstr ""
 msgid "On"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
 msgid "Off"
 msgstr ""
 
@@ -2118,6 +2118,114 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Captions under speech the computer plays, made on this computer. The first time downloads an English speech model of 39 MiB; while on, they hold about 230 MB of memory."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Seeing and reading"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Red (protan)"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pulls apart reds and greens for an eye that sees red weakly"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Green (deutan)"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pulls apart reds and greens for an eye that sees green weakly"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Blue-yellow"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pulls apart blues and yellows"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Grey"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The whole screen in grey, for fewer distractions"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Switched off for now in quick settings."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Colour filter"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The whole screen, every app, through a filter. Screenshots are saved without it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Half"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "¾"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Full"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Used once a filter is chosen."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Filter strength"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Band"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A highlighter's band across the line under the pointer"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Dim the rest"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything but the line under the pointer veiled"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Underline"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A line in the accent under the line you read"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Reading ruler"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Follows the pointer, for anyone who loses their line. Super+Ctrl+R shows and hides it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Read the selection aloud"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Select text and press Super+Ctrl+S: the screen reader's voice reads it, on this computer."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2568,6 +2676,71 @@ msgstr ""
 msgid "Four fingers left for Today"
 msgstr ""
 
+#: usr/libexec/amethystora-control-list
+msgid "Touch and pen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Follow the hinge"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "On while the computer is folded into a tablet"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Always"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "Touch mode"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A taller top bar, a larger dock, roomier menus and Today from the right edge."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Ring"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Six tools around the pen's tip"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Strip"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The tools in a column at the screen's edge"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pen's tools"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Scribble, a screenshot of an area, a note, the text in an area, right click and back, from the pen's side button or Super+Ctrl+P."
+msgstr ""
+
+#. Translators: a choice in a menu: to set gaming up
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just
+msgid "Set up"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Used once the pen's tools are on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pen's side button"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Makes the side button of each pen open the tools, keeping what it did to give back."
+msgstr ""
+
 #: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
 msgid "Dock"
 msgstr ""
@@ -2866,10 +3039,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "The clipboard history's extension is not installed."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Always"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
@@ -5873,11 +6042,6 @@ msgstr ""
 msgid "Lutris (games from anywhere else)"
 msgstr ""
 
-#. Translators: a choice in a menu: to set gaming up
-#: usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just
-msgid "Set up"
-msgstr ""
-
 #: usr/share/amethystora/just/apps.just
 msgid "Add another launcher"
 msgstr ""
@@ -5944,7 +6108,7 @@ msgid "Start"
 msgstr ""
 
 #. Translators: a choice in a menu: to stop Android
-#: usr/share/amethystora/just/apps.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+#: usr/share/amethystora/just/apps.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
 msgid "Stop"
 msgstr ""
 
@@ -7269,6 +7433,130 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "The app grid's folders are the image's again."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Colour filter: ${filter}, ${strength}%, switched off in quick settings"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Colour filter: ${filter}, ${strength}%"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Reading ruler: ${ruler} (Super+Ctrl+R shows and hides it)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Read aloud: ${state}, at ${speed}× (Super+Ctrl+S reads the selection)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Colour filters are off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The colour filter is on. Its tile in quick settings switches it off and on, and picks another filter or strength. Screenshots are saved without it; a recording of a whole screen shows it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Choose a filter first: ame desktop access filter protan, deutan, tritan or grey."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The reading ruler is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The reading ruler is on and follows the pointer. Super+Ctrl+R hides it and shows it again."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Choose a ruler first: ame desktop access ruler band, dim or underline."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Read aloud is on: select some text and press Super+Ctrl+S. It is read on this computer with the screen reader's voice, and nothing is sent anywhere."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Read aloud is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No pen was set up for the tools."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The pens' side buttons do what they did before."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The tools have no shortcut to send."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The side button of ${n} pen used here now opens the tools."
+msgid_plural "The side buttons of ${n} pens used here now open the tools."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "On ${t} tablet attached now, a pen without a serial number of its own opens them too."
+msgid_plural "On ${t} tablets attached now, a pen without a serial number of its own opens them too."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No pen found."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A pen with a serial number of its own that was not used here yet: open the tools once with Super+Ctrl+P, touch them with the pen and run this again, or choose Super+Ctrl+P for its button in Settings, under Wacom Tablet."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Touch mode: ${mode}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The pen's tools: ${ring} (Super+Ctrl+P, or the pen's side button)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Touch mode is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Touch mode follows the hinge: on while the computer is folded into a tablet. The Touch mode tile in quick settings changes it for now."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Touch mode is on: a taller top bar, a larger dock, roomier menus and Today from the right edge."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The pen's tools are off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The pen's tools are on: Super+Ctrl+P opens them."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Make the pen's side button open them too?"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "To open them from the pen's side button: ame desktop touch pen-button on"
 msgstr ""
 
 #: usr/share/amethystora/just/report.just
@@ -9304,6 +9592,50 @@ msgstr ""
 msgid "automatic updates are currently running, use `journalctl -fexu ${SERVICE}` to see logs"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "Strength"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js
+msgid "A screen is too large for the colour filter, and is shown without it."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "Select some text first"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "Reading aloud"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "Reading the selection aloud"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "The selection is read on this computer; nothing is sent anywhere."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "Only the first part of a long selection is read."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "0.75×"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "1.5×"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "2×"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+msgid "1×"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/appgrid.js
 msgid "Recently used"
 msgstr ""
@@ -10238,7 +10570,7 @@ msgstr ""
 msgid "Now playing · %s"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
 msgid "Back"
 msgstr ""
 
@@ -10869,7 +11201,7 @@ msgstr ""
 msgid "Arrow"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
 msgid "Text"
 msgstr ""
 
@@ -11207,6 +11539,46 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
 msgid "%d°"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "Off for now"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "On until the hinge moves"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "Off until the hinge moves"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "Always on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "Follows the hinge"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/mode.js
+msgid "Swipe from the right edge for Today"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
+msgid "Scribble"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
+msgid "Area"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
+msgid "Note"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
+msgid "Right click"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/desktop.js
