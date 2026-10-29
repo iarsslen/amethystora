@@ -13,10 +13,13 @@ import * as ParentalControlsManager from 'resource:///org/gnome/shell/misc/paren
 export const SHOWN = 3;
 // The most remembered, which is more than shown since the ones running or pinned are passed over
 const KEPT = 32;
+// The order kept while the module is off, in this shell only, so that turning it off and on again shows the same apps
+// (spec 7.1.35); a new session starts from GNOME's record again
+let remembered = [];
 
 export class Recent extends EventEmitter {
     start() {
-        this._ids = [];
+        this._ids = [...remembered];
         this._privacy = new Gio.Settings({schema_id: 'org.gnome.desktop.privacy'});
         this._privacy.connectObject('changed::remember-app-usage', () => {
             this._ids = [];
@@ -29,6 +32,7 @@ export class Recent extends EventEmitter {
     }
 
     stop() {
+        remembered = this.remembering ? this._ids : [];
         this._privacy?.disconnectObject(this);
         // Disposed now rather than by the collector (dock.js says why)
         this._privacy?.run_dispose();
