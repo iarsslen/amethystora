@@ -389,6 +389,14 @@ workspace_accent_ids() {
         fi
     fi
     [[ -n ${AMETHYSTORA_FOCUS_ACCENT:-} ]] && ids+=("${AMETHYSTORA_FOCUS_ACCENT}")
+    # A theme switch (ACCENTS_KEEP=1) renders again every set the current theme has, a focus profile's included: the
+    # shell may have its rules loaded, and GNOME Shell, which loads every stylesheet loaded again when light and dark
+    # change, stops at one that is gone. `amethystora-theme accents` alone takes a set away.
+    if [[ -n ${ACCENTS_KEEP:-} && -d "${CURRENT_THEME_DIR}/accents" ]]; then
+        for id in "${CURRENT_THEME_DIR}"/accents/*/; do
+            [[ -d ${id} ]] && id="${id%/}" && ids+=("${id##*/}")
+        done
+    fi
     ((${#ids[@]} > 0)) || return 0
     for id in "${ids[@]}"; do
         is_accent "${id}" && echo "${id}"

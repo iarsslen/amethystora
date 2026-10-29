@@ -64,7 +64,7 @@ stage_theme() {
     render_templates "${staging}" \
         "theme_name=${slug}" \
         "ptyxis_palette_name=Amethystora ${slug}"
-    render_accent_sets "${staging}" "${slug}"
+    ACCENTS_KEEP=1 render_accent_sets "${staging}" "${slug}"
 
     rm -rf "${CURRENT_THEME_DIR}"
     mv "${staging}" "${CURRENT_THEME_DIR}"
