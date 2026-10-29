@@ -48,10 +48,11 @@ restart_session() {
 }
 UID_N="$(id -u "${TEST_USER}")"
 DUMP="/run/user/${UID_N}/vmlab-23-streams.json"
-# What PipeWire showed while COMMAND ran in the session: every media.filename of a stream that came and went
+# What PipeWire showed while COMMAND ran in the session: every media.filename of a stream that came and went, with a
+# doubled slash taken out (libcanberra joins XDG_DATA_DIRS' entries, which may end in one: /usr/share//sounds/...)
 streams_during() {
     in_session "rm -f ${DUMP}; (timeout 5 pw-dump -m >${DUMP} 2>/dev/null &); sleep 0.8; $*; sleep 3" >/dev/null 2>&1
-    grep -o '"media.filename": "[^"]*"' "${DUMP}" 2>/dev/null | sed 's/.*: "\(.*\)"/\1/' | sort -u
+    grep -o '"media.filename": "[^"]*"' "${DUMP}" 2>/dev/null | sed -e 's/.*: "\(.*\)"/\1/' -e 's|//*|/|g' | sort -u
 }
 # What the shell's sound player was asked to play since record() began, by name
 record() { ev "global._vmlab23 = []; const p = global.display.get_sound_player(); if (!p._vmlab23) { p._vmlab23 = p.play_from_theme; p.play_from_theme = function (n, d, c) { global._vmlab23.push(n); return p._vmlab23.call(p, n, d, c); }; } 'recording'" >/dev/null; }
@@ -118,7 +119,7 @@ sleep 6
 in_session "systemctl --user stop vmlab-23-dump" >/dev/null 2>&1
 # One stream, whoever played it: libcanberra's own login sound is hidden (17-cleanup.sh), so the module's is the only one
 login="$(jq -r '.[]? | select(.type == "PipeWire:Interface:Node")
-    | select(.info.props["media.filename"]? == "/usr/share/sounds/amethystora/stereo/desktop-login.wav") | .id' \
+    | select((.info.props["media.filename"]? // "" | gsub("/+"; "/")) == "/usr/share/sounds/amethystora/stereo/desktop-login.wav") | .id' \
     "${DUMP}" 2>/dev/null | sort -u | wc -l)"
 if [[ "${login}" == 1 ]]; then
     ok "31 the login chord played once as the session started"
@@ -158,7 +159,7 @@ same "30 canberra plays again" "$(streams_during "canberra-gtk-play -i message-n
 
 # --- 31. Once a session, and the power -------------------------------------------------------------------------------------
 record
-loginctl lock-session
+loginctl lock-session "$(loginctl show-user "${TEST_USER}" -p Display --value)"
 if wait_for 30 locked; then
     sleep 2
     loginctl unlock-sessions
@@ -217,11 +218,15 @@ same "33 both stylesheets have the clock's block once, Quicksand at 116 px and 6
 cp "${HERE}/mpris.py" "${WORK}/"
 chmod 0755 "${WORK}"
 in_session "systemd-run --user --collect --unit=vmlab-23-mpris python3 ${WORK}/mpris.py" >/dev/null 2>&1
-for i in 1 2 3; do
-    in_session "notify-send -a 'Lab chat' 'Sam' 'Secret ${i}'" >/dev/null 2>&1
-done
+# The three from one client, a second apart, as one chat app sends them: GNOME 50 looks a sender up before it makes its
+# source, so three notify-send, or three calls at once, can each get a row of their own
+in_session "python3 -c 'import time; from gi.repository import Gio, GLib
+bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+for i in (1, 2, 3):
+    bus.call_sync(\"org.freedesktop.Notifications\", \"/org/freedesktop/Notifications\", \"org.freedesktop.Notifications\", \"Notify\",
+        GLib.Variant(\"(susssasa{sv}i)\", (\"Lab chat\", 0, \"\", \"Sam\", \"Secret %d\" % i, [], {}, -1)), None, Gio.DBusCallFlags.NONE, 5000, None); time.sleep(1)'" >/dev/null 2>&1
 sleep 2
-loginctl lock-session
+loginctl lock-session "$(loginctl show-user "${TEST_USER}" -p Display --value)"
 if wait_for 30 locked; then
     sleep 3
     T="Main.screenShield._dialog._clock._time"
@@ -238,7 +243,8 @@ if wait_for 30 locked; then
     [[ " ${rows} " == *" message"*":22 "* ]] && ok "34 what is playing is a card of radius 22" ||
         not_ok "34 what is playing is a card of radius 22" "rows: ${rows}"
     texts="$(ev "(() => { const all = []; const walk = a => { if (a.text !== undefined && a.visible) all.push(a.text); a.get_children().forEach(walk); }; walk(${BOX}); return all.join('|'); })()")"
-    [[ "${texts}" == *"Lab chat"* && "${texts}" == *3* && "${texts}" != *Secret* ]] &&
+    # GNOME counts the ones not seen yet: the first came up as a banner before the lock, so 2 or 3
+    [[ "${texts}" == *"Lab chat"* && "|${texts}|" =~ \|[23]\| && "${texts}" != *Secret* ]] &&
         ok "34 the row names the app and the count, never the text (${texts})" ||
         not_ok "34 the row names the app and the count, never the text" "shown: ${texts}"
     user_bus gdbus call --session --dest org.gnome.Shell.Screenshot --object-path /org/gnome/Shell/Screenshot \
