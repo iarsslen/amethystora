@@ -207,6 +207,8 @@ export class Typing {
             // The longest a key took, and on average; the space that starts an expansion apart
             maxUs: counts.maxUs,
             meanUs: counts.timed ? Math.round(counts.totalUs / counts.timed) : 0,
+            timed: counts.timed,
+            totalUs: counts.totalUs,
             expandMaxUs: counts.expandMaxUs,
             monitor: !!this._monitor,
             shortcuts: this._expander?.count ?? 0,
