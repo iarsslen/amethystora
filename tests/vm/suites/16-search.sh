@@ -62,7 +62,7 @@ section_rows() { q "[.sections[] | select(.id == \"$1\") | .rows[].title] | join
 clip_known() { [[ "$(ev 'String(globalThis.vmlabClip)')" != undefined ]]; }
 # What the shell's clipboard holds now
 clipboard() {
-    ev "globalThis.vmlabClip = undefined; St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = t)); 'asked'" >/dev/null
+    ev "globalThis.vmlabClip = undefined; imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = t)); 'asked'" >/dev/null
     soon 3 clip_known
     ev "String(globalThis.vmlabClip)"
 }
@@ -158,7 +158,7 @@ same "1 the overview's controller holds Amethystora's six, in their places" \
 # --- 2: place and width, at scale 1 and 2 ---------------------------------------------------------------------------
 place_ok() {
     local scale want_top top
-    scale="$(ev "St.ThemeContext.get_for_stage(global.stage).scale_factor")"
+    scale="$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")"
     same "2 its width at scale ${scale}" "$(q .width)" "$((640 * scale))"
     want_top="$(ev "(() => { const a = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex); return a.y + Math.round(0.11 * a.height); })()")"
     top="$(q .top)"
@@ -169,7 +169,7 @@ check "2 Super+Space opens the card" card_open
 place_ok
 close_card
 gs set org.gnome.desktop.interface scaling-factor 2
-scaled() { [[ "$(ev "St.ThemeContext.get_for_stage(global.stage).scale_factor")" == 2 ]]; }
+scaled() { [[ "$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")" == 2 ]]; }
 if soon 10 scaled; then
     search ""
     place_ok
@@ -178,7 +178,7 @@ else
     not_ok "2 the screen did not go to scale 2"
 fi
 gs reset org.gnome.desktop.interface scaling-factor
-unscaled() { [[ "$(ev "St.ThemeContext.get_for_stage(global.stage).scale_factor")" == 1 ]]; }
+unscaled() { [[ "$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")" == 1 ]]; }
 soon 10 unscaled
 
 # --- 3-5: sums and conversions, and what is not one -----------------------------------------------------------------
@@ -317,8 +317,8 @@ same "12 clip: shows the history" "$(q '[.sections[] | select(.id == "amethystor
 search "clip: vmlab-clip"
 same "12 clip: WORDS keeps what holds them" "$(section_rows amethystora-clipboard)" "vmlab-clip-${RUN}"
 close_card
-user_bus systemd-run --user --collect --unit=vmlab-16-editor flatpak run org.gnome.TextEditor --new-document >/dev/null
-editor_up() { user_bus python3 "${HERE}/atspi.py" gnome-text-editor has "Untitled" >/dev/null 2>&1; }
+user_bus systemd-run --user --collect --unit=vmlab-16-editor flatpak run org.gnome.TextEditor --new-window >/dev/null
+editor_up() { user_bus python3 "${HERE}/atspi.py" gnome-text-editor has "New Document" >/dev/null 2>&1; }
 editor_focused() { [[ "$(ev "global.display.focus_window?.get_wm_class()")" == *TextEditor* ]]; }
 if wait_for 60 editor_up && soon 10 editor_focused; then
     search "clip: vmlab-clip"
@@ -449,7 +449,7 @@ soon 20 disabled
 same "18 disabled: GNOME's own providers only" \
     "$(ev "Main.overview.searchController._searchResults._providers.some(p => p.id.startsWith('amethystora-'))")" false
 same "18 ...and its sections back in GNOME's look" \
-    "$(ev "Main.overview.searchController._searchResults._content.get_children().filter(d => d.providerInfo).every(d => d.providerInfo.get_parent().orientation === Clutter.Orientation.HORIZONTAL && d.providerInfo.get_child().get_first_child().visible)")" true
+    "$(ev "Main.overview.searchController._searchResults._content.get_children().filter(d => d.providerInfo).every(d => d.providerInfo.get_parent().orientation === imports.gi.Clutter.Orientation.HORIZONTAL && d.providerInfo.get_child().get_first_child().visible)")" true
 ev "(async () => { await Main.extensionManager.enableExtension('${UUID}'); })(); 'on'" >/dev/null
 check "18 enabled again" wait_for 20 search_ready
 same "18 one section for each provider" \

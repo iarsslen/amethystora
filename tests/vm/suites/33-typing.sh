@@ -143,8 +143,8 @@ same "1 the skin tone" "$(gs get "${EMOJI}" skin-tone)" "'none'"
 check "1 Smile keeps Ctrl+Alt+Space" grep -q "binding='<Control><Alt>space'" /etc/dconf/db/distro.d/02-amethystora-keybindings
 
 # --- 2-4: a document, the picker under its cursor, a pick typed in --------------------------------------------------
-user_bus systemd-run --user --collect --unit=vmlab-33-editor flatpak run org.gnome.TextEditor --new-document >/dev/null
-editor_up() { user_bus python3 "${HERE}/atspi.py" gnome-text-editor has "Untitled" >/dev/null 2>&1; }
+user_bus systemd-run --user --collect --unit=vmlab-33-editor flatpak run org.gnome.TextEditor --new-window >/dev/null
+editor_up() { user_bus python3 "${HERE}/atspi.py" gnome-text-editor has "New Document" >/dev/null 2>&1; }
 editor_focused() { [[ "$(ev "global.display.focus_window?.get_wm_class()")" == *TextEditor* ]]; }
 if ! wait_for 60 editor_up || ! soon 10 editor_focused; then
     not_ok "2 Text Editor did not open"
@@ -155,7 +155,7 @@ check "2 Super+. opens the picker" is_open
 # 15: and Smile does not start on it any more
 smile() { pgrep -f it.mijorus.smile >/dev/null; }
 if soon 3 smile; then not_ok "15 Super+. started Smile"; else ok "15 Super+. starts no Smile"; fi
-scale="$(ev "St.ThemeContext.get_for_stage(global.stage).scale_factor")"
+scale="$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")"
 same "2 its width" "$(q .width)" "$((400 * scale))"
 placed="$(ev "(() => { const r = Main.inputMethod._cursorRect; const p = ${E}._picker.actor; const f = global.display.focus_window?.get_frame_rect(); if (r && p.y >= r.y + r.height) return 'below the cursor'; if (r && p.y + p.height <= r.y) return 'above the cursor'; return f && Math.abs(p.y - (f.y + f.height / 3)) < 40 ? 'a third down the window' : 'elsewhere ' + p.y; })()")"
 if [[ "${placed}" != elsewhere* ]]; then ok "2 placed ${placed}"; else not_ok "2 placed ${placed}"; fi
@@ -171,7 +171,7 @@ typed() { editor_text | grep -q "$1"; }
 check "4 the document holds 😀 within 2 s" wait_for 2 typed "😀"
 same "4 Recent keeps it" "$(jq -c .recent "${STATE}")" '["😀"]'
 clip_known() { [[ "$(ev "String(globalThis.vmlabClip)")" != undefined ]]; }
-ev "globalThis.vmlabClip = undefined; St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = t)); 'asked'" >/dev/null
+ev "globalThis.vmlabClip = undefined; imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = t)); 'asked'" >/dev/null
 soon 3 clip_known
 if [[ "$(ev "String(globalThis.vmlabClip)")" != "😀" ]]; then ok "4 typed through the input method: the clipboard is untouched"; else not_ok "4 the pick went through the clipboard" "the window took no text from the input method"; fi
 
@@ -208,7 +208,7 @@ else
 fi
 user_bus systemctl --user stop vmlab-33-kitty >/dev/null 2>&1
 rm -f "/tmp/vmlab-33-${RUN}"
-ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('Untitled'))?.activate(global.get_current_time()); 'back'" >/dev/null
+ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); 'back'" >/dev/null
 soon 5 editor_focused
 
 # --- 8: the skin tone -----------------------------------------------------------------------------------------------
@@ -242,7 +242,7 @@ same "9 nothing was typed" "$(editor_text | md5sum)" "${before}"
 printf '{"version":1,"recent":' >"${STATE}"
 chown "${TEST_USER}:" "${STATE}"
 rm -f "${STATE}.bak"
-ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('Untitled'))?.activate(global.get_current_time()); 'back'" >/dev/null
+ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); 'back'" >/dev/null
 soon 5 editor_focused
 open_picker
 same "10 a broken file: it opens on Smileys" "$(q .tab)" smileys
@@ -366,9 +366,9 @@ same "T0 a text from stdin is kept as it came" "$(ame_as desktop text-shortcut s
     "$(printf 'Best wishes,\nSam' | od -c | head -2 | md5sum)"
 
 # A document of its own, read through AT-SPI as one line (its lines joined by |)
-user_bus systemd-run --user --collect --unit=vmlab-33-sc-editor flatpak run org.gnome.TextEditor --new-document >/dev/null
+user_bus systemd-run --user --collect --unit=vmlab-33-sc-editor flatpak run org.gnome.TextEditor --new-window >/dev/null
 editor_here() {
-    ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('Untitled'))?.activate(global.get_current_time()); 'back'" >/dev/null
+    ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); 'back'" >/dev/null
     editor_focused
 }
 doc() { editor_text | paste -sd '|'; }
@@ -391,7 +391,7 @@ check "T2 on within 2 s, no log-out" soon 2 wrapped_now
 same "T2 the wrapper is the object's own" "$(own_wrapper)" true
 
 # --- T3, T5, T7: expanding, a correction, and the clipboard untouched ------------------------------------------------
-ev "globalThis.vmlabClip = undefined; St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = String(t))); 'asked'" >/dev/null
+ev "globalThis.vmlabClip = undefined; imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = String(t))); 'asked'" >/dev/null
 soon 3 clip_known
 clip_before="$(ev "String(globalThis.vmlabClip)")"
 keys return text:t3 space semicolon text:addr space
@@ -406,7 +406,7 @@ today="$(LC_ALL=C date +'%B %-d, %Y')"
 check "T3 {date} is today, ${today}" wait_for 4 has_doc "Date: ${today} "
 keys return text:t5 space semicolon text:adx backspace text:r space
 check "T5 a BackSpace in the abbreviation still expands" wait_for 4 has_doc "t5 4 Amethyst Lane, Riverton "
-ev "globalThis.vmlabClip = undefined; St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = String(t))); 'asked'" >/dev/null
+ev "globalThis.vmlabClip = undefined; imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = String(t))); 'asked'" >/dev/null
 soon 3 clip_known
 same "T7 the clipboard is untouched" "$(ev "String(globalThis.vmlabClip)")" "${clip_before}"
 
@@ -526,7 +526,7 @@ if wait_for 20 kitty_sc; then
     # text goes nowhere, not into the window that has the keyboard now
     in_doc_before="$(doc | grep -o '4 Amethyst Lane' | wc -l)"
     X="${TY}._expander"
-    same "T10b an expansion waits in the terminal" "$(ev "(() => { ${X}._expand(';addr'); const waiting = ${X}._expanding !== null; global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('Untitled'))?.activate(global.get_current_time()); return String(waiting); })()")" true
+    same "T10b an expansion waits in the terminal" "$(ev "(() => { ${X}._expand(';addr'); const waiting = ${X}._expanding !== null; global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); return String(waiting); })()")" true
     sleep 1
     same "T10b ...and nothing reached the window that took the keyboard" "$(doc | grep -o '4 Amethyst Lane' | wc -l)" "${in_doc_before}"
     ev "global.display.get_tab_list(0, null).find(w => w.get_title() === 'vmlab-33-sc')?.activate(global.get_current_time()); 'back'" >/dev/null
