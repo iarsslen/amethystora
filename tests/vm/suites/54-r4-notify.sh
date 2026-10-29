@@ -113,6 +113,15 @@ same "1 battery-details is on" "$(gs get "${POWER}" battery-details)" true
 same "1 busy-app is on" "$(gs get "${POWER}" busy-app)" true
 
 # --- 2: Later and Mute after the app's own buttons -----------------------------------------------------------------------
+# A banner stays until the person has moved since it came, which in the lab is never: one the session's start showed
+# (or queued) would stand in front of every banner below, each check then seeing the one before it. Gone first.
+no_banner() { poke; is "Main.messageTray._banner || Main.messageTray._notificationQueue.length ? 1 : 0" 0; }
+for _ in 1 2 3 4 5 6 7 8; do
+    no_banner && break
+    ev "Main.messageTray._expireNotification(); 'x'" >/dev/null
+    sleep 1
+done
+check "2 no banner from before" no_banner
 notify -a Notes "Pay the electricity bill" "Due today"
 check "2 a banner with none of its own" wait_for 20 banner_is "Pay the electricity bill"
 same "2 Later and Mute Notes in its row" "$(later .banner)" '["Later","Mute Notes for an hour"]'
@@ -181,7 +190,9 @@ ev "${P}.hold._closeDigest(); 'x'" >/dev/null
 notify -a Notes "At the next unlock" body
 wait_for 10 in_list "At the next unlock"
 ev "${L}.snoozeForTest('At the next unlock', 'unlock'); 'x'" >/dev/null
-session_id="$(loginctl list-sessions --no-legend | awk -v u="${TEST_USER}" '$3 == u { print $1; exit }')"
+# The graphical session: systemd 256 and later list the account's user manager as a session of its own too, which
+# never locks
+session_id="$(loginctl show-user "${TEST_USER}" -p Display --value)"
 locked() { [[ "$(loginctl show-session "${session_id}" -p LockedHint --value)" == yes ]]; }
 unlocked() { ! locked; }
 loginctl lock-sessions
@@ -225,6 +236,9 @@ INFO='{version: "99.20991231", releases: [
     {version: "99.20991231", items: [{title: "The dock grows as you pass", area: "desktop"}, {title: "A fourth", area: "apps"}]},
     {version: "99.20991230", items: [{title: "Four security fixes", area: "security"}, {title: "Snooze a notification", area: "desktop"}]},
     {version: "11.20000101", items: [{title: "Seen long ago", area: "desktop"}]}]}'
+# Step 7's "Notes muted until …" says itself for five seconds, in a place before What's new's
+said_out() { is "${P}.state().activity === 'waiting'" false; }
+wait_for 10 said_out
 check "8 after updates the pill says Updated" is "${P}.newsForTest(${INFO}, '50.20500101')" true
 same "8 its words" "$(ev "${P}.state().text")" "Updated · what’s new"
 same "8 what the releases since the version seen brought" "$(ev "JSON.stringify(${P}.state().news.items.map(i => i.title))")" \
@@ -290,7 +304,8 @@ check "10 unplugging looks at the processes once" wait_for 30 \
 ev "Main.panel.statusArea.quickSettings.menu.open(); 'x'" >/dev/null
 wait_for 10 is "Main.panel.statusArea.quickSettings.menu.isOpen" true
 ev "${UI}.get('quick').batteryMenu().open(); 'x'" >/dev/null
-measured_texts() { like "$(ev "JSON.stringify(${BAT}.state().texts)")" '*USED THE MOST SINCE*'; }
+# The heading shows at once over "Measuring…"; the apps and the note once the second look at the processes is done
+measured_texts() { like "$(ev "JSON.stringify(${BAT}.state().texts)")" '*USED THE MOST SINCE*Worked out from processor time*'; }
 check "10 it says what used the most" wait_for 30 measured_texts
 texts="$(ev "JSON.stringify(${BAT}.state().texts)")"
 check "10 the menu says the charge" like "${texts}" '*"86%"*'
@@ -326,29 +341,29 @@ check "11 and the chip goes when it closes" wait_for 10 is "${B}.state().chip" n
 ev "${B}.feedForTest(null, 0); 'x'" >/dev/null
 
 # --- 12: ten disables and enables -------------------------------------------------------------------------------------
-# GNOME 51 disables and enables an extension asynchronously: each step waits for the state GNOME gives it
-count='const c = a => { let n = 1; for (const x of a.get_children()) n += c(x); return n; };'
-base="$(ev "${count} JSON.stringify([c(Main.uiGroup), Object.keys(Main.panel.statusArea).length])")"
+# GNOME 51 disables and enables an extension asynchronously: each step waits for the state GNOME gives it. What is
+# left is counted with the extension off, before the cycles and after them (on, what a module builds only once it is
+# first needed would differ), by kind (an actor's style class, else its type), so that what grew is named
+census='(() => { const m = {}; const v = a => { const k = a.style_class || a.constructor.name; m[k] = (m[k] ?? 0) + 1; a.get_children().forEach(v); }; v(Main.uiGroup); m.statusArea = Object.keys(Main.panel.statusArea).length; return m; })()'
+off() { ev "Main.extensionManager.disableExtension('${UUID}'); 'x'" >/dev/null; wait_for 20 state_is 2 && sleep 1; }
+on() { ev "Main.extensionManager.enableExtension('${UUID}'); 'x'" >/dev/null; wait_for 20 state_is 1; }
+off
+ev "globalThis.vmlabCensus = ${census}; 'x'" >/dev/null
 cycles=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-    ev "Main.extensionManager.disableExtension('${UUID}'); 'x'" >/dev/null
-    wait_for 20 state_is 2 || break
-    ev "Main.extensionManager.enableExtension('${UUID}'); 'x'" >/dev/null
-    wait_for 20 state_is 1 || break
+    on || break
+    off || break
     cycles=$((cycles + 1))
 done
 same "12 ten cycles" "${cycles}" 10
-wait_for 30 ready
-same "12 leave nothing" "$(ev "${count} JSON.stringify([c(Main.uiGroup), Object.keys(Main.panel.statusArea).length])")" "${base}"
-ev "Main.extensionManager.disableExtension('${UUID}'); 'x'" >/dev/null
-wait_for 20 state_is 2
+same "12 leave nothing" "$(ev "(() => { const a = ${census}, b = globalThis.vmlabCensus;
+    return JSON.stringify(Object.keys({...a, ...b}).filter(k => (a[k] ?? 0) !== (b[k] ?? 0)).map(k => k + ' ' + ((a[k] ?? 0) - (b[k] ?? 0))).slice(0, 12)); })()")" "[]"
 same "12 off, banners are GNOME's own" "$(ev "Main.messageTray.constructor.prototype._showNotification.toString().includes('hold')")" false
-ev "Main.extensionManager.enableExtension('${UUID}'); 'x'" >/dev/null
-wait_for 20 state_is 1
+on
 wait_for 60 ready
 
 # --- 13: Control and the setup file -------------------------------------------------------------------------------------
-control="$(in_session "amethystora-control-list --json" 2>/dev/null)"
+control="$(in_session "/usr/libexec/amethystora-control-list --json" 2>/dev/null)"
 same "13 Control's entries" \
     "$(jq -r '[.items[] | select(.id | IN("later", "later-times", "whats-new", "getting-set", "battery-details", "busy-app")) | .id] | sort | join(",")' <<<"${control}")" \
     "battery-details,busy-app,getting-set,later,later-times,whats-new"
