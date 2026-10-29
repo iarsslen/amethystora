@@ -5,6 +5,7 @@
 //!   amethystora-agent-tools read ID                  without MCP (amethystora-agent search|read|state)
 //!   amethystora-agent-tools state TOPIC [FILTER]
 //!   amethystora-agent-tools history [ID]
+//!   amethystora-agent-tools undo ID                  the tools' own undo of one change, for the live pill's Undo
 //!   amethystora-agent-tools manual-search [-k N] -- WORDS...
 //!                                                    the manual's pages that answer WORDS, as JSON, for the
 //!                                                    desktop's search: no policy asked, nothing recorded
@@ -21,6 +22,7 @@ use std::io::{BufReader, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use amethystora_agent_tools::history;
 use amethystora_agent_tools::index::build::{self, Sources};
 use amethystora_agent_tools::index::{self, Index, Ranking};
 use amethystora_agent_tools::mcp;
@@ -29,7 +31,7 @@ use amethystora_agent_tools::server::Server;
 use serde_json::{Value, json};
 
 fn usage() -> ExitCode {
-    eprintln!("usage: amethystora-agent-tools mcp | search QUERY... | read ID | state TOPIC [FILTER] | history [ID] | policy [--json]");
+    eprintln!("usage: amethystora-agent-tools mcp | search QUERY... | read ID | state TOPIC [FILTER] | history [ID] | undo ID | policy [--json]");
     eprintln!("       amethystora-agent-tools manual-search [-k N] -- WORDS...");
     eprintln!("       amethystora-agent-tools index --write DIR [--root ROOT] [--sources-only] [--model DIR] | eval GOLDEN [--dir DIR] [--min R]");
     ExitCode::from(64)
@@ -59,6 +61,8 @@ fn main() -> ExitCode {
     let rest = &args[1..];
     match command.as_str() {
         "mcp" => {
+            // Named in the account's runtime folder while it runs, for the live pill and Stop
+            let _session = history::Session::start();
             let server = Server::default();
             let stdin = std::io::stdin();
             let served = mcp::serve(&server, BufReader::new(stdin.lock()), std::io::stdout().lock());
@@ -113,6 +117,14 @@ fn main() -> ExitCode {
         "history" => {
             let args = rest.first().map(|id| json!({"id": id, "wait": 0})).unwrap_or(json!({}));
             say(Server::default().call("history", &args))
+        }
+        // The person's Undo, from the live pill (amethystora-agent undo ID): the tools' own undo, under the same
+        // checks as the agent's, and this command waits for it to end, an install or a terminal's answer included
+        "undo" if rest.len() == 1 => {
+            let server = Server::default();
+            let said = server.call("undo", &json!({"id": rest[0]}));
+            server.jobs.wait_all(std::time::Duration::from_secs(3600));
+            say(said)
         }
         "conf" => match policy::change_conf(std::path::Path::new(policy::CONF), rest) {
             Ok(conf) => {

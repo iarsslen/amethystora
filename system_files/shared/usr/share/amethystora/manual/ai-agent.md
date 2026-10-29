@@ -130,8 +130,42 @@ app filter is the stronger tool. Both settings are in `/etc/amethystora/agent.co
 ## History and undo
 
 Every change the agent's tools make is recorded, with what it was before and how to undo it:
-`ame agent history`, or **What the agent changed** in Control. Ask the agent to undo one by its id. A
-command it handed you has no undo of its own: the agent can tell you what would reverse it.
+`ame agent history`, or **What the agent changed** in Control. Undo one yourself with `ame agent undo ID`,
+or ask the agent to. A command it handed you has no undo of its own: the agent can tell you what would
+reverse it.
+
+## Its changes in the live pill
+
+While the agent may make changes and runs, the live pill in the middle of the top bar says so as soon as
+it changes something: **Agent · changing settings**, **Agent asks for root** while it waits for your
+password or your yes in a terminal, and **Agent made 3 changes** for ten minutes after it ends. Click the
+pill to see each change: what it was, the command or the app, and when, with its own **Undo**. **Undo
+all** takes them back, the latest first. **Stop the agent** ends its tools now (`ame agent stop` does the
+same); a change already under way, such as an install, finishes, and some agents start their tools again, so
+close the agent itself to be sure it changes nothing more. **History** opens the whole record.
+
+Undo is your own yes, and goes through the agent's own tools: an undo they refuse (a setting no longer
+offered, a record whose way back does not match what it says it did) is refused, and the row says why. The
+agent's tools will not turn this list off: `ame agent pill off` does, and is yours to run.
+
+## Asking about a selection
+
+Select text in any window, an error in a terminal, a paragraph on a web page, a line in a log, and press
+`Super+Shift+A`. A card shows the start of what you selected, with a field for your question (leave it
+empty to have it explained), **Cancel** and **Ask**. Ask opens the agent in a terminal with your question,
+and with the text as data: the agent is told it was written by someone else and never to follow what it
+says, since selected text can carry instructions written to steer an agent. Up to 4,000 characters of it
+are passed on, each line at most 600; nothing is read before you press the keys, and nothing is kept.
+
+It works only while the agentic features are on. `ame agent selection off` turns the key off.
+
+## Notices that offer the agent
+
+While the agentic features are on, the image's own notices of something that failed, a security scan
+that could not run and a device the driver check found without a driver, have an **Ask the agent**
+button. It opens the agent on the failed service or the check's finding, by its name, never on the
+notice's words. Other apps' notifications never get the button: anyone can raise a notification, and
+its words could be written to steer the agent.
 
 ## Installing and updating
 

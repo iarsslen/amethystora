@@ -845,6 +845,54 @@ grep -q "Gio.Subprocess.new(\[HELPER, 'listen'\]," "${UI_EXTENSION}/modules/capt
 [[ -z "$(grep -nE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/captions.js")" ]]
 grep -q '^captions \*ARGS:' /usr/share/amethystora/just/desktop.just
 bash /ctx/build_files/shared/test-captions.sh
+# The agent on the desktop and force quit (plans/beyond/spec-r4-agent.md): their keys with their defaults, their files,
+# their place among the modules (after the pill, before focus, the agent before force quit, whose dialog asks it)
+AGENT_UI=org.gnome.shell.extensions.amethystora-ui.agent
+QUIT_UI=org.gnome.shell.extensions.amethystora-ui.quit
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${AGENT_UI}" | sort | paste -sd ' ')" == "ask-selection pill" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${AGENT_UI}" ask-selection)" == "['<Super><Shift>a']" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${AGENT_UI}" pill)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${QUIT_UI}" | sort | paste -sd ' ')" == "force-quit frozen-dialog" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${QUIT_UI}" force-quit)" == "['<Super><Control><Shift>Escape']" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${QUIT_UI}" frozen-dialog)" == true ]]
+for file in modules/agent.js modules/agent/status.js modules/agent/selection.js modules/agent/changes.js stylesheets/agent.css \
+    modules/quit.js modules/quit/list.js modules/quit/usage.js modules/quit/frozen.js stylesheets/quit.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-agent.css.tpl
+test -s /usr/share/amethystora/themed/shell-quit.css.tpl
+# In order, not side by side: other groups' modules may come between (focus is last, checked with Focus profiles)
+[[ "$(grep -oE "^    \['(bezel|agent|quit|focus)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['bezel',     ['agent',     ['quit',     ['focus'," ]]
+grep -q "'agent', 'waiting'" "${UI_EXTENSION}/modules/pill/activities.js"
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/agent.js" "${UI_EXTENSION}/modules/agent" \
+    "${UI_EXTENSION}/modules/quit.js" "${UI_EXTENSION}/modules/quit")" ]]
+# The selection reaches the agent only as the one argument after --, from a read with a size, never the clipboard's
+# whole text; the agent's undo and stop are its own commands, and force quit ends windows' processes only as GNOME does
+grep -q "argv.push('--', this._text)" "${UI_EXTENSION}/modules/agent/selection.js"
+grep -q "transfer_async(Meta.SelectionType.SELECTION_PRIMARY, type, READ," "${UI_EXTENSION}/modules/agent/selection.js"
+grep -q "\[AGENT, 'undo', id\]" "${UI_EXTENSION}/modules/agent/changes.js"
+grep -q "\[AGENT, 'stop'\]" "${UI_EXTENSION}/modules/agent/changes.js"
+[[ -z "$(grep -rnE "\bkill\(|SIGKILL|'kill'" "${UI_EXTENSION}/modules/quit" | grep -v 'window\.kill()\|^[^:]*:[0-9]*: *//')" ]]
+grep -q '^selection ACTION="":' /usr/share/amethystora/just/agent.just
+grep -q '^pill ACTION="":' /usr/share/amethystora/just/agent.just
+grep -q '^undo ID:' /usr/share/amethystora/just/agent.just
+grep -q '^stop:' /usr/share/amethystora/just/agent.just
+grep -q '^force-quit STATE="":' /usr/share/amethystora/just/desktop.just
+grep -q '^frozen-dialog STATE="":' /usr/share/amethystora/just/desktop.just
+# The quoted ask: the selected text after --, each line behind a bar, at most 4000 characters, never a question of its own
+grep -q 'ask_quoted "${question}" "$2"' /usr/bin/amethystora-agent
+grep -q 'sed '"'"'s/^/│ /'"'"'' /usr/bin/amethystora-agent
+grep -q '${text:0:4000}' /usr/bin/amethystora-agent
+# The image's own failure notices offer the agent only to an account that has it on, by a unit or a finding's id; a
+# failed scan's notice is waited for in that account's own session, so the alert ends at once and a repeat is told
+grep -q -- 'agent=(--agent-unit "${UNIT}")' /usr/libexec/amethystora-scan-alert
+grep -q TimeoutStartSec /usr/lib/systemd/system/amethystora-scan-alert@.service && false
+test -x /usr/libexec/amethystora-agent-notice
+grep -q -- '--agent "agent=$(N_ '"'"'Ask the agent'"'"')"' /usr/libexec/amethystora-driver-status
+grep -q '/usr/bin/amethystora-agent status' /usr/libexec/amethystora-notify-users
+# What reaches the agent from others stays data: a frozen app's fields, a selection, a finding, with every kind of line break
+bash /ctx/build_files/shared/test-agent-text.sh
 # GNOME's own rest reminders are what ame desktop breaks writes: the key and its two kinds of break are there
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.break-reminders selected-breaks)" == "@as []" ]]
 GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.break-reminders.eyesight | grep -qx interval-seconds
@@ -952,6 +1000,18 @@ if grep -qx "<super>period" <<<"${TILING_COMBOS}"$'\n'"${KEPT_COMBOS}"; then
     echo "Super+. is bound by the tiling or a kept binding, and is the emoji picker's"
     exit 1
 fi
+# Super+Shift+A is asking the agent about a selection and Super+Ctrl+Shift+Escape force quit's (Super+Ctrl+Escape is the
+# tiling's): neither the tiling, a kept binding nor any of GNOME's own keybinding schemas has either
+GNOME_COMBOS="$(for schema in org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gnome.mutter.keybindings \
+    org.gnome.mutter.wayland.keybindings org.gnome.settings-daemon.plugins.media-keys; do
+    GSETTINGS_BACKEND=memory gsettings list-recursively "${schema}"
+done | keycombos)"
+for combo in "<shift><super>a" "<control><shift><super>escape"; do
+    if grep -qx "${combo}" <<<"${TILING_COMBOS}"$'\n'"${KEPT_COMBOS}"$'\n'"${GNOME_COMBOS}"; then
+        echo "${combo} is bound elsewhere, and is the agent's or force quit's"
+        exit 1
+    fi
+done
 
 # The glass and the dock are Amethystora UI's own modules, in place of Blur my Shell and Dash to Dock. The glass
 # is a stylesheet and a shader (modules/glass/lens.glsl) with no setting of its own, and no Shell.GLSLEffect,

@@ -62,4 +62,9 @@ case "${UNIT}" in
         ;;
 esac
 
-exec /usr/libexec/amethystora-notify-users --security --msgid "${SUMMARY}" "${BODY}" "${URGENCY}"
+# An account whose agentic features are on is offered Ask the agent, which opens its agent on the failed unit: the
+# unit's name, which systemd gave, never the notice's words. The answer is waited for in that account's own session,
+# so this ends at once and the next failure is told again
+agent=()
+[[ ! "${UNIT}" =~ ^[A-Za-z0-9@_.:-]+\.service$ ]] || agent=(--agent-unit "${UNIT}")
+exec /usr/libexec/amethystora-notify-users --security "${agent[@]}" --msgid "${SUMMARY}" "${BODY}" "${URGENCY}"

@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+# One of the image's own failure notices, with Ask the agent, in an account's own session: amethystora-notify-users
+# starts it there (systemd-run --user) for an account whose agentic features are on, so that the root service that
+# raised the notice ends at once and a later failure of the same unit is told again. The answer is waited for here;
+# Ask the agent opens the agent on the failed unit, by its name alone, never on the notice's words.
+#
+#   amethystora-agent-notice UNIT NOTIFY-SEND-ARGUMENT...
+
+set -uo pipefail
+
+unit="${1:-}"
+shift
+[[ "${unit}" =~ ^[A-Za-z0-9@_.:-]+\.service$ ]] || { echo "usage: $0 UNIT NOTIFY-SEND-ARGUMENT..." >&2; exit 64; }
+[[ "$(notify-send --wait "$@" 2>/dev/null)" == agent ]] || exit 0
+exec /usr/bin/amethystora-agent diagnose "${unit}"

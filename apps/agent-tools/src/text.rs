@@ -5,10 +5,11 @@
 
 /// Control characters go, C1 ones too, and the ones that turn text around (bidi overrides and isolates):
 /// an escape sequence could rewrite a terminal, a newline forge a line, and a reversed run hide a command.
-/// Tabs become spaces. Newlines stay only when `lines` is true. Each line is cut to `max` characters.
+/// Tabs become spaces. The other line breaks (NEL, U+2028, U+2029) count as newlines, which stay only when `lines` is
+/// true. Each line is cut to `max` characters.
 pub fn clean(text: &str, lines: bool, max: usize) -> String {
     let mut out = String::with_capacity(text.len().min(max * 4));
-    for (n, line) in text.split('\n').enumerate() {
+    for (n, line) in text.split(['\n', '\u{85}', '\u{2028}', '\u{2029}']).enumerate() {
         if n > 0 {
             out.push(if lines { '\n' } else { ' ' });
         }
@@ -55,7 +56,9 @@ mod tests {
         assert_eq!(clean("a\u{1b}[31mb\u{7}c", false, 600), "a[31mbc");
         assert_eq!(clean("one\ntwo\tthree", false, 600), "one two three");
         assert_eq!(clean("one\ntwo", true, 600), "one\ntwo");
-        assert_eq!(clean("x\u{85}y\u{9b}z", false, 600), "xyz");
+        assert_eq!(clean("x\u{85}y\u{9b}z", false, 600), "x yz");
+        assert_eq!(clean("a\u{2028}b\u{2029}c", true, 600), "a\nb\nc");
+        assert_eq!(clean("a\u{2028}b", false, 600), "a b");
         assert_eq!(clean("rm \u{202e}fdp.exe", false, 600), "rm fdp.exe");
         assert_eq!(clean("abcdef", false, 3), "abc…");
         assert_eq!(clean("héllo wörld", false, 600), "héllo wörld");

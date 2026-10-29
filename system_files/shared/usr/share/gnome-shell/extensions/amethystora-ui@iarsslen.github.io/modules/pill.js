@@ -226,6 +226,16 @@ export class Pill {
 
     readingChanged() {
         this._activities?.update('reading');
+    // ---- The agent's changes (modules/agent.js) ----
+
+    // The agent's activity (what its tools change while it runs), or null
+    setAgent(activity) {
+        if (this._activities && this._activities.get('agent') !== activity)
+            this._activities.set('agent', activity);
+    }
+
+    agentChanged() {
+        this._activities?.update('agent');
     }
 
     _toggle(name, wanted, make) {

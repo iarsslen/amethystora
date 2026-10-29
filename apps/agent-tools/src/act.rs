@@ -283,8 +283,9 @@ pub fn run_command(jobs: &Jobs, root: &std::sync::Arc<Root>, policy: &Policy, ar
         return Err(format!("Refused: {why}. Name the command for the user to run instead."));
     }
     let id = history::new_id();
-    let record = history::started(&id, "run", json!({"argv": argv, "root": as_root, "reason": text::field(&reason, 600)}));
     let mode = policy.conf.root;
+    // The root mode too, for the live pill: only `each` asks for a password every time
+    let record = history::started(&id, "run", json!({"argv": argv, "root": as_root, "reason": text::field(&reason, 600), "mode": mode.word()}));
     if !as_root || mode == RootMode::Terminal {
         let mut shown = argv.clone();
         if as_root {
@@ -341,15 +342,44 @@ pub fn undo(jobs: &Jobs, cache: &Cache, args: &Value) -> Result<String, String> 
     if !matches!(record["result"].as_str(), Some("ok")) {
         return Err(format!("{id} did not change anything ({}), so there is nothing to undo.", record["result"].as_str().unwrap_or("?")));
     }
-    let undone = history::records().iter().any(|other| other["of"] == id && other["result"] == "ok");
-    if undone {
+    let undo = record.get("undo").filter(|undo| undo.is_object()).ok_or_else(|| format!("{id} cannot be undone by the tools: it was a command."))?;
+    // The record is the account's own file: its way back has to be the inverse of what it says it did, which is what
+    // the person reads in the live pill, and only a record that did that way back counts as its undoing
+    if !inverse(&record, undo) {
+        return Err(format!("{id}'s way back is not the inverse of what it records, so it is not undone."));
+    }
+    if history::records().iter().any(|other| undoes(other, id, undo)) {
         return Err(format!("{id} was undone already."));
     }
-    let undo = record.get("undo").filter(|undo| undo.is_object()).ok_or_else(|| format!("{id} cannot be undone by the tools: it was a command."))?;
     match undo["tool"].as_str() {
         Some("change") => change_to(cache, jobs, undo["entry"].as_str().unwrap_or(""), undo["value"].as_str().unwrap_or(""), Some(id)),
         Some("software") => software(jobs, cache, undo, Some(id)),
         _ => Err(format!("{id} has no way back the tools know.")),
+    }
+}
+
+/// Whether a record's way back undoes exactly what it says it did: a setting set back to the value it had, the same app
+/// taken out (or put back) from the same source
+pub fn inverse(record: &Value, undo: &Value) -> bool {
+    match (record["tool"].as_str(), undo["tool"].as_str()) {
+        (Some("change"), Some("change")) => undo["entry"] == record["entry"] && undo["value"] == record["before"] && record["before"].is_string(),
+        (Some("software"), Some("software")) => {
+            let back = match record["action"].as_str() {
+                Some("install") => "remove",
+                Some("remove") => "install",
+                _ => return false,
+            };
+            undo["action"] == back && undo["source"] == record["source"] && undo["id"] == record["name"] && undo["container"] == record["container"]
+        }
+        _ => false,
+    }
+}
+
+/// Whether `other` is a finished undoing of the change `id`, whose way back is `undo`
+pub fn undoes(other: &Value, id: &str, undo: &Value) -> bool {
+    other["of"] == id && other["result"] == "ok" && other["tool"] == undo["tool"] && match undo["tool"].as_str() {
+        Some("change") => other["entry"] == undo["entry"] && other["value"] == undo["value"],
+        _ => other["action"] == undo["action"] && other["name"] == undo["id"],
     }
 }
 
@@ -373,6 +403,20 @@ mod tests {
         assert!(software_argv("search", "flathub", "-x", None).is_err());
         assert!(software_argv("layer", "flathub", "a.b.c", None).is_err());
         assert!(software_argv("install", "rpm", "htop", None).is_err());
+    }
+
+    #[test]
+    fn a_way_back_is_the_inverse_of_the_record() {
+        let change = json!({"tool": "change", "entry": "layout", "value": "classic", "before": "tiling"});
+        assert!(inverse(&change, &json!({"tool": "change", "entry": "layout", "value": "tiling"})));
+        assert!(!inverse(&change, &json!({"tool": "change", "entry": "theme", "value": "nord"})));
+        assert!(!inverse(&change, &json!({"tool": "software", "action": "remove", "source": "flathub", "id": "a.b.c"})));
+        let app = json!({"tool": "software", "action": "install", "source": "flathub", "name": "a.b.C", "container": null});
+        assert!(inverse(&app, &json!({"tool": "software", "action": "remove", "source": "flathub", "id": "a.b.C", "container": null})));
+        assert!(!inverse(&app, &json!({"tool": "software", "action": "remove", "source": "flathub", "id": "x.y.Z", "container": null})));
+        let undo = json!({"tool": "change", "entry": "layout", "value": "tiling"});
+        assert!(undoes(&json!({"of": "ab", "result": "ok", "tool": "change", "entry": "layout", "value": "tiling"}), "ab", &undo));
+        assert!(!undoes(&json!({"of": "ab", "result": "ok"}), "ab", &undo));
     }
 
     #[test]

@@ -77,6 +77,7 @@ the top bar on the left.
 | `Super+.` | Emoji and symbols over the window you are typing in |
 | `Ctrl+Alt+Space` | Smile, the emoji app |
 | `Super+Ctrl+Shift+A` | An AI agent that knows this system, once you turn it on (`ame agent toggle on`) |
+| `Super+Shift+A` | Ask the AI agent about the text selected in any window, while it is on |
 | `Super+Ctrl+Shift+C` | Control: the theme, windows, games, the agent, the image and Amethystora's other settings |
 | `Super+F1` | This manual |
 | `Super+Alt+N` | A quick note into Notes' inbox |
@@ -114,6 +115,7 @@ The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name
 | `Ctrl+Shift+Alt+R` | Start or stop a screen recording |
 | `Super+Shift+Space` | Next keyboard layout, when you have more than one |
 | `Super+Escape` | Take the keyboard back from an app that grabbed it, such as a virtual machine |
+| `Super+Ctrl+Shift+Esc` | Force quit: the running apps with what each uses, and end the one that hangs |
 
 In every Amethystora app (Security, Updates, Logs, Notes, Backups, Control and this manual), `Ctrl+=`,
 `Ctrl+-` and `Ctrl+0` change the size of everything in the window, and in all but this manual `Ctrl+R`

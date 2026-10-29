@@ -196,6 +196,8 @@ read_in_background screenshot gsettings list-recursively org.gnome.shell.extensi
 read_in_background deskwidgets gsettings get org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled
 read_in_background shelf gsettings get org.gnome.shell.extensions.amethystora-ui.shelf shelf
 read_in_background desks gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.desks
+read_in_background agent-ui gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.agent
+read_in_background quit gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.quit
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
@@ -704,6 +706,23 @@ USAGE="ame desktop windows places forget"
 item desktop windows-places-forget action "${ gettext "Forget the places"; }" "" "" desktop#places
 win_item windows-dim dim "${ gettext "Dim the windows not in use"; }" \
     "${ gettext "The windows behind the one you are using are drawn a little darker."; }" desktop#dimming false
+
+# Force quit (org.gnome.shell.extensions.amethystora-ui.quit): the list's key, and GNOME's not-responding dialog
+QUIT="${ said quit; }"
+if [[ "${ value_of "${QUIT}" force-quit "(.*)\$"; }" == *"'<"* ]]; then FORCE_QUIT=on; else FORCE_QUIT=off; fi
+[[ "${ ended quit; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+switch_choices false ame desktop force-quit
+USAGE="ame desktop force-quit on|off"
+item desktop force-quit switch "${ gettext "Force quit"; }" \
+    "${ gettext "Super+Ctrl+Shift+Esc lists the running apps with what each uses, one that does not respond first."; }" \
+    "${FORCE_QUIT}" desktop#force-quit
+[[ "${ ended quit; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+switch_choices false ame desktop frozen-dialog
+USAGE="ame desktop frozen-dialog on|off"
+if [[ "${ value_of "${QUIT}" frozen-dialog "(.*)\$"; }" == false ]]; then FROZEN=off; else FROZEN=on; fi
+item desktop frozen-dialog switch "${ gettext "When an app stops responding"; }" \
+    "${ gettext "The question over the app offers Wait first, and Ask the agent why while the agentic features are on. Off, GNOME's own."; }" \
+    "${FROZEN}" desktop#force-quit
 
 # The quick note is offered once the Notes command takes it
 NOTE_CAPTURE=false
@@ -1734,6 +1753,25 @@ USAGE="ame agent history"
 [[ "${AGENTIC}" == true ]] || REASON="${ gettext "The agentic features are off."; }"
 item agent agent-history action "${ gettext "What the agent changed"; }" \
     "${ gettext "Every change the agent's tools made, newest first, each with its id for undoing it."; }" "" ai-agent#history-and-undo
+
+# The agent on the desktop (org.gnome.shell.extensions.amethystora-ui.agent): Super+Shift+A, and its changes in the
+# live pill. The agent's own tools may not change either (never.rs)
+AGENT_UI="${ said agent-ui; }"
+if [[ "${ value_of "${AGENT_UI}" ask-selection "(.*)\$"; }" == *"'<"* ]]; then SELECTION=on; else SELECTION=off; fi
+[[ "${ ended agent-ui; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+[[ "${AGENTIC}" == true ]] || REASON="${ gettext "The agentic features are off."; }"
+switch_choices false ame agent selection
+USAGE="ame agent selection on|off"
+item agent agent-selection switch "${ gettext "Ask about a selection"; }" \
+    "${ gettext "Select text in any window and press Super+Shift+A: the agent gets it, quoted as data, with your question, in a terminal."; }" \
+    "${SELECTION}" ai-agent#asking-about-a-selection
+[[ "${ ended agent-ui; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+[[ "${AGENTIC}" == true ]] || REASON="${ gettext "The agentic features are off."; }"
+switch_choices false ame agent pill
+USAGE="ame agent pill on|off"
+item agent agent-pill switch "${ gettext "The agent's changes in the live pill"; }" \
+    "${ gettext "While the agent may make changes, the live pill lists each one as it is made, with its own Undo, and Stop."; }" \
+    "${ onoff_of "${AGENT_UI}" pill; }" ai-agent#its-changes-in-the-live-pill
 
 # What an administrator sets for every account (/etc/amethystora/agent.conf): how the agent's root commands are
 # allowed, and the lock. Here by the maintainer's choice of 2026-10-18, an exception to Security keeping every

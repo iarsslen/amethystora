@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Force quit (modules/quit.js): the key of the list of running apps, and GNOME's not-responding dialog in the image's
+     look. `ame desktop force-quit on|off`, `ame desktop frozen-dialog on|off` and Control write them; the setup file keeps
+     the key with the other keybindings and frozen-dialog in its quit area. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.quit" path="/org/gnome/shell/extensions/amethystora-ui/quit/">
+    <key name="force-quit" type="as">
+      <default><![CDATA[['<Super><Control><Shift>Escape']]]></default>
+      <summary>Open the force quit list</summary>
+      <description>The running apps with what each uses, one that does not respond first; Force quit ends the one picked after asking once more. An empty list turns it off.</description>
+    </key>
+    <key name="frozen-dialog" type="b">
+      <default>true</default>
+      <summary>The not-responding dialog in the image's look</summary>
+      <description>GNOME's dialog over an app that stopped responding, with Wait first and, while the agentic features are on, Ask the agent why. Off, GNOME's own dialog as it is.</description>
+    </key>
+  </schema>
+</schemalist>

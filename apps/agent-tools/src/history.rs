@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -45,7 +45,8 @@ pub fn record(entry: &Value) -> Result<(), String> {
         .mode(0o600)
         .open(dir.join("actions.jsonl"))
         .map_err(|error| error.to_string())?;
-    writeln!(file, "{entry}").map_err(|error| error.to_string())
+    // One write, so that a reader following the file never sees half a record
+    file.write_all(format!("{entry}\n").as_bytes()).map_err(|error| error.to_string())
 }
 
 /// Every record, oldest first
@@ -126,12 +127,73 @@ impl Jobs {
         self.done.0.lock().expect("not poisoned").contains_key(id)
     }
 
+    /// Waits until every job of this process has ended, at most `wait` in all: a command line that started one
+    /// (an undo from the live pill) must not exit while it runs
+    pub fn wait_all(&self, wait: Duration) {
+        let (lock, wake) = &*self.done;
+        let jobs = lock.lock().expect("not poisoned");
+        let _ = wake.wait_timeout_while(jobs, wait, |jobs| jobs.values().any(Option::is_none)).expect("not poisoned");
+    }
+
     /// The job's result, waiting at most `wait` for it; None while it still runs
     pub fn wait(&self, id: &str, wait: Duration) -> Option<String> {
         let (lock, wake) = &*self.done;
         let jobs = lock.lock().expect("not poisoned");
         let (jobs, _) = wake.wait_timeout_while(jobs, wait, |jobs| matches!(jobs.get(id), Some(None))).expect("not poisoned");
         jobs.get(id).cloned().flatten()
+    }
+}
+
+/// The folder of the account's running tool servers, in its runtime folder: one file each, named by its process
+/// number, there while it runs. The live pill reads it to tell the agent's session from the ones before, and Stop
+/// (amethystora-agent stop) ends the servers it names.
+pub fn sessions_dir() -> PathBuf {
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(format!("/run/user/{}", unsafe { libc::getuid() })));
+    runtime.join("amethystora/agent-sessions")
+}
+
+/// This tool server's file in sessions_dir(), taken away when it ends: at the end of its input, and when a signal ends
+/// it (an agent's terminal closed sends SIGHUP, an agent or systemd stopping it SIGTERM)
+pub struct Session(Option<PathBuf>);
+
+static SESSION_FILE: std::sync::OnceLock<std::ffi::CString> = std::sync::OnceLock::new();
+
+// Only what may run in a signal handler: unlink and _exit
+extern "C" fn session_ended(signal: libc::c_int) {
+    if let Some(path) = SESSION_FILE.get() {
+        unsafe { libc::unlink(path.as_ptr()) };
+    }
+    unsafe { libc::_exit(128 + signal) };
+}
+
+impl Session {
+    pub fn start() -> Session {
+        let dir = sessions_dir();
+        let path = dir.join(std::process::id().to_string());
+        let written = std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&dir).and_then(|_| {
+            let mut file = std::fs::OpenOptions::new().create(true).truncate(true).write(true).mode(0o600).open(&path)?;
+            writeln!(file, "{}", json!({"pid": std::process::id(), "started": now()}))
+        });
+        if written.is_ok() {
+            if let Ok(name) = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()) {
+                let _ = SESSION_FILE.set(name);
+                for signal in [libc::SIGTERM, libc::SIGHUP, libc::SIGINT] {
+                    unsafe { libc::signal(signal, session_ended as extern "C" fn(libc::c_int) as libc::sighandler_t) };
+                }
+            }
+        }
+        Session(written.ok().map(|_| path))
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        if let Some(path) = &self.0 {
+            let _ = std::fs::remove_file(path);
+        }
     }
 }
 
@@ -172,5 +234,15 @@ mod tests {
         assert_eq!(jobs.wait("x", Duration::from_secs(5)).as_deref(), Some("done"));
         thread.join().unwrap();
         assert!(!jobs.known("y"));
+        // wait_all returns once every job has ended
+        jobs.start("z");
+        let other = jobs.clone();
+        let thread = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            other.finish("z", "ended".into());
+        });
+        jobs.wait_all(Duration::from_secs(5));
+        assert_eq!(jobs.wait("z", Duration::ZERO).as_deref(), Some("ended"));
+        thread.join().unwrap();
     }
 }

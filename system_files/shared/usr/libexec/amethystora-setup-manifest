@@ -47,7 +47,8 @@ brew_names() { sed -nE "s/^$1 \"([^\"]+)\".*/\1/p" <<<"${BREWFILE}" | jq -R . | 
 KEY_SCHEMAS=(org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gnome.mutter.keybindings
     org.gnome.mutter.wayland.keybindings org.gnome.settings-daemon.plugins.media-keys
     org.gnome.shell.extensions.amethystora-ui.tiling.keybindings org.gnome.shell.extensions.amethystora-ui.windows
-    org.gnome.shell.extensions.amethystora-ui.search org.gnome.shell.extensions.amethystora-ui.emoji)
+    org.gnome.shell.extensions.amethystora-ui.search org.gnome.shell.extensions.amethystora-ui.emoji
+    org.gnome.shell.extensions.amethystora-ui.agent org.gnome.shell.extensions.amethystora-ui.quit)
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 # The tiling's settings amethystora-setup's TILING_KEYS takes, which test-setup.sh holds this list to: never
 # `enabled`, which is the layout, nor the window rules or a picture, which hold patterns and paths
@@ -104,6 +105,11 @@ SEARCH=org.gnome.shell.extensions.amethystora-ui.search
 SEARCH_KEYS=(answers settings manual windows clipboard agent glance)
 EMOJI=org.gnome.shell.extensions.amethystora-ui.emoji
 EMOJI_KEYS=(skin-tone)
+# The not-responding question's look, which amethystora-setup's QUIT_KEYS takes; force quit's key (force-quit) is kept
+# with the other keybindings, and so is the agent's selection key (ask-selection). Never the agent's pill, the person's view
+# of what the agent changes
+QUIT=org.gnome.shell.extensions.amethystora-ui.quit
+QUIT_KEYS=(frozen-dialog)
 # Rounded screen corners, and whether the desktop makes its own sounds (never the sound theme's name, which Settings
 # points at a folder of the account's), which amethystora-setup's BEZEL_KEYS and SOUND_KEYS take
 BEZEL=org.gnome.shell.extensions.amethystora-ui.bezel
@@ -246,6 +252,7 @@ settings() {
         changed "${DESKWIDGETS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DESKWIDGETS_KEYS[@]}") -
         changed "${SHELF}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SHELF_KEYS[@]}") -
         changed "${DESKS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DESKS_KEYS[@]}") -
+        changed "${QUIT}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${QUIT_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -270,12 +277,13 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" \
     --arg focus "${FOCUS}" --arg power "${POWER}" --arg access "${ACCESS}" --arg touch "${TOUCH}" \
     --arg present "${PRESENT}" --arg screenshot "${SCREENSHOT}" --arg deskwidgets "${DESKWIDGETS}" \
-    --arg shelf "${SHELF}" --arg desks "${DESKS}" '
+    --arg shelf "${SHELF}" --arg desks "${DESKS}" --arg quit "${QUIT}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
             elif .schema == $search then .key == "open" elif .schema == $emoji then .key == "emoji-picker"
+            elif .schema == $quit then .key == "force-quit"
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
                 $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid, $focus, $power,
                 $access, $touch, $present, $screenshot,
@@ -314,7 +322,9 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $deskwidgets)]
         | if length > 0 then {deskwidgets: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $shelf)] | if length > 0 then {shelf: (map({(.key): .value}) | add)} else {} end)
-    + ([$all[] | select(.schema == $desks)] | if length > 0 then {desks: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $desks)] | if length > 0 then {desks: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $quit and .key != "force-quit")]
+        | if length > 0 then {quit: (map({(.key): .value}) | add)} else {} end)')"
 
 # The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
 # (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)

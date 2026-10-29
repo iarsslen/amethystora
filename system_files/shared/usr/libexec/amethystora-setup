@@ -23,7 +23,8 @@
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
 #                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus, power,
-#                access, touch, present, screenshot, deskwidgets, shelf, desks}: the window
+#                access, touch, present, screenshot, deskwidgets, shelf, desks,
+#                quit}: the window
 #                layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
@@ -49,7 +50,9 @@
 #                thumbnail and pinning (SCREENSHOT_KEYS; never the drawing tools' colours), widgets on the desktop
 #                (DESKWIDGETS_KEYS; never a widget, which is a command), how the shelf opens (SHELF_KEYS; never what
 #                it holds), whether desks are on and learn (DESKS_KEYS; never the desks, which name this machine's
-#                screens by serial number), and no other GNOME
+#                screens by serial number), the not-responding question's look (QUIT_KEYS; force quit's key and the
+#                agent's selection key are keybindings; never the agent's pill, which shows what the agent changes
+#                and is the person's own to turn off), and no other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
 #                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
@@ -84,7 +87,8 @@ RELOCATABLE=org.gnome.settings-daemon.plugins.media-keys.custom-keybinding
 KEY_SCHEMAS='["org.gnome.desktop.wm.keybindings", "org.gnome.shell.keybindings", "org.gnome.mutter.keybindings",
     "org.gnome.mutter.wayland.keybindings", "org.gnome.settings-daemon.plugins.media-keys",
     "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings", "org.gnome.shell.extensions.amethystora-ui.windows",
-    "org.gnome.shell.extensions.amethystora-ui.search", "org.gnome.shell.extensions.amethystora-ui.emoji"]'
+    "org.gnome.shell.extensions.amethystora-ui.search", "org.gnome.shell.extensions.amethystora-ui.emoji",
+    "org.gnome.shell.extensions.amethystora-ui.agent", "org.gnome.shell.extensions.amethystora-ui.quit"]'
 TILING=org.gnome.shell.extensions.amethystora-ui.tiling
 # The tiling's settings a file may hold, each with its type and, for a number, the range its schema gives it,
 # so that a file is checked before anything is set rather than half applied; test-setup.sh holds this to the
@@ -178,6 +182,9 @@ SEARCH_KEYS='{
 # The emoji picker's skin tone. Never emoji-picker, its key, which the keybindings part keeps.
 EMOJI=org.gnome.shell.extensions.amethystora-ui.emoji
 EMOJI_KEYS='{"skin-tone": ["s", ["none", "light", "medium-light", "medium", "medium-dark", "dark"]]}'
+# The not-responding question in the image's look. Never force-quit, its key, which the keybindings part keeps.
+QUIT=org.gnome.shell.extensions.amethystora-ui.quit
+QUIT_KEYS='{"frozen-dialog": ["b"]}'
 # Rounded corners on a laptop's own screen
 BEZEL=org.gnome.shell.extensions.amethystora-ui.bezel
 BEZEL_KEYS='{"round-corners": ["b"]}'
@@ -381,7 +388,7 @@ if type != "object" then "it is not a JSON object" else
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
             "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look", "transitions",
             "hints", "appgrid", "focus", "power", "access", "touch", "present",
-            "screenshot", "deskwidgets", "shelf", "desks"]; "settings."),
+            "screenshot", "deskwidgets", "shelf", "desks", "quit"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -396,11 +403,13 @@ if type != "object" then "it is not a JSON object" else
                         else "settings.keybindings.custom.\(.key) is one of the image's custom keybindings, set to a list of one key or none" end
                     else to_entries[] |
                         if (.key | test("^[a-z0-9][a-z0-9-]*$")) and .key != "custom-keybindings" and (.value | accels)
-                            # The windows module's, the search's and the emoji picker's schemas hold one keybinding
-                            # each among their settings
+                            # The windows module's, the search's, the emoji picker's, the agent's and force quit's
+                            # schemas hold one keybinding each among their settings
                             and ($s != "org.gnome.shell.extensions.amethystora-ui.windows" or .key == "snap-chooser")
                             and ($s != "org.gnome.shell.extensions.amethystora-ui.search" or .key == "open")
-                            and ($s != "org.gnome.shell.extensions.amethystora-ui.emoji" or .key == "emoji-picker") then empty
+                            and ($s != "org.gnome.shell.extensions.amethystora-ui.emoji" or .key == "emoji-picker")
+                            and ($s != "org.gnome.shell.extensions.amethystora-ui.agent" or .key == "ask-selection")
+                            and ($s != "org.gnome.shell.extensions.amethystora-ui.quit" or .key == "force-quit") then empty
                         else "settings.keybindings.\($s).\(.key) is not a keybinding set to a list of keys" end
                     end else empty end)),
             at("tiling"; only($tiling | keys; "settings.tiling."),
@@ -518,6 +527,10 @@ if type != "object" then "it is not a JSON object" else
             at("desks"; only($desks | keys; "settings.desks."),
                 (if type == "object" then to_entries[] | select(.key | IN($desks | keys[])) | $desks[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.desks.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("quit"; only($quit | keys; "settings.quit."),
+                (if type == "object" then to_entries[] | select(.key | IN($quit | keys[])) | $quit[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.quit.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -541,6 +554,7 @@ check() {
         --argjson present "${PRESENT_KEYS}" --argjson screenshot "${SCREENSHOT_KEYS}" \
         --argjson deskwidgets "${DESKWIDGETS_KEYS}" \
         --argjson shelf "${SHELF_KEYS}" --argjson desks "${DESKS_KEYS}" \
+        --argjson quit "${QUIT_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -683,7 +697,7 @@ current() {
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
         for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
-            present screenshot deskwidgets shelf desks; do
+            present screenshot deskwidgets shelf desks quit; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -705,6 +719,7 @@ current() {
                 deskwidgets) schema="${DESKWIDGETS}" ;;
                 shelf) schema="${SHELF}" ;;
                 desks) schema="${DESKS}" ;;
+                quit) schema="${QUIT}" ;;
             esac
             while read -r key; do
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
@@ -720,7 +735,8 @@ current() {
         workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
         bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}, power: {}, access: {},
         touch: {}, present: {},
-        screenshot: {}, deskwidgets: {}, shelf: {}, desks: {}};
+        screenshot: {}, deskwidgets: {}, shelf: {}, desks: {},
+        quit: {}};
         . * $x)'
 }
 
@@ -856,7 +872,7 @@ def brew($x; $k): $x.brew[$k] // [];
         | {area: "pill", action: "remove", key: $k, from: .value}),
     (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus", "power",
         "access", "touch", "present",
-        "screenshot", "deskwidgets", "shelf", "desks") as $a
+        "screenshot", "deskwidgets", "shelf", "desks", "quit") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners",
@@ -934,14 +950,14 @@ def text:
         or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" or .area == "power"
         or .area == "access" or .area == "touch"
         or .area == "present" or .area == "screenshot" or .area == "deskwidgets"
-        or .area == "shelf" or .area == "desks" then
+        or .area == "shelf" or .area == "desks" or .area == "quit" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
             search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's",
             transitions: "the transitions'", hints: "the tips'", appgrid: "the app grid's",
             focus: "focus profiles'", power: "the power module's",
             access: "seeing and reading's", touch: "touch and pen's",
             present: "Present mode's", screenshot: "the screenshot's", deskwidgets: "the desktop widgets'",
-            shelf: "the shelf's", desks: "the desks'"}[.area]
+            shelf: "the shelf's", desks: "the desks'", quit: "force quit's"}[.area]
         + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
@@ -1185,7 +1201,7 @@ add_all() {
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
     for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
-        present screenshot deskwidgets shelf desks; do
+        present screenshot deskwidgets shelf desks quit; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1207,6 +1223,7 @@ add_all() {
             deskwidgets) schema="${DESKWIDGETS}" label="the desktop widgets'" ;;
             shelf) schema="${SHELF}" label="the shelf's" ;;
             desks) schema="${DESKS}" label="the desks'" ;;
+            quit) schema="${QUIT}" label="force quit's" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
         for change in "${changes[@]}"; do
@@ -1308,7 +1325,7 @@ remove_all() {
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
     for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
-        present screenshot deskwidgets shelf desks; do
+        present screenshot deskwidgets shelf desks quit; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1330,6 +1347,7 @@ remove_all() {
             deskwidgets) schema="${DESKWIDGETS}" label="the desktop widgets'" ;;
             shelf) schema="${SHELF}" label="the shelf's" ;;
             desks) schema="${DESKS}" label="the desks'" ;;
+            quit) schema="${QUIT}" label="force quit's" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
         for name in "${names[@]}"; do
@@ -1450,7 +1468,8 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-transitions"; ($s.transitions // {})),
           section("org.gnome.shell.extensions.amethystora-ui.hints"; ($s.hints // {})),
           section("org.gnome.shell.extensions.amethystora-ui.appgrid"; ($s.appgrid // {})),
-          section("org.gnome.shell.extensions.amethystora-ui.power"; ($s.power // {}))' <<<"${setup}" \
+          section("org.gnome.shell.extensions.amethystora-ui.power"; ($s.power // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.quit"; ($s.quit // {}))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's

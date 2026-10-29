@@ -205,10 +205,11 @@ done
 [[ "$(sed -n "s/^SOUND_KEYS='\(.*\)'\$/\1/p" "${SETUP}" | jq -c .)" == '{"event-sounds":["b"]}' ]]
 [[ "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range org.gnome.desktop.sound event-sounds | xargs)" == "type b" ]]
 [[ "$(sed -n 's/^SOUND_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest")" == "event-sounds" ]]
-# The search's switches and the emoji picker's skin tone likewise, each schema less its keybinding (open,
-# emoji-picker), which the keybindings part keeps; and the manifest saves the same keys
+# The search's switches, the emoji picker's skin tone and the not-responding question likewise, each schema less its
+# keybinding (open, emoji-picker, force-quit), which the keybindings part keeps; and the manifest saves the same keys
 for part in "SEARCH org.gnome.shell.extensions.amethystora-ui.search open" \
-    "EMOJI org.gnome.shell.extensions.amethystora-ui.emoji emoji-picker"; do
+    "EMOJI org.gnome.shell.extensions.amethystora-ui.emoji emoji-picker" \
+    "QUIT org.gnome.shell.extensions.amethystora-ui.quit force-quit"; do
     read -r name schema_id binding <<<"${part}"
     table="$(sed -n "/^${name}_KEYS='{\$/,/^}'\$/{s/^${name}_KEYS='//; s/^}'\$/}/; p}" "${SETUP}")"
     [[ -n "${table}" ]] || table="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
@@ -367,7 +368,8 @@ org.gnome.shell.extensions.amethystora-ui.present pointer-mark 'halo'
 org.gnome.shell.extensions.amethystora-ui.present ask-on-screen true
 org.gnome.shell.extensions.amethystora-ui.screenshot capture-thumbnail true
 org.gnome.shell.extensions.amethystora-ui.screenshot capture-pin true
-org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled false"
+org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled false
+org.gnome.shell.extensions.amethystora-ui.quit frozen-dialog true"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -499,7 +501,8 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.touch = {"touch-mode": "follow", "pen-ring-tools": ["area", "back"]}
     | .settings.present = {"enabled": true, "pointer-mark": "torch"} | .settings.screenshot = {"capture-pin": false}
     | .settings.deskwidgets = {"enabled": true}
-    | .settings.shelf = {"shelf": "edge"} | .settings.desks = {"desks": true}' \
+    | .settings.shelf = {"shelf": "edge"} | .settings.desks = {"desks": true}
+    | .settings.quit = {"frozen-dialog": false}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -531,6 +534,7 @@ grep -qxF "  ~ the screenshot's capture-pin: false, in place of true" <<<"${out}
 grep -qxF "  ~ the desktop widgets' enabled: true, in place of false" <<<"${out}"
 grep -qxF '  ~ the shelf'"'"'s shelf: "edge", in place of "off"' <<<"${out}"
 grep -qxF "  ~ the desks' desks: true, in place of false" <<<"${out}"
+grep -qxF "  ~ force quit's frozen-dialog: false, in place of true" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus games-power "as-set"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep true" "${LOG}"
@@ -550,6 +554,7 @@ grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.present enable
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.present pointer-mark "torch"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.screenshot capture-pin false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled true" "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.quit frozen-dialog false" "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
@@ -629,6 +634,11 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"search": {"currency": true}}}' \
     '{"version": 1, "settings": {"emoji": {"skin-tone": "purple"}}}' \
     '{"version": 1, "settings": {"emoji": {"emoji-picker": ["<Super>period"]}}}' \
+    '{"version": 1, "settings": {"quit": {"frozen-dialog": "on"}}}' \
+    '{"version": 1, "settings": {"quit": {"force-quit": ["<Super>q"]}}}' \
+    '{"version": 1, "settings": {"agent": {"pill": false}}}' \
+    '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.amethystora-ui.agent": {"pill": ["<Super>a"]}}}}' \
+    '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.amethystora-ui.quit": {"frozen-dialog": ["<Super>a"]}}}}' \
     '{"version": 1, "settings": {"bezel": {"round-corners": "on"}}}' \
     '{"version": 1, "settings": {"bezel": {"radius": 20}}}' \
     '{"version": 1, "settings": {"shelf": {"shelf": "dock"}}}' \

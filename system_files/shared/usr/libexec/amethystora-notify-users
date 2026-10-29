@@ -29,6 +29,16 @@
 # With actions, it offers them as buttons and waits for the notifications to be answered, then prints
 # one "<user> <key>" line for each, the key empty for one closed without an answer. It exits 1 when
 # nobody was logged in to ask.
+#
+# --agent KEY=LABEL is one more action, Ask the agent on the image's own failure notices, offered only to the
+# accounts whose agentic features are on (amethystora-agent status, asked as each account); the others get the
+# notice as they would without it. The caller passes the agent only what it picked itself (a unit, a finding's
+# id), never the notice's words. Its answer comes back here, so the caller waits for it, as for any --action.
+#
+# --agent-unit UNIT is the same offer on a notice without actions (a failed unit's), without waiting here: for an
+# account whose features are on, the notice is raised in its own session by amethystora-agent-notice, which waits
+# for the answer there and opens the agent on UNIT. The service that called this ends at once, so a later failure of
+# the same unit is told again.
 
 set -uo pipefail
 
@@ -36,11 +46,13 @@ set -uo pipefail
 source gettext.sh
 export TEXTDOMAIN=amethystora
 
-USAGE="usage: $0 [--security] [--admins | --user NAME] [--action KEY=LABEL]... [--msgid | --msgid-summary | --msgid-body] [--plural MSGID --count N] [--footer MSGID] SUMMARY BODY [URGENCY]"
+USAGE="usage: $0 [--security] [--admins | --user NAME] [--action KEY=LABEL]... [--agent KEY=LABEL | --agent-unit UNIT] [--msgid | --msgid-summary | --msgid-body] [--plural MSGID --count N] [--footer MSGID] SUMMARY BODY [URGENCY]"
 SECURITY=false
 ADMINS=false
 ONLY=""
 ACTIONS=()
+AGENT=""
+AGENT_UNIT=""
 MSGID_SUMMARY=false
 MSGID_BODY=false
 PLURAL=""
@@ -52,6 +64,8 @@ while true; do
         --admins) ADMINS=true; shift ;;
         --user) ONLY="${2:?${USAGE}}"; shift 2 ;;
         --action) ACTIONS+=("${2:?${USAGE}}"); shift 2 ;;
+        --agent) AGENT="${2:?${USAGE}}"; shift 2 ;;
+        --agent-unit) AGENT_UNIT="${2:?${USAGE}}"; shift 2 ;;
         --msgid) MSGID_SUMMARY=true; MSGID_BODY=true; shift ;;
         --msgid-summary) MSGID_SUMMARY=true; shift ;;
         --msgid-body) MSGID_BODY=true; shift ;;
@@ -126,11 +140,12 @@ localize
 SUMMARY_EN="${SUMMARY}"
 BODY_EN="${BODY}"
 TRANSLATE=false
-[[ "${MSGID_SUMMARY}" == true || "${MSGID_BODY}" == true || -n "${FOOTER}" || ${#ACTIONS[@]} -gt 0 ]] && TRANSLATE=true
+[[ "${MSGID_SUMMARY}" == true || "${MSGID_BODY}" == true || -n "${FOOTER}" || ${#ACTIONS[@]} -gt 0 || -n "${AGENT}${AGENT_UNIT}" ]] &&
+    TRANSLATE=true
 
 # The part that cannot be missed: this is what `systemctl status` of the failed unit shows. With
 # actions, stdout is for the answers.
-if [[ ${#ACTIONS[@]} -eq 0 ]]; then
+if [[ ${#ACTIONS[@]} -eq 0 && -z "${AGENT}" ]]; then
     printf '%s\n%s\n' "${SUMMARY_EN}" "${BODY_EN}"
     command -v notify-send >/dev/null || exit 0
     if [[ "${SECURITY}" == true ]]; then
@@ -142,7 +157,23 @@ if [[ ${#ACTIONS[@]} -eq 0 ]]; then
 else
     printf '%s\n%s\n' "${SUMMARY_EN}" "${BODY_EN}" >&2
     command -v notify-send >/dev/null || exit 1
+    # A security notice that offers the agent is quietened as one without it would be
+    if [[ "${SECURITY}" == true ]]; then
+        case "$(/usr/libexec/amethystora-security-config NOTIFY)" in
+            none) exit 0 ;;
+            critical) [[ "${URGENCY}" == critical ]] || exit 0 ;;
+        esac
+    fi
 fi
+
+# Whether an account's agentic features are on, as amethystora-agent says when asked as that account
+agent_on() { # USER UID
+    local home
+    home="$(getent passwd "$1" | cut -d: -f6)"
+    [[ -n "${home}" ]] || return 1
+    timeout 10 runuser -u "$1" -- env "HOME=${home}" "XDG_RUNTIME_DIR=/run/user/$2" \
+        /usr/bin/amethystora-agent status >/dev/null 2>&1
+}
 
 # A session bus socket is what someone logged in has and a system user does not, so the sockets are the
 # list of people who can be told. notify-send has to reach the user's own bus, not the system one.
@@ -162,7 +193,18 @@ for bus in /run/user/*/bus; do
         LANGS="$(language_of "${user}")"
         localize
     fi
-    if [[ ${#ACTIONS[@]} -eq 0 ]]; then
+    if [[ ${#ACTIONS[@]} -eq 0 && -n "${AGENT_UNIT}" ]] && agent_on "${user}" "${uid}"; then
+        runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" "XDG_RUNTIME_DIR=/run/user/${uid}" \
+            systemd-run --user --collect --quiet -- /usr/libexec/amethystora-agent-notice "${AGENT_UNIT}" \
+            --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning \
+            "--action=agent=$(in_language gettext 'Ask the agent')" -- "${SUMMARY}" "${MARKUP_BODY}" || true
+        continue
+    fi
+    labels=("${LABELS[@]}")
+    if [[ -n "${AGENT}" ]] && agent_on "${user}" "${uid}"; then
+        labels+=("--action=${AGENT%%=*}=$(in_language gettext "${AGENT#*=}")")
+    fi
+    if [[ ${#labels[@]} -eq 0 ]]; then
         runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
             notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning \
             -- "${SUMMARY}" "${MARKUP_BODY}" || true
@@ -172,10 +214,10 @@ for bus in /run/user/*/bus; do
     {
         answer="$(runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
             notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-information --wait \
-            "${LABELS[@]}" -- "${SUMMARY}" "${MARKUP_BODY}" 2>/dev/null)"
+            "${labels[@]}" -- "${SUMMARY}" "${MARKUP_BODY}" 2>/dev/null)"
         printf '%s %s\n' "${user}" "${answer}"
     } &
 done
-[[ ${#ACTIONS[@]} -eq 0 ]] && exit 0
+[[ ${#ACTIONS[@]} -eq 0 && -z "${AGENT}" ]] && exit 0
 wait
 [[ "${TOLD}" -gt 0 ]]

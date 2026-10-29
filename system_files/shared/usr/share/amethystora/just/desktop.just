@@ -2516,6 +2516,62 @@ emoji ACTION="" VALUE="":
         *) usage ;;
     esac
 
+# Force quit: Super+Ctrl+Shift+Esc lists the running apps with what each uses, and ends the one you pick after asking once
+# more (STATE: on or off; without it, it flips)
+[positional-arguments]
+force-quit STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.quit
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" force-quit)" == *"'<"* ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings reset "${schema}" force-quit
+            echo "$(gettext "Force quit: on. Press Super+Ctrl+Shift+Esc.")"
+            ;;
+        off)
+            gsettings set "${schema}" force-quit "[]"
+            echo "$(gettext "Force quit: off.")"
+            ;;
+        *)
+            echo "usage: ame desktop force-quit on|off"
+            exit 64
+            ;;
+    esac
+
+# When an app stops responding, the question over it in the image's look: Wait first, and Ask the agent why while the
+# agentic features are on; off, GNOME's own (STATE: on or off; without it, it flips)
+[positional-arguments]
+frozen-dialog STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.quit
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" frozen-dialog)" == true ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" frozen-dialog true
+            echo "$(gettext "The not-responding question: Amethystora's.")"
+            ;;
+        off)
+            gsettings set "${schema}" frozen-dialog false
+            echo "$(gettext "The not-responding question: GNOME's own.")"
+            ;;
+        *)
+            echo "usage: ame desktop frozen-dialog on|off"
+            exit 64
+            ;;
+    esac
+
 # Text shortcuts: a shortcut you type, then a space, becomes its text in apps that use GNOME's input method (STATE: on or
 # off; without it, it flips). Off until you turn it on, since it looks at what you type
 [positional-arguments]

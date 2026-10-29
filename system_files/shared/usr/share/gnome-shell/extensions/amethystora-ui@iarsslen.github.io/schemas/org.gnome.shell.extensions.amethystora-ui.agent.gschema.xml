@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The AI agent on the desktop (modules/agent.js), which does anything only while the agentic features are on for the
+     account (amethystora-agent status): the key that asks it about the selected text, and the live pill's list of
+     what its tools change. `ame agent selection on|off`, `ame agent pill on|off` and Control's AI agent page write them;
+     the setup file keeps the key with the other keybindings. The agent's own tools may not write either. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.agent" path="/org/gnome/shell/extensions/amethystora-ui/agent/">
+    <key name="ask-selection" type="as">
+      <default><![CDATA[['<Super><Shift>a']]]></default>
+      <summary>Ask the agent about the selected text</summary>
+      <description>The text selected in any window goes to the AI agent as quoted data, with a question, in a terminal. Only while the agentic features are on. An empty list turns it off.</description>
+    </key>
+    <key name="pill" type="b">
+      <default>true</default>
+      <summary>The agent's changes in the live pill</summary>
+      <description>While the agent may make changes and runs, the live pill lists each change its tools make, each with Undo, and Stop.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -44,12 +44,15 @@ import {Present} from './modules/present.js';
 import {DeskWidgets} from './modules/deskwidgets.js';
 import {Shelf} from './modules/shelf.js';
 import {Desks} from './modules/desks.js';
+import {Agent} from './modules/agent.js';
+import {Quit} from './modules/quit.js';
 import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
 // first after the theme, since the glass asks it; the glass comes after the dock and the panel's modules, whose actors
-// it draws behind. Present mode comes after the pill, whose hold it asks. Focus profiles come last: a profile lays
-// itself over what the others do, and stops first.
+// it draws behind. Present mode comes after the pill, whose hold it asks. The agent comes after the pill, where it
+// shows its changes, and before force quit, whose dialog asks it. Focus profiles come last: a profile lays itself over
+// what the others do, and stops first.
 const MODULES = [
     ['theme', Theme],
     ['style', Style],
@@ -87,6 +90,8 @@ const MODULES = [
     ['deskwidgets', DeskWidgets],
     ['shelf', Shelf],
     ['desks', Desks],
+    ['agent', Agent],
+    ['quit', Quit],
     ['focus', Focus],
 ];
 

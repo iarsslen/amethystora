@@ -1,0 +1,116 @@
+/* Force quit (modules/quit.js): the list of running apps and GNOME's not-responding dialog in the image's look. Sizes,
+   corners, spacing and type as the board draws them; the colours that follow the theme are in
+   /usr/share/amethystora/themed/shell-quit.css.tpl, and the neutral ones here only stand in until a theme is applied. */
+
+/* The list: 396 px wide outside (366 inside its padding and edge), corners 24 px, 14 px inside, 10 px between its parts */
+.modal-dialog.amethystora-quit-list {
+  width: 366px;
+  padding: 14px;
+  border-radius: 24px;
+  spacing: 10px;
+}
+.modal-dialog.amethystora-quit-list .modal-dialog-content-box {
+  padding: 0;
+  margin: 0;
+  spacing: 0;
+}
+.amethystora-quit-box { spacing: 10px; }
+.amethystora-quit-head { spacing: 10px; }
+.amethystora-quit-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #efe4ff;
+}
+.amethystora-quit-key {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #cdbbe6;
+}
+.amethystora-quit-scroll { max-height: 264px; }
+.amethystora-quit-rows { spacing: 0; }
+
+/* A row: the icon's 28 px, the name, 54 px for the processor and 64 px for the memory, 10 px apart */
+.amethystora-quit-row {
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+.amethystora-quit-line {
+  spacing: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.amethystora-quit-icon { width: 28px; }
+.amethystora-quit-name { spacing: 6px; }
+.amethystora-quit-number {
+  font-size: 12px;
+  text-align: right;
+  font-feature-settings: "tnum";
+}
+.amethystora-quit-cpu { width: 54px; }
+.amethystora-quit-memory { width: 64px; }
+.amethystora-quit-columns {
+  padding: 0 10px;
+  font-size: 11px;
+}
+.amethystora-quit-columns .amethystora-quit-number { font-size: 11px; }
+.amethystora-quit-frozen-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+/* The buttons of the list, its question and the not-responding dialog: pills of 32 px, 8 px apart */
+.modal-dialog.amethystora-quit-list .modal-dialog-button-box.amethystora-quit-buttons {
+  padding: 0;
+  margin: 0;
+  spacing: 8px;
+  border-width: 0;
+  background-color: transparent;
+}
+.modal-dialog .modal-dialog-button-box .modal-dialog-button.amethystora-quit-button {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* The question before ending an app, and GNOME's not-responding dialog: the icon at 42 px over centred words */
+.amethystora-quit-confirm { spacing: 10px; }
+.amethystora-quit-text,
+.amethystora-quit-frozen-text {
+  font-size: 12.5px;
+  text-align: center;
+}
+.modal-dialog.close-dialog.amethystora-quit-frozen {
+  width: 302px;
+  padding: 14px;
+  border-radius: 24px;
+  spacing: 10px;
+}
+.modal-dialog.close-dialog.amethystora-quit-frozen .modal-dialog-content-box {
+  padding: 0;
+  margin: 0;
+}
+.amethystora-quit-frozen-box { spacing: 10px; }
+.amethystora-quit-frozen-title {
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+.modal-dialog.close-dialog.amethystora-quit-frozen .modal-dialog-button-box {
+  padding: 0;
+  margin: 0;
+  spacing: 8px;
+  border-width: 0;
+  background-color: transparent;
+}
+.amethystora-quit-ask {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+}

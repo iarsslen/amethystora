@@ -2608,6 +2608,22 @@ msgstr ""
 msgid "The windows behind the one you are using are drawn a little darker."
 msgstr ""
 
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/frozen.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "Force quit"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Super+Ctrl+Shift+Esc lists the running apps with what each uses, one that does not respond first."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "When an app stops responding"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The question over the app offers Wait first, and Ask the agent why while the agentic features are on. Off, GNOME's own."
+msgstr ""
+
 #: usr/libexec/amethystora-control-list
 msgid "Hot corners"
 msgstr ""
@@ -3113,7 +3129,7 @@ msgstr ""
 msgid "Shows what you copied when you type clip: first, and only then."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+#: usr/libexec/amethystora-control-list usr/libexec/amethystora-driver-status usr/share/amethystora/just/desktop.just
 msgid "Ask the agent"
 msgstr ""
 
@@ -4072,7 +4088,7 @@ msgstr ""
 msgid "Install ${name}"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list apps/connect/src/plugins.rs
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js apps/connect/src/plugins.rs
 msgid "Show"
 msgstr ""
 
@@ -4082,6 +4098,22 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Every change the agent's tools made, newest first, each with its id for undoing it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Ask about a selection"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Select text in any window and press Super+Shift+A: the agent gets it, quoted as data, with your question, in a terminal."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The agent's changes in the live pill"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "While the agent may make changes, the live pill lists each one as it is made, with its own Undo, and Stop."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -5512,7 +5544,7 @@ msgid "I have the recovery key"
 msgstr ""
 
 #. Translators: choices of a menu that turns automatic updates on or off
-#: usr/libexec/amethystora-private-folder usr/libexec/amethystora-windows-program usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
+#: usr/libexec/amethystora-private-folder usr/libexec/amethystora-windows-program usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/selection.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
 msgid "Cancel"
 msgstr ""
 
@@ -6164,6 +6196,22 @@ msgstr ""
 
 #: usr/share/amethystora/just/agent.just
 msgid "This is an administrator's setting, and asks for an administrator's password."
+msgstr ""
+
+#: usr/share/amethystora/just/agent.just
+msgid "Ask about a selection: on. Select text in any window and press Super+Shift+A."
+msgstr ""
+
+#: usr/share/amethystora/just/agent.just
+msgid "Ask about a selection: off."
+msgstr ""
+
+#: usr/share/amethystora/just/agent.just
+msgid "The agent's changes in the live pill: on."
+msgstr ""
+
+#: usr/share/amethystora/just/agent.just
+msgid "The agent's changes in the live pill: off."
 msgstr ""
 
 #: usr/share/amethystora/just/apps.just
@@ -7650,6 +7698,22 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "The emoji picker shows hands and people in the ${tone} skin tone."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Force quit: on. Press Super+Ctrl+Shift+Esc."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Force quit: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The not-responding question: Amethystora's."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The not-responding question: GNOME's own."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -9964,7 +10028,7 @@ msgstr ""
 msgid "A screen is too large for the colour filter, and is shown without it."
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent.js
 msgid "Select some text first"
 msgstr ""
 
@@ -9998,6 +10062,189 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/speech.js
 msgid "1×"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent made %d change"
+msgid_plural "Agent made %d changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent asks for root"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent asks you"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent · removing an app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent · installing an app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent · changing settings"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Agent · making changes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Finished at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Waiting for you"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Changes so far"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Undo all"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Stop the agent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "History"
+msgstr ""
+
+#. Translators: a desk's name, then the things it set, as a list of noun phrases ("the sound output", "the dock",
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/desks.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+msgid "Undo"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Undo: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Waiting in its terminal"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Undoing…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Undone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Not finished"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Failed"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Declined"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Refused"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Not run"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Running…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Wants to run as root"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Wants to run a command"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Wants to change a setting"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "asks for your password in its terminal"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "asks you in its terminal"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "asks for your password"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Removing %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Removed %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Installing %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Installed %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Ran a command as root"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Ran a command"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Flatpak from Flathub, for you only"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Flatpak from Flathub, for everyone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "Homebrew"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "In the container %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/changes.js
+msgid "It could not be undone."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/selection.js
+msgid "Ask about the selected text"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/selection.js
+msgid "What do you want to know?"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/selection.js
+msgid "Opens %s in a terminal"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/agent/selection.js
+msgid "Ask"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/appgrid.js
@@ -10240,11 +10487,6 @@ msgstr ""
 #. Translators: a desk's name, then the things it set, as a list of noun phrases ("the sound output", "the dock",
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/desks.js
 msgid "Set for %s: %s"
-msgstr ""
-
-#. Translators: a desk's name, then the things it set, as a list of noun phrases ("the sound output", "the dock",
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/desks.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
-msgid "Undo"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/desks.js
@@ -10727,7 +10969,7 @@ msgstr ""
 msgid "Time since start-up"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
 msgid "Memory"
 msgstr ""
 
@@ -11036,7 +11278,7 @@ msgstr ""
 msgid "Now playing · %s"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/touch/ring.js
 msgid "Back"
 msgstr ""
 
@@ -11657,6 +11899,50 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
 msgid "Drag a tile to move it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/frozen.js
+msgid "%s is not responding"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/frozen.js
+msgid "Waiting may be enough. Quitting loses what was not saved."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/frozen.js
+msgid "Wait"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/frozen.js
+msgid "Ask the agent why"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "Quit an app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "App"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "CPU"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "Not responding"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "Force quit %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "Force quit %s?"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quit/list.js
+msgid "It ends at once. Anything not saved in it is lost."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/capture.js

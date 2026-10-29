@@ -86,3 +86,66 @@ root MODE="":
 [positional-arguments]
 history ID="":
     @amethystora-agent history ${1:+"$1"}
+
+# Undo one change the AI agent's tools made, by its id from ame agent history, as the live pill's Undo does
+[positional-arguments]
+undo ID:
+    @amethystora-agent undo "$1"
+
+# End the AI agent's tools for now, as the live pill's Stop does: the agent can change nothing more until it is started again
+stop:
+    @amethystora-agent stop
+
+# Super+Shift+A asks the AI agent about the text selected in any window, while the agentic features are on (ACTION: on or off; without it, it flips)
+[positional-arguments]
+selection ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.agent
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" ask-selection)" == *"'<"* ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings reset "${schema}" ask-selection
+            echo "$(gettext "Ask about a selection: on. Select text in any window and press Super+Shift+A.")"
+            ;;
+        off)
+            gsettings set "${schema}" ask-selection "[]"
+            echo "$(gettext "Ask about a selection: off.")"
+            ;;
+        *)
+            echo "usage: ame agent selection on|off"
+            exit 64
+            ;;
+    esac
+
+# The live pill lists each change the AI agent's tools make while it runs, each with Undo, and Stop (ACTION: on or off; without it, it flips)
+[positional-arguments]
+pill ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.agent
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" pill)" == true ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" pill true
+            echo "$(gettext "The agent's changes in the live pill: on.")"
+            ;;
+        off)
+            gsettings set "${schema}" pill false
+            echo "$(gettext "The agent's changes in the live pill: off.")"
+            ;;
+        *)
+            echo "usage: ame agent pill on|off"
+            exit 64
+            ;;
+    esac

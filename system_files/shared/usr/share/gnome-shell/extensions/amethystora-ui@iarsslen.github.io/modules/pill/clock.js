@@ -11,6 +11,7 @@ import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -33,7 +34,7 @@ const REDUCED = 150;
 // The plate's curve: a quick start and a slight overshoot before it rests
 const CURVE = [new Graphene.Point({x: 0.2, y: 0.8}), new Graphene.Point({x: 0.2, y: 1.08})];
 
-const PLATES = ['link', 'battery', 'saver', 'quiet', 'focus', 'news'];
+const PLATES = ['link', 'battery', 'saver', 'quiet', 'focus', 'news', 'agent', 'agent-ask', 'agent-done'];
 // The padding inside the plate at its start and its end (logical px): the link's and the battery's buttons sit close
 // to the end
 const PADDING = {link: [8, 6], battery: [12, 6]};
@@ -376,6 +377,20 @@ export function chip(label, action) {
     return actor;
 }
 
+// A card's menu, destroyed once its closing has finished and the frame after it is drawn: GNOME's box pointer still
+// sets its own properties after it hides, and a menu destroyed before the frame is laid out again after it is gone
+function destroyWhenShut(menu) {
+    const destroy = () => global.compositor.get_laters().add(Meta.LaterType.IDLE, () => {
+        Main.panel.menuManager.removeMenu(menu);
+        menu.destroy();
+        return GLib.SOURCE_REMOVE;
+    });
+    if (menu.actor.visible)
+        menu.actor.connect('hide', () => destroy());
+    else
+        destroy();
+}
+
 export class Clock {
     constructor(activities, reduceMotion) {
         this._activities = activities;
@@ -579,18 +594,7 @@ export class Clock {
             return;
         this._card = null;
         this._cardId = null;
-        // Destroyed once its closing has finished, so that nothing is held while it is shut
-        const destroy = () => {
-            Main.panel.menuManager.removeMenu(menu);
-            menu.destroy();
-        };
-        if (menu.actor.visible)
-            menu.actor.connectObject('hide', () => destroy(), this);
-        else
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                destroy();
-                return GLib.SOURCE_REMOVE;
-            });
+        destroyWhenShut(menu);
     }
 
     _closeCard() {
@@ -600,8 +604,7 @@ export class Clock {
         this._card = null;
         this._cardId = null;
         menu.close();
-        Main.panel.menuManager.removeMenu(menu);
-        menu.destroy();
+        destroyWhenShut(menu);
     }
 
     // The card follows the activities while it is open

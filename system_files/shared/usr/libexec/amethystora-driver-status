@@ -232,13 +232,16 @@ while IFS=$'\t' read -r -u 3 id device text fix manual; do
     # The finding's text is what the check found, English; the sentence around the device and the buttons
     # are translated for each account (amethystora-notify-users)
     export device
-    ANSWERS="$(/usr/libexec/amethystora-notify-users "${actions[@]}" --msgid-summary \
+    # Ask the agent, for an account whose agentic features are on: the finding's id, never its words
+    ANSWERS="$(/usr/libexec/amethystora-notify-users "${actions[@]}" --agent "agent=$(N_ 'Ask the agent')" --msgid-summary \
         "$(N_ 'A device does not work: ${device}')" "${text}")" || continue
     while read -r user answer; do
         [[ -n "${answer}" ]] || continue
         uid="$(id -u "${user}")" || continue
+        command=("${run[@]}")
+        [[ "${answer}" != agent ]] || command=(/usr/bin/amethystora-agent diagnose --driver "${id}")
         runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
-            "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet "${run[@]}" || true
+            "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet "${command[@]}" || true
     done <<<"${ANSWERS}"
 done 3< <(jq -r '.findings[] | [.id, .device, .text, (.fix // ""), .manual] | @tsv' <<<"${STATUS}")
 exit 0

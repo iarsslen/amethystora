@@ -6,8 +6,9 @@
 #
 #   amethystora-security-text [--lines] [--markup] [--max N] [TEXT...]   TEXT, or stdin without one
 #
-# Control characters go, the C1 ones (U+0080 to U+009F) too: an escape sequence could rewrite what an
-# administrator's terminal shows, and a newline forge a line of the history. Tabs, and newlines unless
+# Control characters go, the C1 ones (U+0080 to U+009F) too, and the marks that reverse text: an escape sequence could
+# rewrite what an administrator's terminal shows, and a newline forge a line of the history. NEL, U+2028 and U+2029
+# are newlines. Tabs, and newlines unless
 # --lines keeps them, become spaces. --markup escapes &, < and > for a desktop notification's body, which
 # GNOME reads as markup. --max cuts each line to N characters (default 600), marking the cut with ….
 
@@ -26,8 +27,10 @@ done
 
 clean() {
     local text line out=""
-    # Bytes, so that C1 characters and stray bytes are found whatever the session's language is
-    text="$(LC_ALL=C sed -e 's/\xc2[\x80-\x9f]//g' | LC_ALL=C tr -d '\000-\010\013-\037\177' | tr '\t' ' ')"
+    # Bytes, so that C1 characters and stray bytes are found whatever the session's language is. The other line breaks
+    # (NEL, U+2028, U+2029) are newlines, so that no line can hide a second one; the marks that turn text around go
+    text="$(LC_ALL=C sed -e 's/\xe2\x80[\xa8\xa9]/\n/g; s/\xc2\x85/\n/g' -e 's/\xe2\x80[\x8e\x8f\xaa-\xae]//g; s/\xe2\x81[\xa6-\xa9]//g; s/\xd8\x9c//g' \
+        -e 's/\xc2[\x80-\x9f]//g' | LC_ALL=C tr -d '\000-\010\013-\037\177' | tr '\t' ' ')"
     [[ "${LINES}" == true ]] || text="${text//$'\n'/ }"
     while IFS= read -r line || [[ -n "${line}" ]]; do
         [[ ${#line} -gt ${MAX} ]] && line="${line:0:MAX}…"

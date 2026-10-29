@@ -82,12 +82,21 @@ pub fn refusal(argv: &[String]) -> Option<String> {
     }
     if matches!(program, "ame" | "ujust" | "just") {
         return match recipe_words(&argv[1..]) {
-            Ok(words) => ame_refusal(&words),
+            // A group's own justfile is read both ways: as that group's recipes and as the file it may only be named like
+            Ok((words, group)) => ame_refusal(&words).or_else(|| group.and_then(|group| ame_refusal(&[vec![group], words].concat()))),
             Err(why) => Some(why),
         };
     }
-    if program == "dconf" && dconf_reaches_typing(&argv[1..]) {
+    if program == "dconf" && dconf_reaches(&argv[1..], TYPING_KEYS) {
         return Some("text shortcuts look at what is typed: the user turns them on, in Control".into());
+    }
+    // The live pill's list of what the agent changes, and the desktop's other ways in to the agent: the person's view
+    // of the agent, which the agent may not turn off or move, however the command spells it
+    if lower.iter().any(|arg| AGENT_UI.iter().any(|name| arg.contains(name)))
+        || (program == "dconf" && dconf_reaches(&argv[1..], AGENT_KEYS))
+        || (program == "gnome-extensions" && lower.iter().any(|arg| arg.starts_with("amethystora-ui@")))
+    {
+        return Some("the desktop's view of what the agent changes is the user's: the agent may not change it".into());
     }
     if program.starts_with("amethystora-security") || program == "amethystora-hardening" {
         return Some("security switches are changed only through ame security, and only to turn protection on".into());
@@ -98,13 +107,17 @@ pub fn refusal(argv: &[String]) -> Option<String> {
 /// What names the text shortcuts' switch or helper in any spelling: the GSettings schema, its dconf path, the helper
 const TYPING: &[&str] = &["amethystora-ui.typing", "amethystora-ui/typing", "amethystora-text-shortcuts"];
 
-/// Whether a dconf command writes, loads or resets the text shortcuts' keys: by their own path (the names above), or by
-/// a folder above it, whose load or reset reaches them too
-fn dconf_reaches_typing(args: &[String]) -> bool {
-    const KEYS: &str = "/org/gnome/shell/extensions/amethystora-ui/typing/";
+/// Whether a dconf command writes, loads or resets the keys under the folder `keys` (the text shortcuts', the agent's):
+/// by their own path, or by a folder above it, whose load or reset reaches them too
+fn dconf_reaches(args: &[String], keys: &str) -> bool {
     matches!(args.first().map(String::as_str), Some("write" | "load" | "reset" | "compile" | "update"))
-        && args[1..].iter().any(|arg| arg.starts_with('/') && arg.ends_with('/') && KEYS.starts_with(arg.as_str()))
+        && args[1..].iter().any(|arg| arg.starts_with('/') && arg.ends_with('/') && keys.starts_with(arg.as_str()))
 }
+
+const TYPING_KEYS: &str = "/org/gnome/shell/extensions/amethystora-ui/typing/";
+/// The agent's own desktop keys (modules/agent.js): its changes in the live pill and the selection's key
+const AGENT_KEYS: &str = "/org/gnome/shell/extensions/amethystora-ui/agent/";
+const AGENT_UI: &[&str] = &["amethystora-ui.agent", "amethystora-ui/agent"];
 
 /// Options of just (and of `ame` and `ujust`, which run it) that take a value, and how many
 const JUST_VALUES: &[(&str, usize)] = &[
@@ -117,16 +130,19 @@ const JUST_RUNNERS: &[&str] = &["--command", "-c", "--shell", "--shell-arg", "--
     "--edit", "-e", "--choose", "--script"];
 
 /// The words of the recipe a just command line names, as ame's recipes are matched: its options and their values left
-/// out (`ame -q security`, `just --justfile FILE security`), `--` passed over, and a module path `a::b` as the two
-/// words `a b`, each in lower case. An option that makes just run something other than a recipe is refused
-fn recipe_words(args: &[String]) -> Result<Vec<String>, String> {
+/// out (`ame -q security`, `just --justfile FILE security`), every `--` passed over (a refusal never depends on where
+/// one stands), and a module path `a::b` as the two words `a b`, each in lower case. A group's own justfile named with
+/// -f or --justfile (`just -f /usr/share/amethystora/just/agent.just pill off`) is given back too, for the words with the
+/// group in front, as ame names them. An option that makes just run something other than a recipe is refused
+fn recipe_words(args: &[String]) -> Result<(Vec<String>, Option<String>), String> {
     let mut words = Vec::new();
+    let mut justfile: Option<&str> = None;
     let mut options = true;
     let mut i = 0;
     while i < args.len() {
         let arg = args[i].as_str();
         i += 1;
-        if options && arg == "--" {
+        if arg == "--" {
             options = false;
             continue;
         }
@@ -134,6 +150,11 @@ fn recipe_words(args: &[String]) -> Result<Vec<String>, String> {
             let name = arg.split('=').next().unwrap_or(arg);
             if JUST_RUNNERS.contains(&name) || (name.starts_with("-c") && !name.starts_with("--") && name.len() > 2) {
                 return Err(format!("{name} makes just run something other than a recipe; run the recipe as it is"));
+            }
+            if matches!(name, "-f" | "--justfile") {
+                justfile = arg.split_once('=').map(|(_, file)| file).or(args.get(i).map(String::as_str));
+            } else if name.starts_with("-f") && !name.starts_with("--") {
+                justfile = Some(&arg[2..]);
             }
             if !arg.contains('=') {
                 if let Some((_, count)) = JUST_VALUES.iter().find(|(option, _)| *option == name) {
@@ -145,7 +166,8 @@ fn recipe_words(args: &[String]) -> Result<Vec<String>, String> {
         options = false;
         words.extend(arg.split("::").filter(|part| !part.is_empty()).map(str::to_lowercase));
     }
-    Ok(words)
+    let group = justfile.map(base).and_then(|file| file.strip_suffix(".just")).filter(|group| *group != "00-entry");
+    Ok((words, group.map(str::to_lowercase)))
 }
 
 fn ame_refusal(args: &[String]) -> Option<String> {
@@ -153,6 +175,10 @@ fn ame_refusal(args: &[String]) -> Option<String> {
     match args.as_slice() {
         ["agent", "lock" | "root", ..] => Some("the agent may not change its own lock or root mode".into()),
         ["agent", "tools" | "toggle", "on", ..] => Some("only the user turns the agent's levels on".into()),
+        // The live pill's list of the agent's changes is how the person sees them: only the person turns it off
+        ["agent", "pill"] | ["agent", "pill", "off", ..] | ["desktop", "pill"] | ["desktop", "pill", "off", ..] => {
+            Some("the live pill's list of what the agent changes is the user's to turn off".into())
+        }
         ["apps", "aur", ..] => Some("turning the AUR on is the user's choice alone".into()),
         // Text shortcuts look at what the person types: turning them on (or flipping them, which may turn them on) is
         // theirs alone, and the shortcuts are their own writing, which the agent neither reads nor changes
@@ -280,6 +306,32 @@ mod tests {
             "/usr/libexec/amethystora-hardening off firewall",
             "amethystora-agent-root session",
             "passwd root",
+            // The live pill's list of the agent's changes, and the agent's other desktop keys, however spelled
+            "ame agent pill off",
+            "ame agent pill",
+            "ame -q agent::pill off",
+            "gsettings set org.gnome.shell.extensions.amethystora-ui.agent pill false",
+            "gsettings set org.gnome.shell.extensions.amethystora-ui.agent ask-selection []",
+            "dconf write /org/gnome/shell/extensions/amethystora-ui/agent/pill false",
+            "dconf reset -f /org/gnome/shell/extensions/amethystora-ui/agent/",
+            "amethystora-agent stop",
+            "amethystora-agent undo ab12cd34",
+            "ame desktop pill off",
+            "gnome-extensions disable amethystora-ui@iarsslen.github.io",
+            // A group's own justfile, and -- anywhere, for every rule
+            "just -f /usr/share/amethystora/just/agent.just pill off",
+            "just --justfile=/usr/share/amethystora/just/agent.just tools on",
+            "just --justfile /usr/share/amethystora/just/agent.just toggle on",
+            "ujust -f/usr/share/amethystora/just/agent.just lock act",
+            "just -d /usr/share/amethystora/just -f agent.just root each",
+            "just --working-directory /usr/share/amethystora/just --justfile agent.just lock off",
+            "just -f /usr/share/amethystora/just/security.just firewall off",
+            "ame -f /usr/share/amethystora/just/security.just lockdown off",
+            "just -f /usr/share/amethystora/just/apps.just aur on",
+            "ame agent pill -- off",
+            "ame agent -- tools on",
+            "ame security -- firewall off",
+            "ame -- agent -- root each",
         ] {
             assert!(refusal(&argv(words)).is_some(), "{words}");
         }
@@ -319,6 +371,12 @@ mod tests {
             "python3 /home/a/fix.py",
             "bootc rollback",
             "flatpak override --user --socket=x11 com.example.App",
+            "ame agent pill on",
+            "ame agent history",
+            "just -f /usr/share/amethystora/just/security.just status",
+            "just -f /usr/share/amethystora/just/agent.just history",
+            "ame desktop pill on",
+            "gnome-extensions list",
         ] {
             assert_eq!(refusal(&argv(words)), None, "{words}");
         }

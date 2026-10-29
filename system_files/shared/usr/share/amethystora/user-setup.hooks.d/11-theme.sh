@@ -40,6 +40,8 @@
 #      and the shake-to-find ring's colour (themed/shell-pointer.css.tpl), written only when the theme is applied again.
 #  16  Daylight wallpapers and the twelve accents: the theme is applied again (the accent and Daylight are read by it)
 #      and, for an account still on the theme's first picture, Daylight shown (amethystora-theme daylight adopt).
+#  17  Round 4's shell colours (themed/shell-agent.css.tpl, shell-quit.css.tpl, and the other groups' of that round),
+#      written only when the theme is applied again.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -48,7 +50,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 16 || exit 0
+version-script theme user 17 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"

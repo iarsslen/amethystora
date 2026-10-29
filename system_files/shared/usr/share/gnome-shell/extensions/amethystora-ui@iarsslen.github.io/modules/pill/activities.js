@@ -9,15 +9,17 @@
 //   accessible    the pill in words, for a screen reader
 //   row           {icon, text}: its row among the others in a card
 //   card(api)     a new actor with its part of the card; api.close() closes the card
-//   plate         '' or the plate's own look: 'link', 'battery', 'saver', 'quiet', 'focus'
+//   plate         '' or the plate's own look: 'link', 'battery', 'saver', 'quiet', 'focus', 'agent', 'agent-ask',
+//                 'agent-done'
 //   activate()    optional: what a click on the pill's body does instead of opening the card
 //
 // Present mode's mark (modules/present.js) follows a recording: it says what the screen is for now.
-// A focus profile's mark (modules/focus/mark.js) comes last: it says what the desktop is set to, not what happens.
+// The agent's changes (modules/agent/changes.js) come after the battery's question: the agent may be waiting for the
+// person. Reading aloud (modules/access/speech.js) comes after what waits for the person and before what runs by
+// itself: the person has just asked for it. A focus profile's mark (modules/focus/mark.js) comes last: it says what the
+// desktop is set to, not what happens.
 
-// Reading aloud (modules/access/speech.js) comes after what waits for the person and before what runs by itself: the
-// person has just asked for it.
-export const ORDER = ['call', 'recording', 'present', 'link', 'battery', 'waiting', 'reading', 'timer', 'news',
+export const ORDER = ['call', 'recording', 'present', 'link', 'battery', 'agent', 'waiting', 'reading', 'timer', 'news',
     'media', 'update', 'quiet', 'focus'];
 
 // At most this many others are listed in a card

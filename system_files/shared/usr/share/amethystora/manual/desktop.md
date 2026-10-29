@@ -1015,6 +1015,19 @@ copy then shows their last picture. This works in both layouts.
 `ame desktop windows dim on` draws the windows behind the one you are using a little darker, so the eye goes
 to the right one. A video an app draws on its own may stay bright.
 
+## Force quit
+
+`Super+Ctrl+Shift+Esc` lists the apps that are running, with how much of the processor and memory each
+uses now, counting everything it started (a terminal's commands, a browser's helpers). An app that does
+not respond comes first, marked **Not responding**. Pick one and press **Force quit**: the card asks once
+more, naming it, since anything not saved in it is lost. Force quit ends only that app's own processes.
+`ame desktop force-quit off` turns the key off.
+
+When an app stops responding, the desktop asks over its window whether to **Wait** or **Force quit**.
+Waiting is often enough, and is what `Esc` and `Enter` do. While the agentic features are on, **Ask the
+agent why** opens the agent on that app, to find out what it is waiting for without ending it (see
+[the AI agent](ai-agent.md)). `ame desktop frozen-dialog off` brings back GNOME's own question.
+
 ## Windows
 
 | Key | Does |
