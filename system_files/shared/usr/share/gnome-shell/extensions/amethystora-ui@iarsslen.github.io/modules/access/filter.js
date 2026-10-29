@@ -421,6 +421,8 @@ export class Filter {
             this._indicator.quickSettingsItems.push(this._tile);
             Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
         } else if (!shown && this._indicator) {
+            // The tile's menu lives in quick settings' own grid, not under the tile: destroyed apart, as the battery's
+            this._tile.menu.destroy();
             this._tile.destroy();
             this._tile = null;
             this._indicator.destroy();

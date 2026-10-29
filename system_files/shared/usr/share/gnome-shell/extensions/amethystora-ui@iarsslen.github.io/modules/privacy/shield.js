@@ -270,6 +270,8 @@ export class Shield {
         this._mark?.menu.disconnectObject(this);
         this._mark?.destroy();
         this._mark = null;
+        // The tile's menu lives in quick settings' own grid, not under the tile: destroyed apart, as the battery's
+        this._toggle?.menu.destroy();
         this._toggle?.destroy();
         this._toggle = null;
         this._indicator?.destroy();
