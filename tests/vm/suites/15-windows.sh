@@ -827,14 +827,18 @@ sleep 30
 c2="$(ev "JSON.stringify(Object.fromEntries(Object.entries(${W}.counters).filter(([k]) => k !== 'hold.keymapEvents')))")"
 same "with nothing happening for 30 s, no handler of the module runs" "${c2}" "${c1}"
 ev "globalThis.vmlabBuild = imports.ui?.windowMenu?.WindowMenu?.prototype._buildMenu; import('resource:///org/gnome/shell/ui/windowMenu.js').then(m => { globalThis.vmlabWindowMenu = m.WindowMenu; }); 'k'" >/dev/null
+# GNOME 50 turns an extension on and off through its settings, a moment later, and later still in a busy lab: each
+# step waits for the state it asked for (1 on; 2 or 6 off) rather than a fixed time
+ext_state_is() { [[ " $2 " == *" $(ev "Main.extensionManager.lookup('${UUID}').state") "* ]]; }
 for i in $(seq 10); do
     ev "Main.extensionManager.disableExtension('${UUID}'); 'd'" >/dev/null
-    sleep 1
+    wait_for 30 ext_state_is "${UUID}" "2 6"
     ev "Main.extensionManager.enableExtension('${UUID}'); 'e'" >/dev/null
-    sleep 2
+    wait_for 30 ext_state_is "${UUID}" "1"
 done
 ev "Main.extensionManager.disableExtension('${UUID}'); 'd'" >/dev/null
-sleep 2
+wait_for 30 ext_state_is "${UUID}" "2 6"
+sleep 1
 left="$(ev "(() => { const walk = (a, acc) => { for (const c of a.get_children()) { const s = c.get_style_class_name?.() || ''; if (/amethystora-windows/.test(s) || /amethystoraWindows/.test(c.name || '')) acc.push(s || c.name); walk(c, acc); } return acc; }; return walk(Main.layoutManager.uiGroup, []).length + walk(global.window_group, []).length; })()")"
 same "ten disables leave no actor of the module behind" "${left}" 0
 check "Main.overview.toggle is GNOME's own" is_true "!Object.getOwnPropertyDescriptor(Main.overview, 'toggle')"
