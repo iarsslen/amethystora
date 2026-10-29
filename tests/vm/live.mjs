@@ -89,7 +89,9 @@ const READY = `${vm}-ready`;
 const hasReady = () => fs.existsSync(`/vm/vms/${READY}.qcow2`);
 async function startVm(fresh = false) {
   const disk = fs.readFileSync(`${DIR}/disk`, 'utf8').trim();
-  say((await call('vm_start', { name: vm, disk, fresh, ...(fresh && hasReady() ? { from: READY } : {}) })).content[0].text);
+  // VMLAB_MEM: a guest smaller than the lab's 4096 MB, so that a third VM fits beside two
+  const memory = Number(process.env.VMLAB_MEM) || undefined;
+  say((await call('vm_start', { name: vm, disk, fresh, ...(memory ? { memory_mb: memory } : {}), ...(fresh && hasReady() ? { from: READY } : {}) })).content[0].text);
   await boot();
 }
 const running = () => {

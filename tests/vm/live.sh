@@ -35,7 +35,7 @@ LAB="/vm/live/${VM}"
 if ! command -v docker >/dev/null && command -v cygpath >/dev/null; then
     PATH="$(cygpath -u "${LOCALAPPDATA}")/Programs/DockerDesktop/resources/bin:${PATH}"
 fi
-lab() { docker exec amevm node /vm/live/live.mjs "${VM}" "$@"; }
+lab() { docker exec -e VMLAB_MEM="${VMLAB_MEM:-}" amevm node /vm/live/live.mjs "${VM}" "$@"; }
 
 # The suites a change since REV touches: a path matching one of a suite's "# vmlab-paths:" globs (@sf/ is
 # system_files/shared/, @ui/ Amethystora UI's folder, * matches / too), the suite itself, lib.sh (every suite), or a
