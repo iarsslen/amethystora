@@ -140,6 +140,9 @@ export class Places {
         // The windows created and not yet shown, which are never recorded
         this._unplaced = new WeakSet();
         this._watched = new Set();
+        // Windows whose move or new size waits a moment to be recorded (_recordSoon)
+        this._soon = new Set();
+        this._soonId = 0;
         this._grabbed = null;
         this._quietUntil = 0;
         if (copy)
@@ -152,7 +155,7 @@ export class Places {
                 if (window)
                     this._record(window);
             },
-            'window-entered-monitor', (d, monitor, window) => this._record(window), this);
+            'window-entered-monitor', (d, monitor, window) => this._recordSoon(window), this);
         Main.layoutManager.connectObject('monitors-changed', () => this._screensChanged(), this);
         for (const actor of global.get_window_actors())
             this._watch(actor.meta_window);
@@ -171,11 +174,13 @@ export class Places {
         if (this._settleOwner)
             global.display.disconnectObject(this._settleOwner);
         this._settleOwner = null;
-        for (const id of [this._writeId, this._settleId])
+        this._soon = null;
+        for (const id of [this._writeId, this._settleId, this._soonId])
             if (id)
                 GLib.source_remove(id);
         this._writeId = 0;
         this._settleId = 0;
+        this._soonId = 0;
         if (save && this._dirty)
             this._write();
         this._data = null;
@@ -214,9 +219,12 @@ export class Places {
     _watch(window) {
         if (!this._qualifies(window))
             return;
-        const record = () => this._record(window);
+        const record = () => this._recordSoon(window);
         this._watched.add(window);
-        window.connectObject('size-changed', record,
+        // A move counts as well as a change of size: a window moved without one (Super+Z's cells, the keyboard, an app)
+        // was otherwise kept where it had been, and a size changed on its way to a new place was kept with the place
+        // it had before the move (a drag is recorded once, when it is let go)
+        window.connectObject('size-changed', record, 'position-changed', record,
             'notify::maximized-horizontally', record, 'notify::maximized-vertically', record,
             'unmanaging', () => {
                 this._record(window);
@@ -230,6 +238,25 @@ export class Places {
         return global.get_window_actors().map(a => a.meta_window)
             .filter(w => w && this._qualifies(w) && appOf(w) === id)
             .sort((a, b) => a.get_stable_sequence() - b.get_stable_sequence());
+    }
+
+    // A move or a change of size is recorded a moment later (SETTLE), once it is known whether the screens changed:
+    // Mutter moves and shrinks windows to fit a new arrangement before the shell hears of it, and those places belong
+    // to nobody. Recorded at once, they replaced the person's own place in the arrangement being left.
+    _recordSoon(window) {
+        if (!this._soon)
+            return;
+        this._soon.add(window);
+        this._soonId ||= GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETTLE, () => {
+            this._soonId = 0;
+            const windows = [...this._soon ?? []];
+            this._soon?.clear();
+            for (const each of windows) {
+                if (this._watched?.has(each))
+                    this._record(each);
+            }
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _record(window) {
