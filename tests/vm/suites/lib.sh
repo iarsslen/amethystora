@@ -118,10 +118,12 @@ crashes_since() {
     coredumpctl list --since "$1" --no-legend --no-pager "${@:2}" 2>/dev/null
 }
 
-# The lab's account signs in by GDM's automatic login, which leaves oo7's login keyring (Fedora 45) locked: the first
-# Flatpak to ask the Secret portal then brings up GNOME Shell's unlock dialog, which takes every click until it is
-# answered. A suite unlocks it once a boot with the account's password, as pam_oo7 does at a password login, through
-# gnome-keyring's own interface, which oo7 keeps and which asks nothing; 91-clipboard.sh handles the keyring itself
+# The lab's account signs in by GDM's automatic login, which leaves the login keyring locked (gnome-keyring's on Fedora
+# 44 too, after any start that was not a restore of a signed-in VM): the first Flatpak to ask the Secret portal then
+# brings up GNOME Shell's unlock dialog, which takes every click until it is answered. A suite unlocks it once a boot
+# with the account's password, as pam_oo7 or pam_gnome_keyring does at a password login, through gnome-keyring's own
+# interface, which oo7 keeps and which asks nothing (while no dialog is up: one waiting holds the call until it is
+# answered); 91-clipboard.sh handles the keyring itself
 unlock_login_keyring() {
     user_bus python3 - "${TEST_USER}" <<'PY' >/dev/null 2>&1
 import sys
@@ -144,7 +146,7 @@ if keyring != "/":
          GLib.Variant("(o(oayays))", (keyring, (session, b"", sys.argv[1].encode(), "text/plain"))))
 PY
 }
-if [[ "$(basename "$0")" != 91-clipboard.sh && ! -e /run/vmlab-keyring ]] && rpm -q oo7-daemon >/dev/null 2>&1 &&
+if [[ "$(basename "$0")" != 91-clipboard.sh && ! -e /run/vmlab-keyring ]] && rpm -q oo7-daemon gnome-keyring 2>/dev/null | grep -qv 'not installed' &&
     has_session; then
     unlock_login_keyring && touch /run/vmlab-keyring
 fi
