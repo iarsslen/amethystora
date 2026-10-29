@@ -171,6 +171,8 @@ else
 fi
 same "3 it opens on Smileys" "$(q .tab)" smileys
 same "3 ...with 😀 first" "$(q '.cells[0]')" "😀"
+# A known clipboard first: a session restored from an earlier run may hold 😀 already
+ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.CLIPBOARD, 'vmlab-33'); 'seeded'" >/dev/null
 keys text:grinning
 query_is() { [[ "$(q .query)" == "$1" ]]; }
 soon 3 query_is grinning
@@ -183,7 +185,10 @@ same "4 Recent keeps it" "$(jq -c .recent "${STATE}")" '["😀"]'
 clip_known() { [[ "$(ev "String(globalThis.vmlabClip)")" != undefined ]]; }
 ev "globalThis.vmlabClip = undefined; imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = t)); 'asked'" >/dev/null
 soon 3 clip_known
-if [[ "$(ev "String(globalThis.vmlabClip)")" != "😀" ]]; then ok "4 typed through the input method: the clipboard is untouched"; else not_ok "4 the pick went through the clipboard" "the window took no text from the input method"; fi
+clip="$(ev "String(globalThis.vmlabClip)")"
+if [[ "${clip}" == vmlab-33 ]]; then ok "4 typed through the input method: the clipboard is untouched"; else
+    not_ok "4 the pick went through the clipboard" "the window took no text from the input method (clipboard: ${clip})"; fi
+same "4 the window has the input method back once the picker closed" "$(ev "String(!!Main.inputMethod.currentFocus)")" true
 
 # --- 5-6: Recent, a search, the arrow keys --------------------------------------------------------------------------
 open_picker
