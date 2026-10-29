@@ -5,6 +5,7 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -73,6 +74,7 @@ export class NightPicture {
         this.on = false;
         St.ThemeContext.get_for_stage(global.stage).disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
+        this._forgetRestacks();
         this._layer?.destroy();
         this._layer = null;
     }
@@ -94,14 +96,18 @@ export class NightPicture {
         this._path = path;
         if (!this._layer) {
             this._layer = new Clutter.Actor({reactive: false, opacity: 0});
-            // Above GNOME's wallpaper and a workspace's own picture, under every window
-            const group = Main.layoutManager._backgroundGroup;
-            const above = this._ext.modules?.get('tiling')?.engine?.backgrounds?.layer ?? group;
-            if (above?.get_parent() === global.window_group)
-                global.window_group.insert_child_above(this._layer, above);
-            else
-                global.window_group.insert_child_at_index(this._layer, 0);
+            global.window_group.add_child(this._layer);
+            this._lower();
             Main.layoutManager.connectObject('monitors-changed', () => this._fill(), this);
+            // A restack lowers the windows under every other actor of their group: the picture goes back under them,
+            // once the workspace pictures have gone back first
+            global.display.connectObject('restacked', () => {
+                this._later ||= global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
+                    this._later = 0;
+                    this._lower();
+                    return false;
+                });
+            }, this);
         }
         this._fill();
         this._layer.remove_transition('opacity');
@@ -112,11 +118,29 @@ export class NightPicture {
         });
     }
 
+    // Above GNOME's wallpaper and a workspace's own picture, under every window
+    _lower() {
+        const group = Main.layoutManager._backgroundGroup;
+        const above = this._ext.modules?.get('tiling')?.engine?.backgrounds?.layer ?? group;
+        if (above?.get_parent() === global.window_group)
+            global.window_group.set_child_above_sibling(this._layer, above);
+        else
+            global.window_group.set_child_below_sibling(this._layer, null);
+    }
+
+    _forgetRestacks() {
+        global.display.disconnectObject(this);
+        if (this._later)
+            global.compositor.get_laters().remove(this._later);
+        this._later = 0;
+    }
+
     _hide() {
         const layer = this._layer;
         if (!layer)
             return;
         Main.layoutManager.disconnectObject(this);
+        this._forgetRestacks();
         this._layer = null;
         layer.remove_transition('opacity');
         layer.ease({

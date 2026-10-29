@@ -78,6 +78,11 @@ export class WorkspaceBackgrounds {
             global.window_group.insert_child_above(this.layer, group);
         else
             global.window_group.insert_child_at_index(this.layer, 0);
+        // A restack lowers the windows under every other actor of their group: the pictures go back under them
+        global.display.connectObject('restacked', () => {
+            if (group?.get_parent() === global.window_group)
+                global.window_group.set_child_above_sibling(this.layer, group);
+        }, this);
         this._shown = new Map();
         // The shell's own folder, which every app it starts begins in; changed only while a workspace has a folder
         this._startedIn = GLib.get_current_dir();
@@ -90,6 +95,7 @@ export class WorkspaceBackgrounds {
     }
 
     disable() {
+        global.display.disconnectObject(this);
         global.workspace_manager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
         this._engine.tiling.settings?.disconnectObject(this);
