@@ -230,7 +230,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-CLIP-03 Private mode. How: turn **Private mode** on in the menu, copy text, look. Expect: nothing recorded until it is off.
 - [ ] D-CLIP-04 Password manager. How: copy from KeePassXC or Secrets. Expect: not recorded.
 - [ ] D-CLIP-05 Keep time. How: `ame desktop clipboard session`, log out and in. Expect: only pinned items remain. [changes setting: put back with `ame desktop clipboard always`] [logout]
-- [ ] D-CLIP-06 Fingerprint login. How: log in with a fingerprint, open the history. Expect: what you copy since, under **Unlock to see earlier items**, which asks for the password and then shows the rest. [needs: fingerprint reader]
+- [-] D-CLIP-06 Fingerprint login. How: log in with a fingerprint, open the history. Expect: what you copy since, under **Unlock to see earlier items**, which asks for the password and then shows the rest. [needs: fingerprint reader] → N/A: no fingerprint reader here (fprintd: No devices available, nothing in lsusb)
 - [ ] D-CLIP-07 Menu look. How: open it in each style. Expect: the clipboard menu in the theme's colours, matching the other menus.
 
 ## Shelf
@@ -245,7 +245,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Emoji and text shortcuts
 
-- [ ] D-EMOJI-01 Open. How: in a text field, `Super+.`. Expect: emoji and symbols under the text cursor over the window; type to search (`euro`, `arrow`, `smile`, or words in the session language).
+- [x] D-EMOJI-01 Open. How: in a text field, `Super+.`. Expect: emoji and symbols under the text cursor over the window; type to search (`euro`, `arrow`, `smile`, or words in the session language). → PASS (under the text cursor on the right screen, over the window; euro, arrow and smile each narrow the grid; English session only)
 - [ ] D-EMOJI-02 Tabs and keys. How: `Tab`, arrows, `Ctrl+Page Down`/`Up`. Expect: **Recent**, **Smileys**, **Arrows**, **Maths**, **Money**, **Punctuation** and Unicode's emoji groups; the keys move between search, tabs and grid.
 - [ ] D-EMOJI-03 Insert. How: `Enter` or a click on one; `Escape` another time. Expect: it is typed where you were; `Escape` types nothing. In a terminal it is pasted (`Ctrl+Shift+V`) and stays on the clipboard.
 - [ ] D-EMOJI-04 Skin tone. How: right-click (or hold, or `Menu` on) a hand. Expect: six tones; the one picked becomes the tone for the rest; same as `ame desktop emoji tone medium`. [changes setting: put back with `ame desktop emoji tone none`]
