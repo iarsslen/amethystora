@@ -457,3 +457,27 @@
 2026-10-30 17:49:29	end	cleanup	pass windows closed, editor back
 2026-10-30 17:49:54	start	seen	D-DOCK-15 journal
 2026-10-30 17:49:54	end	seen	stopped seen: already disposed in gnome-shell at 17:35:12 and 17:35:36, BoxPointer and PopupMenuItem, popupMenu.js 1104 and 118, on Pin and Unpin; no core dump; shell answering
+2026-10-30 17:51:42	start	D-TILE-07	move a window up and down its column
+2026-10-30 17:51:42	step	D-TILE-07	Alt+3 Files; Super+Left; Super+I stacks it under the editor; frame
+2026-10-30 17:51:57	step	D-TILE-07	Super+I pulls the editor under Files; Super+Ctrl+Down, frame; Super+Ctrl+Up, frame
+2026-10-30 17:52:35	step	D-TILE-07	open position found at Left: focus editor, Super+I pulls Files under it; Super+Ctrl+Down, frame; Super+Ctrl+Up, frame
+2026-10-30 17:52:53	end	D-TILE-07	pass editor moved down and up its column, the frame with it
+2026-10-30 17:52:56	start	D-TILE-08	pull in and push out, open position right for the check
+2026-10-30 17:52:56	step	D-TILE-08	set open position right (found Left, to be put back); Super+O; frame; Super+I; frame; Super+Shift+O; frame
+2026-10-30 17:53:14	end	D-TILE-08	pass Super+O bottom window own column; Super+I right neighbour joined below; Super+Shift+O this window own column
+2026-10-30 17:53:16	start	D-TILE-09	width steps
+2026-10-30 17:53:16	step	D-TILE-09	Super+R three times, Super+Alt+R, a frame each
+2026-10-30 17:53:33	end	D-TILE-09	pass 38, 50, 62 percent measured from frames, then back to 50
+2026-10-30 17:53:35	start	D-TILE-10	height steps in a stack
+2026-10-30 17:53:35	step	D-TILE-10	Super+I stacks; Super+Shift+R twice; Super+Alt+Shift+R; frames
+2026-10-30 17:53:54	end	D-TILE-10	pass height stepped larger then smaller, Alt back; second window took the rest
+2026-10-30 17:53:56	start	D-TILE-11	step size wider narrower taller shorter
+2026-10-30 17:53:56	step	D-TILE-11	Super+=, Super+-, Super+Shift+=, Super+Shift+-; frames
+2026-10-30 17:54:12	end	D-TILE-11	pass wider, narrower, taller, shorter by a step
+2026-10-30 17:54:14	start	D-TILE-12	fill the width, and maximize
+2026-10-30 17:54:14	step	D-TILE-12	Super+O unstacks; Super+F; frame; Super+F; frame
+2026-10-30 17:54:26	step	D-TILE-12	click the title bar's maximize; frame; click it again; frame
+2026-10-30 17:54:40	end	D-TILE-12	pass Super+F fills and back; maximize fills the width and back
+2026-10-30 17:54:42	start	D-TILE-13	centre
+2026-10-30 17:54:42	step	D-TILE-13	Super+C; frame
+2026-10-30 17:54:45	end	D-TILE-13	pass window centred
