@@ -33,7 +33,7 @@ JSON=false
 
 RECORDS=()
 COMMAND=""
-PRINTED_GROUP=""
+declare -A PRINTED=()
 
 declare -A HEADINGS=(
     [updates]="$(gettext "Updates and boot")"
@@ -50,10 +50,6 @@ print_record() {
     local group="$1" state="$2" title="$3" text="$4" line reason
     shift 4
     local -a lines=("$@")
-    if [[ "${group}" != "${PRINTED_GROUP}" ]]; then
-        PRINTED_GROUP="${group}"
-        printf '\n  %s\n' "${HEADINGS[${group}]}"
-    fi
     if [[ "${group}" == sends ]]; then
         # What the helper says is already in the session's language: the title, what it sends, what stops working without it
         printf '   %s: %s\n' "${title}" "$([[ "${state}" == on ]] && gettext "sends" || gettext "not sent")"
@@ -114,11 +110,10 @@ report() {
             '{$group, $id, $state, $title, $text, details: $ARGS.positional,
               command: (if $command == "" then null else $command end),
               accepted: (if $accepted == "" then null else $accepted end), switched_off: $switched}' --args "$@")")
-    elif [[ -n "${accepted}" ]]; then
-        print_record "${group}" "${state}" "${title}" "${text}" "$@" \
-            "$(eval_gettext "Accepted on this machine. ame security allow report \${id} remove shows it again.")"
     else
-        print_record "${group}" "${state}" "${title}" "${text}" "$@"
+        # Kept by group, since a check is not always found among the others of its group
+        [[ -z "${accepted}" ]] || set -- "$@" "$(eval_gettext "Accepted on this machine. ame security allow report \${id} remove shows it again.")"
+        PRINTED["${group}"]+="$(print_record "${group}" "${state}" "${title}" "${text}" "$@")"$'\n'
     fi
     COMMAND=""
     SWITCHED_OFF=false
@@ -1510,5 +1505,8 @@ if [[ "${JSON}" == true ]]; then
         --arg profile "$(/usr/libexec/amethystora-security-config --profile)" \
         '{$image, settings: {on_detection: $detection, $realtime, $network, virus_scan: $virus, $profile}, checks: .}'
 else
+    for group in updates watching apps scans optional sends; do
+        [[ -z "${PRINTED[${group}]:-}" ]] || printf '\n  %s\n%s' "${HEADINGS[${group}]}" "${PRINTED[${group}]}"
+    done
     echo
 fi
