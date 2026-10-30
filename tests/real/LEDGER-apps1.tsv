@@ -27,3 +27,11 @@
 2026-10-30 18:54:08	end	A-LOGS-06	pass 06 failed, 20, 23, 28
 2026-10-30 18:54:08	start	A-LOGS-24	Apps and services
 2026-10-30 18:55:41	end	A-LOGS-24	pass 19, 24; 25 failed
+2026-10-30 18:55:43	start	A-LOGS-18	older entries: the scroll bar's value through the tree
+2026-10-30 18:56:34	end	A-LOGS-18	pass 18
+2026-10-30 18:56:59	start	A-LOGS-22	terminal button, under the input lock, terminal stopped after
+2026-10-30 18:57:04	end	A-LOGS-22	pass see the note
+2026-10-30 18:57:16	start	A-BACKUPS-01	open Backups on the second screen, read only
+2026-10-30 18:58:22	end	A-BACKUPS-01	pass 01, 03; 02 failed
+2026-10-30 18:58:23	start	A-BACKUPS-26	route to status, /etc refused
+2026-10-30 18:58:52	end	A-BACKUPS-26	pass 04, 25, 26, 29
