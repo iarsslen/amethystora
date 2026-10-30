@@ -166,3 +166,18 @@
 2026-10-30 16:48:00	step	D-PILL-02	Cancel on the card; then 1 min and wait for its end
 2026-10-30 16:49:28	step	D-PILL-02	Cancel on the card, one input session; then 1 min
 2026-10-30 16:53:30	end	D-PILL-02	pass pill counts down, +1 min, Pause and Resume, Cancel, calendar's 5 min adds, Timer done and banner; sound not checkable
+2026-10-30 16:53:56	start	D-PILL-04	a stand-in MPRIS player with no sound, pill and card
+2026-10-30 16:53:56	step	D-PILL-04	start the stand-in, screenshot
+2026-10-30 16:54:08	step	D-PILL-04	hold an idle input session so the Quiet chip settles; pill's pause; pill's card
+2026-10-30 16:54:25	step	D-PILL-04	card's Next; then its date row
+2026-10-30 16:54:43	step	D-PILL-04	card again, a pause after each move: Next, Back, Play
+2026-10-30 16:55:00	step	D-PILL-04	card in one input session: Next, Back, Play, then date row
+2026-10-30 16:55:25	end	D-PILL-04	pass stand-in player: pill's title, artist, pause; card's Back, Pause, Next and position; ten minutes while paused not waited
+2026-10-30 16:55:25	start	D-PILL-06	the card and right-click
+2026-10-30 16:55:25	end	D-PILL-06	pass seen during D-PILL-02 and 04
+2026-10-30 16:55:26	start	D-PILL-07	stand-in player and a timer together
+2026-10-30 16:55:26	step	D-PILL-07	calendar's 1 min, then the pill's card, Cancel
+2026-10-30 16:56:23	end	D-PILL-07	pass timer first, the card lists now playing below
+2026-10-30 16:56:32	start	D-PILL-06-check	does a mouse-like move from the pill to a card's button open the calendar
+2026-10-30 16:56:37	step	D-PILL-06-check	open the card, ten steps to Next, click
+2026-10-30 16:56:52	end	D-PILL-06-check	pass landed; only a press straight after a jump opened the calendar, the driver's jump, not a person's move
