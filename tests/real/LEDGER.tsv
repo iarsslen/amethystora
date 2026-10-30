@@ -128,3 +128,14 @@
 2026-10-30 16:33:07	step	D-TODAY-02	right click the clock place for the calendar with Notes closed; one screenshot
 2026-10-30 16:33:25	step	D-TODAY-02	seen: a new core dump, Notes aborted at 16:33:02, within a second or two of the click on the Notes row in the calendar under the input session
 2026-10-30 16:34:01	end	D-TODAY-02	stopped Notes aborted on the row's click while open and covered; not repeated; scratch Notes data removed
+2026-10-30 16:35:39	start	NOTES-FIX	build the Notes fix in a toolbox, nothing on the desktop
+2026-10-30 16:35:39	step	NOTES-FIX	toolbox create and dnf install, then cargo build
+2026-10-30 16:37:49	end	NOTES-FIX	pass built in the toolbox with nothing on the desktop
+2026-10-30 16:37:49	start	NOTES-FIX-TEST	old build then fixed build, asked for tasks while open, scratch data
+2026-10-30 16:37:49	step	NOTES-FIX-TEST	old: start Notes with scratch data
+2026-10-30 16:37:54	step	NOTES-FIX-TEST	old: ask the open Notes for its tasks page
+2026-10-30 16:37:58	step	NOTES-FIX-TEST	old: close it
+2026-10-30 16:38:00	step	NOTES-FIX-TEST	new: start Notes with scratch data
+2026-10-30 16:38:05	step	NOTES-FIX-TEST	new: ask the open Notes for its tasks page
+2026-10-30 16:38:08	step	NOTES-FIX-TEST	new: close it
+2026-10-30 16:38:22	end	NOTES-FIX-TEST	pass old build aborts as at 16:33, fixed build stays up, scratch data removed
