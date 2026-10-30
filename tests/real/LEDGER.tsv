@@ -866,3 +866,12 @@
 2026-10-30 19:05:13	start	D-STYLE-38..39	style kept across themes; Control in each style
 2026-10-30 19:05:13	step	D-STYLE-38..39	neon, catppuccin theme, read; style theme, read; amethystora; Control open by me, a frame per style; style theme, close
 2026-10-30 19:07:06	end	D-STYLE-38..39	pass style kept; Control follows
+2026-10-30 19:07:34	start	D-GLASS-01..03	prism, frost, clear
+2026-10-30 19:07:34	step	D-GLASS-01..03	each material, the calendar open, a frame; prism back
+2026-10-30 19:07:55	step	D-GLASS-01..03	again on empty workspace 5, a wait first
+2026-10-30 19:08:45	end	D-GLASS-01..03	pass three materials seen; prism back
+2026-10-30 19:08:45	start	D-GLASS-04..07	bright and dark wallpapers on the glass; unfocused windows; rim
+2026-10-30 19:08:45	step	D-GLASS-04..07	bright picture by gsettings, frame with the calendar; dark picture, same; both screens; two windows of mine; first wallpaper back
+2026-10-30 19:10:03	end	D-GLASS-04..07	fail dock on a bright picture: grid dots unreadable; rest seen
+2026-10-30 19:10:03	start	D-COMFORT-01..04	reduce transparency, increase contrast, power saver, status
+2026-10-30 19:10:03	step	D-COMFORT-01..04	each on, a frame with the calendar, off, read back; profile through its D-Bus property
