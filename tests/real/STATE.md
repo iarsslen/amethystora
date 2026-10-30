@@ -8,7 +8,9 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 - Updated: 2026-10-30 14:50 EDT. Boot e68f5f3b, started 14:42:41, after a third hard hang in this log. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
-- The walk stopped with the hang at 14:37 (last marks 64d7211) and was resumed after it, from where it stopped.
+- The first 40 items of `10-desktop.md` from D-GRID-05 are walked (last marks fa85ddd, 14:49). Nothing is walking now. Next:
+  the items the walk left for a mouse or a person, then the rest of `10-desktop.md`, then 20, 30, 40. Left held: D-MENU-01, 02.
+- Driver: `$D click` never landed (RemoteDesktop); a large relative move stops at the current screen's edge, so home through the join.
 - One Terminal launcher, the maintainer's choice of 2026-10-30, is committed; it reaches this machine with an image.
 - Journal tails of each hang are kept on the machine, in `~/.local/state/amethystora/hangs`, not here: this repository is
   public and they hold personal data.
@@ -76,6 +78,7 @@ Needs an image past 587de45, or `/usr` overlay and a logout (the overlay is lost
 - D-SEARCH-21: with Glance off, Space on a file row closes the box and opens nothing.
 - `meta_window_set_stack_position_no_sync: assertion` about once a minute in the shell's log. Unexplained.
 - `gsd-media-keys` segfaults at session changes, in `_pa_context_get_card_info_by_index_cb`.
+- 14:37:10 to 14:37:29: a kitty launched every 4.6 s through the menu, with two screenshots a cycle, until the hang. The walk's history has no such loop. Unexplained.
 
 ## Decisions for the maintainer
 
