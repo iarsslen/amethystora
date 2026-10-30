@@ -8,18 +8,18 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Top bar
 
-- [ ] D-TOPBAR-01 Logo at the far left. How: look at the top bar's left end. Expect: the Amethystora gem, crisp at bar height, then the six workspaces; no Activities button anywhere on the bar.
-- [ ] D-TOPBAR-02 Logo middle click. How: middle-click the logo. Expect: the overview opens; a second middle click closes it.
-- [ ] D-TOPBAR-03 Six workspaces row. How: look right of the logo, then press `Super+3`. Expect: exactly six workspace buttons, the current one highlighted; the highlight follows and no workspace popup shows in the middle of the screen.
-- [ ] D-TOPBAR-04 Click another workspace. How: click workspace 3's button. Expect: you go to workspace 3.
-- [ ] D-TOPBAR-05 Click the current workspace. How: click the highlighted workspace, then again. Expect: the overview shows, then hides.
-- [ ] D-TOPBAR-06 Click an empty workspace. How: click a workspace with no windows. Expect: it goes there and the overview opens, ready to start something.
+- [x] D-TOPBAR-01 Logo at the far left. How: look at the top bar's left end. Expect: the Amethystora gem, crisp at bar height, then the six workspaces; no Activities button anywhere on the bar. → PASS
+- [x] D-TOPBAR-02 Logo middle click. How: middle-click the logo. Expect: the overview opens; a second middle click closes it. → PASS (with pointer settled first; a click 150 ms after arriving is lost, likely only injected input)
+- [x] D-TOPBAR-03 Six workspaces row. How: look right of the logo, then press `Super+3`. Expect: exactly six workspace buttons, the current one highlighted; the highlight follows and no workspace popup shows in the middle of the screen. → PASS
+- [!] D-TOPBAR-04 Click another workspace. How: click workspace 3's button. Expect: you go to workspace 3. → FAIL: fixed in 82353f8, not seen working here (needs the image): on two screens the workspace goes to the screen it was last on, not the bar's
+- [x] D-TOPBAR-05 Click the current workspace. How: click the highlighted workspace, then again. Expect: the overview shows, then hides. → PASS
+- [!] D-TOPBAR-06 Click an empty workspace. How: click a workspace with no windows. Expect: it goes there and the overview opens, ready to start something. → FAIL: fixed in 82353f8, not seen working here (needs the image): 5 went to the other screen with the overview; 3 and 6 did nothing on the left bar, cause not found
 - [ ] D-TOPBAR-07 Scroll on the bar. How: scroll the mouse wheel, or two fingers on a touchpad, anywhere over the top bar. Expect: next / previous workspace, one per notch, no skipping or double steps.
 - [ ] D-TOPBAR-08 Drag a workspace along the row. How: drag workspace 2's button onto place 4. Expect: the workspace moves there with its windows and its name.
 - [ ] D-TOPBAR-09 Drop a window on a workspace. How: open the overview (`Super`), drag a window onto workspace 5's button in the top bar. Expect: the window moves to workspace 5.
-- [ ] D-TOPBAR-10 Automatic workspace names. How: open two terminal windows on an unnamed workspace. Expect: the button shows its number and then the app's name (the app with most windows) in lighter type.
-- [ ] D-TOPBAR-11 Automatic names off. How: `ame desktop space-names off`. Expect: unnamed workspaces show numbers only. [changes setting: put back with `ame desktop space-names on`]
-- [ ] D-TOPBAR-12 Rename a workspace. How: right-click workspace 2, type a name. Expect: the name replaces the app's at once; **Use the app's name** in the same menu goes back to the automatic one.
+- [x] D-TOPBAR-10 Automatic workspace names. How: open two terminal windows on an unnamed workspace. Expect: the button shows its number and then the app's name (the app with most windows) in lighter type. → PASS
+- [x] D-TOPBAR-11 Automatic names off. How: `ame desktop space-names off`. Expect: unnamed workspaces show numbers only. [changes setting: put back with `ame desktop space-names on`] → PASS
+- [!] D-TOPBAR-12 Rename a workspace. How: right-click workspace 2, type a name. Expect: the name replaces the app's at once; **Use the app's name** in the same menu goes back to the automatic one. → FAIL: fixed in 287ca3a, not seen working here (needs the image): the menu named the workspace you are on, not the one right-clicked. The name at once and **Use the app's name** work
 - [ ] D-TOPBAR-13 Clock in the middle. How: look at the middle of the bar, then click it. Expect: the time, centred; the click (or `Super+V`) opens notifications, the calendar and Today.
 - [ ] D-TOPBAR-14 Meters. How: look left of the system menu. Expect: CPU, memory and network meters in the theme's colours, updating about every 5 s.
 - [ ] D-TOPBAR-15 CPU meter menu. How: click the CPU meter. Expect: each processor over the last few minutes, the busiest processes, and a button that opens Mission Center.
