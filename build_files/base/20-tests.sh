@@ -2558,6 +2558,11 @@ for style in ${STYLE_NAMES}; do
     radius="$(sed -n "s/^    ${style}: {bar: '\(pane\|pills\|solid\|bare\)', window: \([0-9]*\)},$/\2/p" "${STYLE_JS}")"
     [[ -n "${radius}" ]]
     [[ "${style}" == floating ]] && continue
+    # A quick settings tile with an arrow is one card: the rules that round every button would otherwise round both its parts
+    grep -q "^#uiGroup\.amethystora-style-${style} \.quick-toggle-has-menu[ ,]" /usr/share/amethystora/themed/shell-styles.css.tpl
+    [[ "${style}" == terminal ]] ||
+        grep -q "^#uiGroup\.amethystora-style-${style} \.quick-toggle-has-menu \.quick-toggle-menu-button:ltr" \
+            /usr/share/amethystora/themed/shell-styles.css.tpl
     shape="$(source /usr/lib/amethystora/theme/lib.sh && echo "${STYLE_SHAPE[${style}]}")"
     [[ " ${shape} " == *" window=${radius} "* ]]
 done

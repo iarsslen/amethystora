@@ -512,3 +512,51 @@
 #uiGroup.amethystora-style-neon .amethystora-quick-limit {
   border-radius: 8px;
 }
+
+/* A tile with an arrow is one card: its two parts are square where they meet and take the style's corners at its ends,
+   as far round as a tile without one. The style's rules above give either part all four corners, and they beat the
+   sided ones of stylesheets/quick.css. The card's own corners are the shield's ring. Terminal has no corners to give. */
+
+#uiGroup.amethystora-style-islands .quick-toggle-has-menu .quick-toggle:ltr,
+#uiGroup.amethystora-style-islands .quick-toggle-has-menu .quick-toggle-menu-button:rtl { border-radius: 12px 0 0 12px; }
+#uiGroup.amethystora-style-islands .quick-toggle-has-menu .quick-toggle:rtl,
+#uiGroup.amethystora-style-islands .quick-toggle-has-menu .quick-toggle-menu-button:ltr { border-radius: 0 12px 12px 0; }
+#uiGroup.amethystora-style-islands .quick-toggle-has-menu,
+#uiGroup.amethystora-style-islands .quick-toggle-has-menu .quick-toggle:last-child { border-radius: 12px; }
+
+#uiGroup.amethystora-style-hairline .quick-toggle-has-menu .quick-toggle:ltr,
+#uiGroup.amethystora-style-hairline .quick-toggle-has-menu .quick-toggle-menu-button:rtl { border-radius: 4px 0 0 4px; }
+#uiGroup.amethystora-style-hairline .quick-toggle-has-menu .quick-toggle:rtl,
+#uiGroup.amethystora-style-hairline .quick-toggle-has-menu .quick-toggle-menu-button:ltr { border-radius: 0 4px 4px 0; }
+#uiGroup.amethystora-style-hairline .quick-toggle-has-menu,
+#uiGroup.amethystora-style-hairline .quick-toggle-has-menu .quick-toggle:last-child { border-radius: 4px; }
+
+#uiGroup.amethystora-style-capsule .quick-toggle-has-menu .quick-toggle:ltr,
+#uiGroup.amethystora-style-capsule .quick-toggle-has-menu .quick-toggle-menu-button:rtl { border-radius: 999px 0 0 999px; }
+#uiGroup.amethystora-style-capsule .quick-toggle-has-menu .quick-toggle:rtl,
+#uiGroup.amethystora-style-capsule .quick-toggle-has-menu .quick-toggle-menu-button:ltr { border-radius: 0 999px 999px 0; }
+#uiGroup.amethystora-style-capsule .quick-toggle-has-menu,
+#uiGroup.amethystora-style-capsule .quick-toggle-has-menu .quick-toggle:last-child { border-radius: 999px; }
+
+#uiGroup.amethystora-style-terminal .quick-toggle-has-menu { border-radius: 0; }
+
+#uiGroup.amethystora-style-segments .quick-toggle-has-menu .quick-toggle:ltr,
+#uiGroup.amethystora-style-segments .quick-toggle-has-menu .quick-toggle-menu-button:rtl,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle:ltr,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle-menu-button:rtl { border-radius: 8px 0 0 8px; }
+#uiGroup.amethystora-style-segments .quick-toggle-has-menu .quick-toggle:rtl,
+#uiGroup.amethystora-style-segments .quick-toggle-has-menu .quick-toggle-menu-button:ltr,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle:rtl,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle-menu-button:ltr { border-radius: 0 8px 8px 0; }
+#uiGroup.amethystora-style-segments .quick-toggle-has-menu,
+#uiGroup.amethystora-style-segments .quick-toggle-has-menu .quick-toggle:last-child,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle:last-child { border-radius: 8px; }
+
+/* Neon's glow is the card's too, or the part under it would glow onto the arrow */
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu:checked { box-shadow: 0 0 10px rgba({{ accent_rgb }}, 0.6); }
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle:checked { box-shadow: none; }
+
+/* A glow would show through a tile that is not filled, so a tile with the keyboard has the ring every other style has */
+#uiGroup.amethystora-style-neon .quick-toggle:focus,
+#uiGroup.amethystora-style-neon .quick-toggle-has-menu .quick-toggle:focus { box-shadow: inset 0 0 0 2px rgba({{ foreground_rgb }}, 0.75); }
