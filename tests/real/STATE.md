@@ -51,6 +51,13 @@ Inferred:
   90 s of the other five hangs have no USB disconnect and no evdi teardown. Mid-session teardowns on 7.2.10 and 7.2.11 were
   survived too, so this alone does not separate the kernels.
 - Inferred: GNOME Shell's change of the screens, about 3 s after the unplug, comes right before the end. Not shown.
+- 15:32, in the maintainer's words: "while you were testing the desktop froze for minutes, nothing responded, that forced me
+  to unplug the dell, which had the other screen on it", and the unplug "shutdown" the machine although it was on its power
+  supply, until the power was pulled. Seen: the journal ends 15:32:16 at 1 s sync, the walk's last screenshot 15:31:56, no USB
+  disconnect logged for the Dell. Inferred: nothing was logging by the unplug, so the machine was already stopped and the
+  unplug did not cause the freeze; no hotplug came before it.
+- AMD's reset reason (`x86/amd: Previous system reset reason`), read at boot: printed for the clean restarts, and absent at
+  each of the seven boots after a hang since 09:46. Meaning not settled.
 - Leading idea: kernel 7.2.13, or something else in the image of 2026-10-30. Seen: all 19 boots from 2026-10-15 to 10-27
   (kernels 7.2.5 to 7.2.11) ended with a clean shutdown, several through MST link drops, `Failed to get ACT` and page flip
   failures (boots of 10-23, 10-26, 10-27). Of the boots on 7.2.13, one ended clean (the first, 5 minutes) and five hung.
