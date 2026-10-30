@@ -948,3 +948,9 @@
 2026-10-30 19:26:00	end	D-BAZAAR-01	pass menu seen
 2026-10-30 19:26:00	start	D-BAZAAR-03	x
 2026-10-30 19:26:00	end	D-BAZAAR-03	pass no Uninstall
+2026-10-30 19:26:13	start	D-KEYS-03..08	Files, home, Mission Center, run box, Manual, quick note, Control keys, a frame each
+2026-10-30 19:26:13	step	D-KEYS-03..08	each key on empty workspace 5, frame, close by Super+W only when the focused window is that app
+2026-10-30 19:27:05	step	D-KEYS-03..08	on workspace 6: Super+F1 again; Alt+F2, frame
+2026-10-30 19:27:31	step	D-KEYS-03..08	kitty from the run box; quick note key, frame
+2026-10-30 19:27:58	step	D-KEYS-03..08	Super+D frame and back; Print frame; recording twice, my file removed
+2026-10-30 19:28:42	end	D-KEYS-03..08	pass keys opened their windows; 13 opens the UI, not a recording

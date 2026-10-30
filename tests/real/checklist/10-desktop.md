@@ -729,17 +729,17 @@ Check each against `/usr/share/amethystora/keybindings.md` (`ame desktop keybind
 
 - [ ] D-KEYS-01 Keybindings list. How: `ame desktop keybindings`; Super+Alt+Space › Keybindings. Expect: the hotkeys page in the terminal.
 - [ ] D-KEYS-02 Super+Shift+B. How: press it. Expect: the browser (Firefox) opens.
-- [ ] D-KEYS-03 Super+Shift+F and Super+E. How: press each. Expect: a Files window; the home folder.
-- [ ] D-KEYS-04 Ctrl+Shift+Esc. How: press it. Expect: Mission Center.
-- [ ] D-KEYS-05 Alt+F2. How: press it, type `kitty`, Enter. Expect: GNOME's run-a-command box runs it.
-- [ ] D-KEYS-06 Super+F1. How: press it. Expect: the Manual.
-- [ ] D-KEYS-07 Super+Alt+N. How: press it. Expect: a quick note into Notes' inbox.
-- [ ] D-KEYS-08 Super+Ctrl+Shift+C. How: press it. Expect: Control.
+- [x] D-KEYS-03 Super+Shift+F and Super+E. How: press each. Expect: a Files window; the home folder. → PASS: Super+Shift+F and Super+E: each a Files window on the home folder (both Home here; Files' first window is its home). Faults: none
+- [x] D-KEYS-04 Ctrl+Shift+Esc. How: press it. Expect: Mission Center. → PASS: Ctrl+Shift+Esc: Mission Center
+- [x] D-KEYS-05 Alt+F2. How: press it, type `kitty`, Enter. Expect: GNOME's run-a-command box runs it. → PASS: Alt+F2: Run a Command; kitty, Enter: a kitty; closed by its process
+- [x] D-KEYS-06 Super+F1. How: press it. Expect: the Manual. → PASS: Super+F1: the Manual came forward, on a page another track had open
+- [x] D-KEYS-07 Super+Alt+N. How: press it. Expect: a quick note into Notes' inbox. → PASS: Super+Alt+N: a Quick note box, saves to Notes, Inbox; Esc closed it, nothing typed. Under an input session it is covered (Hidden while you share), as designed
+- [x] D-KEYS-08 Super+Ctrl+Shift+C. How: press it. Expect: Control. → PASS: Super+Ctrl+Shift+C: Control on Appearance
 - [ ] D-KEYS-09 Super+L and Super+D. How: press each. Expect: locks the screen; shows the desktop.
 - [ ] D-KEYS-10 Super+Shift+Space. How: with two keyboard layouts, press it. Expect: next layout. [needs: two input sources]
 - [ ] D-KEYS-11 Super+Shift+V. How: press it. Expect: the clipboard history menu.
-- [ ] D-KEYS-12 Print. How: press it. Expect: GNOME's screenshot bar with Amethystora's tools.
-- [ ] D-KEYS-13 Ctrl+Shift+Alt+R. How: press it twice. Expect: a screen recording starts and stops.
+- [x] D-KEYS-12 Print. How: press it. Expect: GNOME's screenshot bar with Amethystora's tools. → PASS: Print: GNOME's screenshot UI with the row of drawing tools; Escape, nothing captured, clipboard untouched
+- [!] D-KEYS-13 Ctrl+Shift+Alt+R. How: press it twice. Expect: a screen recording starts and stops. → FAIL: Ctrl+Shift+Alt+R opens the screen-recording UI (selection, red button) and a second press leaves it open: no recording starts or stops, no file. Maybe the Expect's words, for the maintainer
 - [ ] D-KEYS-14 Super+Escape. How: in a VM window that grabbed the keyboard. Expect: the keyboard comes back.
 - [ ] D-KEYS-15 Conflicts. How: in Settings › Keyboard › shortcuts, look for duplicates of the keys above. Expect: none of the image's keys is bound twice; `Super+Alt+R` and `Super+Alt+S` are not taken by the ruler or read aloud.
 - [ ] D-KEYS-16 Amethystora apps' zoom and reload. How: in Control press `Ctrl+=`, `Ctrl+-`, `Ctrl+0`, `Ctrl+R` / `F5`. Expect: everything in the window grows, shrinks, resets; it reads again.
