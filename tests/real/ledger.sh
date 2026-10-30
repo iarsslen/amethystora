@@ -11,7 +11,8 @@
 set -uo pipefail
 
 DIR="${HOME}/.local/state/amethystora/walk"
-LEDGER="${DIR}/ledger.tsv"
+# A track that runs beside the walk and never touches the screen keeps its own: WALK_TRACK=terminal
+LEDGER="${DIR}/ledger${WALK_TRACK:+-${WALK_TRACK}}.tsv"
 BEATS="${DIR}/beats.tsv"
 mkdir -p "${DIR}"
 
@@ -64,6 +65,9 @@ hang)
     tail -n 12 "${LEDGER}"
     echo "--- last heartbeats"
     tail -n 6 "${BEATS}" 2>/dev/null
+    for other in "${DIR}"/ledger-*.tsv; do
+        [[ -e "${other}" ]] && echo "--- ${other##*/}" && tail -n 5 "${other}"
+    done
     echo "--- first time the shell stopped answering, in the last run of them"
     awk -F'\t' '$2 == "ok" { first = "" } $2 != "ok" && first == "" { first = $0 } END { print first }' "${BEATS}" 2>/dev/null
     ;;
