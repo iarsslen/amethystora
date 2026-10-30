@@ -471,11 +471,11 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Force quit and not responding
 
-- [ ] D-QUIT-01 Force quit list. How: `Super+Ctrl+Shift+Escape`. Expect: running apps with processor and memory each uses (counting what it started); one not responding first, marked **Not responding**.
+- [x] D-QUIT-01 Force quit list. How: `Super+Ctrl+Shift+Escape`. Expect: running apps with processor and memory each uses (counting what it started); one not responding first, marked **Not responding**. → PASS in part: Super+Ctrl+Shift+Escape: Quit an app, running apps each with memory, Cancel and Force quit named for the selected one; the CPU column reads … in the frame 1.5 s after opening, so processor use not seen; one not responding first not tried. Escape closes it. Faults: none
 - [ ] D-QUIT-02 Force quit an app. How: pick an app, **Force quit**. Expect: the card asks once more, naming it; then only that app ends. [risky: unsaved work in that app is lost]
-- [ ] D-QUIT-03 Force quit off. How: `ame desktop force-quit off`. Expect: the key does nothing. [changes setting: put back with `ame desktop force-quit on`]
-- [ ] D-QUIT-04 Not-responding dialog. How: freeze an app (`kill -STOP PID` of a GTK app, then click into it). Expect: a dialog over its window, in the image's look, with **Wait** first (`Esc` and `Enter` wait) and **Force quit**; with the agentic features on, **Ask the agent why**. Then `kill -CONT PID`.
-- [ ] D-QUIT-05 GNOME's own dialog. How: `ame desktop frozen-dialog off`, repeat. Expect: GNOME's own question. [changes setting: put back with `ame desktop frozen-dialog on`]
+- [x] D-QUIT-03 Force quit off. How: `ame desktop force-quit off`. Expect: the key does nothing. [changes setting: put back with `ame desktop force-quit on`] → PASS: ame desktop force-quit off empties the key, the keys bring up nothing (frame); on, read back. Faults: none
+- [x] D-QUIT-04 Not-responding dialog. How: freeze an app (`kill -STOP PID` of a GTK app, then click into it). Expect: a dialog over its window, in the image's look, with **Wait** first (`Esc` and `Enter` wait) and **Force quit**; with the agentic features on, **Ask the agent why**. Then `kill -CONT PID`. → PASS: my Calculator stopped with kill -STOP (its own process, not its sandbox wrapper), a click into it: after Mutter's 20 s, the dialog over its window in the image's look, Wait first, Force quit, Ask the agent why (not pressed); Escape waits. Enter not tried. Continued. Faults: none
+- [x] D-QUIT-05 GNOME's own dialog. How: `ame desktop frozen-dialog off`, repeat. Expect: GNOME's own question. [changes setting: put back with `ame desktop frozen-dialog on`] → PASS: ame desktop frozen-dialog off, repeat: GNOME's own 'Calculator is not responding'; on, read back; my Calculator continued and ended. Faults: none
 
 ## Motion
 

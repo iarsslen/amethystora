@@ -701,3 +701,11 @@
 2026-10-30 18:29:37	end		pass closed
 2026-10-30 18:29:37	start	D-WIN-12	virtual machine window
 2026-10-30 18:29:37	end	D-WIN-12	skip no virtual machine window open on this machine
+2026-10-30 18:29:39	start	D-QUIT-01..03	group: force quit list, Escape; off; on
+2026-10-30 18:29:39	step	D-QUIT-01..03	Calculator of mine; the list, frame, Escape only if it shows; off, key, frame; on
+2026-10-30 18:30:00	end	D-QUIT-01..03	pass list with memory, off nothing, on again
+2026-10-30 18:30:00	start	D-QUIT-04	stop my Calculator, click into it, frame the dialog; Wait; continue
+2026-10-30 18:30:01	step	D-QUIT-04	kill -STOP my Calculator, click into it, wait 8 s, frame
+2026-10-30 18:30:56	step	D-QUIT-04	stopped the right process; click the editor, then the Calculator, wait 12 s, frame
+2026-10-30 18:31:20	step	D-QUIT-04	Escape, frame; frozen dialog off; click editor and Calculator; wait up to 22 s, frame
+2026-10-30 18:32:01	end	D-QUIT-04	pass dialog, wait, GNOME's own, continued, put back
