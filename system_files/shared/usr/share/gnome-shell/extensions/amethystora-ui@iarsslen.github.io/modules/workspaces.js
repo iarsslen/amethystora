@@ -148,13 +148,13 @@ class WorkspaceLabel extends St.BoxLayout {
 
         // A second right click closes the menu again
         const menu = new Clutter.ClickGesture({required_button: Clutter.BUTTON_SECONDARY, recognize_on_press: true});
-        menu.connect('recognize', () => row.toggleMenu());
+        menu.connect('recognize', () => row.toggleMenu(this.index));
         this.add_action(menu);
 
         // A finger only: a mouse button held still is the start of a click or a drag
         const hold = new Clutter.LongPressGesture({long_press_duration_ms: LONG_PRESS_MS});
         hold.connect('should-handle-sequence', (gesture, event) => event.type() === Clutter.EventType.TOUCH_BEGIN);
-        hold.connect('recognize', () => row.openMenu(true));
+        hold.connect('recognize', () => row.openMenu(true, this.index));
         this.add_action(hold);
 
         this._draggable = DND.makeDraggable(this);
@@ -666,7 +666,9 @@ export class Workspaces {
         this._menu.connect('open-state-changed', (menu, open) => {
             if (open) {
                 this._row?.add_style_pseudo_class('active');
-                const index = global.workspace_manager.get_active_workspace_index();
+                // The label it was opened on, or the workspace you are on when opened from elsewhere
+                const index = this._menuIndex ?? global.workspace_manager.get_active_workspace_index();
+                this._menuIndex = null;
                 const name = this._prefs.get_strv(NAMES)[index] ?? '';
                 this._renaming = {index, name};
                 this._entry.text = name;
@@ -687,7 +689,8 @@ export class Workspaces {
     }
 
     // touch: a finger opened it
-    openMenu(touch = false) {
+    openMenu(touch = false, index = null) {
+        this._menuIndex = index;
         this._byTouch = touch;
         this._menu?.open(BoxPointer.PopupAnimation.FULL);
     }
@@ -818,11 +821,11 @@ export class Workspaces {
         this._checkAccent(index);
     }
 
-    toggleMenu() {
+    toggleMenu(index = null) {
         if (this._menu?.isOpen)
             this._menu.close(BoxPointer.PopupAnimation.FULL);
         else
-            this.openMenu();
+            this.openMenu(false, index);
     }
 
     // However the menu closes, what the field then says is the name of the workspace it was opened on
