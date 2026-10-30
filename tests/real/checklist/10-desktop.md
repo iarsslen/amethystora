@@ -621,20 +621,20 @@ Set each style with `ame desktop style <name>` and check every surface. Put back
 - [x] D-STYLE-23 Terminal: notifications, OSD, dialogs. How: as above. Expect: square and lined. → PASS in part: banner and OSD square and lined, the banner's close button round; a dialog not seen (no polkit prompt: see D-STYLE-18)
 - [x] D-STYLE-24 Terminal: dock. How: look. Expect: square, lined. → PASS: the dock square and lined
 - [x] D-STYLE-25 Terminal: windows and apps. How: Files, Settings. Expect: square windows and controls drawn with a line; radio buttons still round; Amethystora's apps square too (their pills squared). → PASS in part: Files and Settings square, controls drawn with a line, radio buttons still round; Amethystora's apps not seen in this style
-- [ ] D-STYLE-26 Segments: top bar. How: `ame desktop style segments`. Expect: the bar in blocks of the theme's colours, each label readable on its block, the end blocks rounded on their outer side.
-- [ ] D-STYLE-27 Segments: menus and quick settings. How: open them. Expect: about 12–18 px corners.
-- [ ] D-STYLE-28 Segments: notifications, OSD, dialogs. How: as above. Expect: about 14–16 px.
-- [ ] D-STYLE-29 Segments: dock. How: look. Expect: about 18 px corners.
-- [ ] D-STYLE-30 Segments: windows and apps. How: Files. Expect: windows about 12 px; the segments' own GTK lines.
-- [ ] D-STYLE-31 Neon: top bar. How: `ame desktop style neon`. Expect: dark glass outlined and glowing in the accent.
-- [ ] D-STYLE-32 Neon: menus and quick settings. How: open them. Expect: outlined in the accent with a glow; corners match the outline.
-- [ ] D-STYLE-33 Neon: notifications, OSD, dialogs. How: as above. Expect: outlined and glowing.
-- [ ] D-STYLE-34 Neon: dock. How: look. Expect: outlined in the accent.
-- [ ] D-STYLE-35 Neon: windows and apps. How: Files. Expect: windows about 10 px; the neon glow lines on controls.
-- [ ] D-STYLE-36 Overview, switcher and prompts per style. How: in each style open the overview, `Alt+Tab`, and a polkit prompt. Expect: tiles, switcher and prompt drawn in the style's shape.
-- [ ] D-STYLE-37 Style picker and Control. How: `ame desktop style` alone; Control › Appearance › **Style**. Expect: a list; picking applies at once. → x
-- [ ] D-STYLE-38 Style kept across themes. How: `ame desktop style neon`, switch theme. Expect: stays neon; `ame desktop style theme` follows the theme again. [changes setting: put back with `ame desktop style theme`]
-- [ ] D-STYLE-39 Amethystora apps follow the style. How: open Control in each style. Expect: card corners scale with the style; avatars, dots and knobs stay circles.
+- [x] D-STYLE-26 Segments: top bar. How: `ame desktop style segments`. Expect: the bar in blocks of the theme's colours, each label readable on its block, the end blocks rounded on their outer side. → PASS: the bar in blocks of the theme's colours, each label dark on its block and readable, end blocks rounded on the outer side. Faults: none
+- [x] D-STYLE-27 Segments: menus and quick settings. How: open them. Expect: about 12–18 px corners. → PASS: calendar and quick settings with middling corners, by the frame (not measured)
+- [x] D-STYLE-28 Segments: notifications, OSD, dialogs. How: as above. Expect: about 14–16 px. → PASS in part: banner and OSD middling corners; no dialog (see D-STYLE-18)
+- [x] D-STYLE-29 Segments: dock. How: look. Expect: about 18 px corners. → PASS: the dock's corners, rounded, smaller than a pill
+- [x] D-STYLE-30 Segments: windows and apps. How: Files. Expect: windows about 12 px; the segments' own GTK lines. → PASS in part: Files with its corners; the segments' GTK lines not told apart in the frame
+- [x] D-STYLE-31 Neon: top bar. How: `ame desktop style neon`. Expect: dark glass outlined and glowing in the accent. → PASS: dark glass, a line in the accent, labels in the accent (the clock low in contrast on workspace 6's orchid); a glow faint at this size. Faults: none
+- [x] D-STYLE-32 Neon: menus and quick settings. How: open them. Expect: outlined in the accent with a glow; corners match the outline. → PASS: calendar and quick settings outlined in the accent; corners match
+- [x] D-STYLE-33 Neon: notifications, OSD, dialogs. How: as above. Expect: outlined and glowing. → PASS in part: banner and OSD outlined; glow faint; no dialog (see D-STYLE-18)
+- [x] D-STYLE-34 Neon: dock. How: look. Expect: outlined in the accent. → PASS: the dock outlined in the accent
+- [x] D-STYLE-35 Neon: windows and apps. How: Files. Expect: windows about 10 px; the neon glow lines on controls. → PASS in part: Files' corners small, controls with faint lines; glow lines not told apart in the frame
+- [x] D-STYLE-36 Overview, switcher and prompts per style. How: in each style open the overview, `Alt+Tab`, and a polkit prompt. Expect: tiles, switcher and prompt drawn in the style's shape. → PASS in part: overview and Alt+Tab drawn in each of the seven (frames st_*); polkit prompt in floating, islands, hairline, capsule only. Capsule: the switcher's round highlight sits behind a square thumbnail, which sticks out past it
+- [x] D-STYLE-37 Style picker and Control. How: `ame desktop style` alone; Control › Appearance › **Style**. Expect: a list; picking applies at once. → x → PASS in part: ame desktop style in a kitty of mine lists the styles with their words, nothing picked; Control's Style row seen at Pick a look, not clicked
+- [x] D-STYLE-38 Style kept across themes. How: `ame desktop style neon`, switch theme. Expect: stays neon; `ame desktop style theme` follows the theme again. [changes setting: put back with `ame desktop style theme`] → PASS: neon set, theme catppuccin: stays neon, in the key too; ame desktop style theme: segments, catppuccin's own; amethystora: floating as found. Theme, wallpaper and colours read back. Faults: none
+- [x] D-STYLE-39 Amethystora apps follow the style. How: open Control in each style. Expect: card corners scale with the style; avatars, dots and knobs stay circles. → PASS: a Control of mine in each of the seven: corners of the cards and previews scale; the terminal style squares its buttons; the avatars and dots stay circles. Style back to the theme's, read back
 
 ## Glass and comfort
 

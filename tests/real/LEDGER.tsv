@@ -859,3 +859,10 @@
 2026-10-30 19:03:24	end	D-STYLE-21..25	fail terminal seen: Shield tile and Focus choices stay rounded
 2026-10-30 19:03:24	start	D-STYLE-26..30	segments
 2026-10-30 19:03:24	step	D-STYLE-26..30	style segments; same run, no polkit prompt
+2026-10-30 19:04:09	end	D-STYLE-26..30	pass segments seen
+2026-10-30 19:04:09	start	D-STYLE-31..35	neon
+2026-10-30 19:04:09	step	D-STYLE-31..35	style neon; same run, no polkit prompt
+2026-10-30 19:05:13	end	D-STYLE-31..35	pass neon seen; 36 in part; 37 in part
+2026-10-30 19:05:13	start	D-STYLE-38..39	style kept across themes; Control in each style
+2026-10-30 19:05:13	step	D-STYLE-38..39	neon, catppuccin theme, read; style theme, read; amethystora; Control open by me, a frame per style; style theme, close
+2026-10-30 19:07:06	end	D-STYLE-38..39	pass style kept; Control follows
