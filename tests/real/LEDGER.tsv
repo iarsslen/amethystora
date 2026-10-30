@@ -1,3 +1,39 @@
 2026-10-30 16:03:28	start	LEDGER-CHECK	the ledger itself
 2026-10-30 16:03:28	step	LEDGER-CHECK	a step
 2026-10-30 16:03:28	end	LEDGER-CHECK	pass works
+2026-10-30 16:04:55	start	WALK-SETUP	the first screenshot, to see how many screens and what is open
+2026-10-30 16:04:55	step	WALK-SETUP	one screenshot of the whole desktop
+2026-10-30 16:05:09	end	WALK-SETUP	pass one screen of 2560x1440, heartbeat ok
+2026-10-30 16:05:12	start	D-TOPBAR-08	drag a workspace button along the row and back
+2026-10-30 16:05:12	step	D-TOPBAR-08	pointer home, then click workspace 2 button in the top bar
+2026-10-30 16:05:14	step	D-TOPBAR-08	launch a scratch Text Editor on workspace 2
+2026-10-30 16:05:18	step	D-TOPBAR-08	one screenshot of workspace 2
+2026-10-30 16:05:28	step	D-TOPBAR-08	seen: editor opened on workspace 1, beside the terminal; next move it to workspace 2 with the shortcut, guarded
+2026-10-30 16:05:31	step	D-TOPBAR-08	pointer home
+2026-10-30 16:05:32	step	D-TOPBAR-08	click workspace 2 button
+2026-10-30 16:05:35	step	D-TOPBAR-08	one screenshot of workspace 2
+2026-10-30 16:05:42	step	D-TOPBAR-08	click on the current workspace button opened the overview; Escape closes it
+2026-10-30 16:05:44	step	D-TOPBAR-08	pointer home, drag workspace 2 button to place 4
+2026-10-30 16:05:48	step	D-TOPBAR-08	one screenshot of the row
+2026-10-30 16:06:05	step	D-TOPBAR-08	second drag of workspace 2 button, slower, with one screenshot held in the middle
+2026-10-30 16:06:31	step	D-TOPBAR-08	third drag, further: the label's left edge past place 3, as the code reads it
+2026-10-30 16:07:24	step	D-TOPBAR-08	last drag, to the far end of the row, one screenshot held before release and one right after
+2026-10-30 16:07:51	end	D-TOPBAR-08	fail the label lifts and follows the pointer but the gap never moves and it flies home on release, four tries
+2026-10-30 16:08:04	start	D-TOPBAR-09	drag the scratch editor in the overview onto workspace 5 button
+2026-10-30 16:08:04	step	D-TOPBAR-09	Super opens the overview
+2026-10-30 16:08:06	step	D-TOPBAR-09	pointer home, press on the editor's window
+2026-10-30 16:08:12	step	D-TOPBAR-09	one screenshot held over workspace 5 button
+2026-10-30 16:08:14	step	D-TOPBAR-09	one screenshot after the drop
+2026-10-30 16:08:32	step	D-TOPBAR-09	second drag of the window, small even steps, one screenshot held over the button
+2026-10-30 16:08:41	step	D-TOPBAR-09	one screenshot after the drop
+2026-10-30 16:09:13	step	D-TOPBAR-09	third drag of the window, ending below the sharing glow's strip at the bar's top
+2026-10-30 16:09:22	step	D-TOPBAR-09	one screenshot after the drop
+2026-10-30 16:09:44	step	D-TOPBAR-09	setting: pill glow off for one drag, since the glow may block the drop
+2026-10-30 16:09:54	step	D-TOPBAR-09	setting: pill glow back on; one screenshot after the drop
+2026-10-30 16:10:13	end	D-TOPBAR-09	pass with the pill glow off the window moves to 5 and the button says so; with the glow on, three drops refused, see the note
+2026-10-30 16:10:18	start	D-TOPBAR-08	again, with the glow off: drag the workspace with the editor back to place 2
+2026-10-30 16:10:18	step	D-TOPBAR-08	Escape closes the overview
+2026-10-30 16:10:20	step	D-TOPBAR-08	setting: pill glow off for one drag
+2026-10-30 16:10:21	step	D-TOPBAR-08	drag the button at place 5 to place 2
+2026-10-30 16:10:26	step	D-TOPBAR-08	setting: pill glow back on; one screenshot of the row
+2026-10-30 16:10:47	end	D-TOPBAR-08	pass with the glow off the workspace moved to the place dropped on, with its window and label
