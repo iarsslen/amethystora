@@ -203,7 +203,9 @@ impl App for Notes {
         if self.hidden.replace(false) {
             self.render();
         }
-        if let (Some(page), "open") = (page, self.ui.borrow().status) {
+        // Read first: a borrow in the `if let` itself would last through set_mode, which writes to the same state
+        let status = self.ui.borrow().status;
+        if let (Some(page), "open") = (page, status) {
             self.set_mode(page);
         }
     }

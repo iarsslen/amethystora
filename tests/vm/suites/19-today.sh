@@ -182,6 +182,11 @@ ev "Main.panel.statusArea.dateMenu.menu.open(); 1" >/dev/null
 titles() { ev "${T}.taskTitles().join('|')"; }
 has_titles() { [[ -n "$(titles)" ]]; }
 no_titles() { [[ -z "$(titles)" ]]; }
+# A row opens the tasks through the Notes that is open: it must take that without aborting (the real machine, 2026-10-30)
+before_page="$(notes_pids)"
+notes_start tasks
+sleep 3
+check "a launch asking the open Notes for its tasks leaves it running" test "$(notes_pids)" == "${before_page}"
 wait_for 10 has_titles
 check "the calendar lists the overdue task, then today's" test "$(titles)" == "Call the <b>bakery</b>|Water the plants"
 check "...each title as its own text, never markup" ev_is \
