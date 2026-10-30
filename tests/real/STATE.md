@@ -38,9 +38,8 @@ Seen:
 Inferred:
 - The kernel itself stopped: SysRq is handled in the kernel, and a powerless keyboard suggests the USB controller went too.
   Not GNOME Shell, and not a daemon. DisplayLink's service is not required for it, since it was stopped; its driver was loaded.
-- Leading idea, not proven: a display hotplug hangs the machine (a KVM switch or a dock replug drops and re-trains the link).
-  The 14:37 hang came with one, and the 13:05 hang appeared across a break. Not yet asked: whether the KVM was switched
-  around 09:45, 10:21 and 13:05. Earlier amdgpu display warnings are in the same area (10:18 DSC, 12:13 ACT, 14:08 REG_WAIT).
+- Leading idea: a display hotplug hangs the machine (a KVM switch or a dock replug drops and re-trains the link). The
+  maintainer says the KVM was switched before each of the freezes (told 2026-10-30). Not reproduced on purpose yet. Earlier amdgpu display warnings are in the same area (10:18 DSC, 12:13 ACT, 14:08 REG_WAIT).
 - The whole machine rather than GNOME Shell, since the console switch failed.
 - The journal then synced only every 5 minutes, so up to 5 minutes before each end may be missing: the last lines
   (a graphical program starting, in three of the four) are not firm evidence.
