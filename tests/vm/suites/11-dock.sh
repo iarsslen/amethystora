@@ -212,6 +212,9 @@ no_overlap="$(ev "(() => { const it = items(); for (let i = 1; i < it.length; i+
 check "no two items overlap while swollen" test "${no_overlap}" == none
 pill="$(ev "(() => { const d = ${S}.docks[0]; const it = d.items; const T = it[it.length - 1].rest.x + it[it.length - 1].rest.width - it[0].rest.x; const P = d.pill.width - T; const swollen = it.reduce((a, i) => a + i.rest.width * i.scale, 0) + d.gaps.reduce((a, g) => a + g, 0); return [(swollen + P) / (T + P), d.pill.scaleLong].join(' '); })()")"
 check "the pill lengthens with the row" near "${pill% *}" "${pill#* }" 0.005
+# An item gone since the row was measured still counts, or the pill stays one item short when the row comes to rest
+gone="$(ev "(() => { const d = ${DOCK}.docks[0].dash; const it = d.swell.items[0]; const was = d.pill.scale_x; it.actor._amethystoraGone = true; d.swell._write(); const now = d.pill.scale_x; it.actor._amethystoraGone = false; d.swell._write(); return [was, now].join(' '); })()")"
+check "an item gone in the last frame leaves the pill's length alone" near "${gone% *}" "${gone#* }" 0.005
 tex="$(ev "${S}.docks[0].items.filter(i => i.kind === 'app')[4].iconTexture")"
 check "the icon is drawn at the size it grows to (77 px)" test "${tex}" == 77
 apps_at 4 32

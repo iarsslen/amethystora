@@ -363,11 +363,14 @@ export class Swell {
         let swollen = 0;
         const changed = [];
         this._items.forEach(item => {
+            const {scale, along, away: lift} = item.shown;
+            // An item gone since the row was measured still counts: the row's length was measured with it, and a
+            // pill worked out without it would stay one item short once the row is still
+            swollen += item.len * scale;
             if (item.actor._amethystoraGone) {
                 this._stale = true;
                 return;
             }
-            const {scale, along, away: lift} = item.shown;
             // Only what moved since the last frame is written: a property set costs more than the sum
             const last = item.written;
             if (item.actor?._amethystoraBusy) {
@@ -377,7 +380,6 @@ export class Swell {
                 item.written = {scale, along, away: lift};
                 changed.push(item);
             }
-            swollen += item.len * scale;
             if (scale !== 1 || along !== 0 || lift !== 0)
                 away = true;
         });

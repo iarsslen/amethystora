@@ -89,6 +89,8 @@ Needs an image past 587de45, or `/usr` overlay and a logout (the overlay is lost
 - `ame desktop daylight on`, when the image has 3886e3d.
 - The search crash fix, 376d1b0, was seen working here at 12:34 through an overlay that a restart then discarded.
 
+- The dock's short pill: fixed on this machine through the overlay until the next restart (see the commit), not in any image.
+
 ## Open, not fixed
 
 - D-GRID-02: a **No results** label stays over the app grid. Cause not found; not checked on a fresh login.
