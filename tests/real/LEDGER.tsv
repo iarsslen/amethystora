@@ -139,3 +139,10 @@
 2026-10-30 16:38:05	step	NOTES-FIX-TEST	new: ask the open Notes for its tasks page
 2026-10-30 16:38:08	step	NOTES-FIX-TEST	new: close it
 2026-10-30 16:38:22	end	NOTES-FIX-TEST	pass old build aborts as at 16:33, fixed build stays up, scratch data removed
+2026-10-30 16:39:13	start	D-PILL-02	start a one minute timer from the calendar menu, use its card, let it end
+2026-10-30 16:39:13	step	D-PILL-02	one screenshot to confirm workspace 3 is empty, before any input
+2026-10-30 16:39:14	step	D-PILL-02	input session, right click the clock for the calendar, wheel down in its column, one screenshot
+2026-10-30 16:39:29	step	D-PILL-02	click 1 min under Start a timer, then one screenshot of the bar
+2026-10-30 16:40:07	step	D-PILL-02	seen: clock on the bar reads 16:36 at 16:39, dock short, JS errors of the transitions at 16:36; one screenshot to look again
+2026-10-30 16:40:50	step	D-PILL-02	seen: the screen shows a stuck picture since 16:36:28, the transitions' _reveal throws (this image's field shadows the method, fixed in da7bf83, not in the image); menus draw over it, the heartbeat stays ok
+2026-10-30 16:40:50	end	D-PILL-02	stopped stuck picture from 16:36:28, before this item began; the timer started at 16:39 was not seen on the bar and may ring; nothing marked
