@@ -317,7 +317,7 @@ check "S8 ...and back, it is itself again" wait_for 5 shelf_lacks "moved or dele
 read -r wx wy ww wh <<<"$(win_box)"
 click $((wx + ww / 2)) $((wy + 10 + 22))
 sleep 1
-if user_bus python3 "${HERE}/atspi.py" amethystora-shelf find Remove >/dev/null 2>&1; then
+if user_bus python3 "${HERE}/atspi.py" amethystora-shelf has Remove >/dev/null 2>&1; then
     not_ok "S9 a left click on an item opens no menu"
 else
     ok "S9 a left click on an item opens no menu"
