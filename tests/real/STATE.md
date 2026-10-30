@@ -5,6 +5,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 
 ## Now
 
+- Track 1 (desktop walker), 15:31 EDT: RemoteDesktop input, in `TRACKS.md`'s order, next D-TOPBAR-08. Pointer clicks land now (`NotifyPointerButton` with a pause between press and release). Left screen on an empty workspace, not 1.
 - Updated: 2026-10-30 15:08 EDT. Boot e04b5405, started 15:01:44, after the hard hang at 14:57. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
@@ -93,6 +94,7 @@ Needs an image past 587de45, or `/usr` overlay and a logout (the overlay is lost
 
 ## Open, not fixed
 
+- 15:28:32: `run-user-1000-doc.mount` deactivated with `xdg-document-portal` still running, so every Flatpak launched after it died at `bwrap: Can't find source path /run/user/1000/doc/by-app/...` with no window. `systemctl --user restart xdg-document-portal` brought it back. Who or what unmounted it not found; two other sessions were running.
 - D-GRID-02: a **No results** label stays over the app grid. Cause not found; not checked on a fresh login.
 - D-SEARCH-21: with Glance off, Space on a file row closes the box and opens nothing.
 - `meta_window_set_stack_position_no_sync: assertion` about once a minute in the shell's log. Unexplained.
