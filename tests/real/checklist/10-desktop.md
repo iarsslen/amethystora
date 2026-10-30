@@ -315,19 +315,19 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Pointer
 
-- [ ] D-POINTER-01 Shake to grow. How: shake the mouse first (it is off by default: nothing happens), then `ame desktop pointer-shake grow` and shake quickly. Expect: the pointer swells to about three and a half times while you shake, then back. [changes setting: put back with `ame desktop pointer-shake off`]
-- [ ] D-POINTER-02 Beacon. How: `ame desktop pointer-shake beacon`, shake. Expect: the pointer grows a little and rings go out from it. [changes setting: put back with `ame desktop pointer-shake off`]
-- [ ] D-POINTER-03 Shake off. How: `ame desktop pointer-shake off`. Expect: nothing on shaking; this is the default.
+- [x] D-POINTER-01 Shake to grow. How: shake the mouse first (it is off by default: nothing happens), then `ame desktop pointer-shake grow` and shake quickly. Expect: the pointer swells to about three and a half times while you shake, then back. [changes setting: put back with `ame desktop pointer-shake off`] → PASS (off by default; grow: the pointer swells to about three and a half times while shaking, then back. Put back off)
+- [x] D-POINTER-02 Beacon. How: `ame desktop pointer-shake beacon`, shake. Expect: the pointer grows a little and rings go out from it. [changes setting: put back with `ame desktop pointer-shake off`] → PASS (the pointer a little larger and rings out from it. Put back off)
+- [x] D-POINTER-03 Shake off. How: `ame desktop pointer-shake off`. Expect: nothing on shaking; this is the default. → PASS (off by default; shaking shows nothing the screenshot can see, where grow and beacon show)
 - [ ] D-POINTER-04 Larger on dense screens. How: on a dense screen at 100 %. Expect: the pointer is 32 rather than 24; `ame desktop pointer-dense off` gives 24. [needs: HiDPI screen at 100 %] [changes setting: put back with `ame desktop pointer-dense on`]
 - [ ] D-POINTER-05 Pointer sets. How: `ame desktop pointer halo`, `ink`, `facet`, then `theme`. Expect: white Halo, dark Ink, Facet; in GNOME Shell, GTK 4, GTK 3 and a Flatpak app; theme follows the theme (Halo on dark, Ink on light). [changes setting: put back with `ame desktop pointer theme`]
 
 ## Dock
 
-- [ ] D-DOCK-01 Dock at rest. How: look at the bottom of each screen. Expect: a glass pill holding the pinned apps, running apps, up to three recent apps after a divider, the Downloads stack, mounted drives and the trash, and the app grid button; windows stop above it.
-- [ ] D-DOCK-02 Swell. How: move the pointer along the dock. Expect: the icons grow in a wave under the pointer, smoothly, without the dock jumping.
-- [ ] D-DOCK-03 Swell amount. How: `ame desktop dock amount 220`, then `120`. Expect: the icon under the pointer grows to about 2.2x, then 1.2x. [changes setting: put back with `ame desktop dock amount 160`]
-- [ ] D-DOCK-04 Lift. How: `ame desktop dock magnify lift`. Expect: only the icon under the pointer rises. [changes setting: put back with `ame desktop dock magnify swell`]
-- [ ] D-DOCK-05 No magnify. How: `ame desktop dock magnify off`. Expect: nothing grows. [changes setting: put back with `ame desktop dock magnify swell`]
+- [x] D-DOCK-01 Dock at rest. How: look at the bottom of each screen. Expect: a glass pill holding the pinned apps, running apps, up to three recent apps after a divider, the Downloads stack, mounted drives and the trash, and the app grid button; windows stop above it. → PASS (on the main screen, as dock screens is primary on this machine: pinned, running, recent apps after dividers, Downloads stack, trash and grid button, windows above it; no drive mounted)
+- [x] D-DOCK-02 Swell. How: move the pointer along the dock. Expect: the icons grow in a wave under the pointer, smoothly, without the dock jumping. → PASS (the icon under a moving pointer grows and its neighbours less, the dock stays at its place; seen in stills, so smoothness not judged. Resting still, the icon goes back to its size after about 2 s: move it to see it)
+- [x] D-DOCK-03 Swell amount. How: `ame desktop dock amount 220`, then `120`. Expect: the icon under the pointer grows to about 2.2x, then 1.2x. [changes setting: put back with `ame desktop dock amount 160`] → PASS (220 much larger, 120 a little; put back to 160)
+- [x] D-DOCK-04 Lift. How: `ame desktop dock magnify lift`. Expect: only the icon under the pointer rises. [changes setting: put back with `ame desktop dock magnify swell`] → PASS (only the icon under the pointer rises; put back to swell)
+- [x] D-DOCK-05 No magnify. How: `ame desktop dock magnify off`. Expect: nothing grows. [changes setting: put back with `ame desktop dock magnify swell`] → PASS (nothing grows, the name still shows; put back to swell)
 - [ ] D-DOCK-06 Launch halo. How: open an app from the dock. Expect: a ring runs round its icon until its first window opens.
 - [ ] D-DOCK-07 Launch hop, breathe, off. How: `ame desktop dock launch hop`, `breathe`, `off`, opening an app each time. Expect: the icon hops; pulses; no sign. [changes setting: put back with `ame desktop dock launch halo`]
 - [ ] D-DOCK-08 Running bar. How: open one, then two windows of an app. Expect: a bar under its icon, longer with two windows.
@@ -356,7 +356,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-DOCK-31 Per-screen apps. How: put an app's window on the second screen. Expect: that screen's dock shows it beside the pinned ones. [needs: two screens]
 - [ ] D-DOCK-32 Autohide. How: `ame desktop dock autohide touch`, maximize a window. Expect: windows use the whole screen; the dock slides away while one touches it and comes back when the pointer pushes the edge. [changes setting: put back with `ame desktop dock autohide off`]
 - [ ] D-DOCK-33 This workspace's apps. How: `ame desktop dock workspace-apps on`. Expect: running apps without a window here leave the dock; a click on a pinned app whose windows are elsewhere takes you to them. [changes setting: put back with `ame desktop dock workspace-apps off`]
-- [ ] D-DOCK-34 Settings list. How: `ame desktop dock`. Expect: every dock setting and its value.
+- [x] D-DOCK-34 Settings list. How: `ame desktop dock`. Expect: every dock setting and its value. → PASS (magnify, amount, launch, indicator, recent, previews, edge, screens, autohide, workspace-apps, folders and stacks with their values)
 - [ ] D-DOCK-35 Three fingers down. How: three fingers down on the touchpad. Expect: the windows of the app in use fanned out from the dock. [needs: touchpad]
 
 ## The Amethystora menu and the logo menu
