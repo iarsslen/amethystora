@@ -395,9 +395,10 @@ Settings under Accessibility.
 
 ![Shake to find](media/shake-to-find.webm)
 
-**Shake to find.** Lost the pointer? Shake the mouse quickly from side to side and it swells to three and a half
-times its size, then settles a moment after you stop. `ame desktop pointer-shake beacon` sends rings out from it
-instead, and `ame desktop pointer-shake off` turns it off. Nothing runs while the mouse is still, a shake made with a
+**Shake to find.** Off until you turn it on with `ame desktop pointer-shake grow`, or in Control. Then, when you have
+lost the pointer, shake the mouse quickly from side to side and it swells to three and a half times its size, then
+settles a moment after you stop. `ame desktop pointer-shake beacon` sends rings out from it instead, and `ame desktop
+pointer-shake off` turns it off again. Nothing runs while the mouse is still, a shake made with a
 button held (a drag, a drawing) never counts, and GNOME's own way, a press of Ctrl (Settings, Accessibility, Locate
 Pointer), works as before.
 

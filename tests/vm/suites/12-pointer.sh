@@ -11,7 +11,7 @@
 #     even looked at;
 #   - the dense-screen rule, as a pure function and applied to the account's cursor-size, never over the account's own;
 #   - nothing of Amethystora UI throws meanwhile.
-# It leaves the account as it found it: shake grow, dense on, cursor-size reset, no pointer of its own, theme amethystora.
+# It leaves the account as it found it: shake off, dense on, cursor-size reset, no pointer of its own, theme amethystora.
 # vmlab-paths: @ui/extension.js @ui/*pointer* @sf/usr/share/icons/amethystora-pointer-* @sf/usr/lib/amethystora/theme/* @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
@@ -73,7 +73,7 @@ systemctl restart gdm
 wait_for 240 has_session && wait_for 120 module_up
 sleep 10
 SESSION="$(loginctl show-user "${TEST_USER}" -p Display --value)"
-check "the pointer module runs, shaking on" test "$(pstat connected)" == true
+check "the pointer module runs, with nothing listening: shaking is off by default" test "$(pstat connected)" == false
 
 # --- V18 first: the lab's own screen is not dense, so the size the module may write is not there ---------------------
 same "V18 the VM's screen is not dense: cursor-size has no value of the account's" \

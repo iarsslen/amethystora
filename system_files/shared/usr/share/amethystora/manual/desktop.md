@@ -695,7 +695,7 @@ Good to know:
 ## Gestures and keys
 
 Each card moves the way the gesture or the keys do. Click one, or press `Space` on it, to pause it; with animations
-off they stay still.
+off they stay still. Shake to find is off until you turn it on ([Pointers](themes.md#pointers)).
 
 ![Shake to find](media/shake-to-find.webm) ![Pinch for the apps](media/pinch-apps.webm) ![Search anything](media/super-space.webm) ![Hold Super](media/hold-super.webm)
 ![Switch windows](media/super-tab.webm) ![Snap layouts](media/snap-layouts.webm) ![Spread for the desktop](media/spread-desktop.webm) ![Four fingers for Today](media/four-left-today.webm)

@@ -336,7 +336,7 @@ Every entry below comes from `amethystora-control-list --json` (`ame control` pr
 - [ ] A-CONTROL-30 Reveal at login. How: switch, log out and in. Expect: with it on, the desktop is revealed with the transition at login. [changes setting: put back with the value it had]
 - [ ] A-CONTROL-31 Rounded screen corners. How: switch on, then off. Expect: the screen's corners are drawn rounded while on. [changes setting: put back with the value it had]
 - [ ] A-CONTROL-32 Pointer. How: Pointer group, choices Halo, Ink, Facet, the theme's. Expect: the pointer set changes everywhere, apps included. [changes setting: put back with the theme's]
-- [ ] A-CONTROL-33 Shake to find. How: choices Grow, Beacon, Off; shake the mouse. Expect: the pointer grows or shows a beacon; nothing when Off. [changes setting: put back with the value it had]
+- [ ] A-CONTROL-33 Shake to find. How: choices Grow, Beacon, Off; shake the mouse. Expect: Off is what a new account has; the pointer grows or shows a beacon; nothing when Off. [changes setting: put back with the value it had]
 - [ ] A-CONTROL-34 Larger on dense screens. How: switch. Expect: on a HiDPI screen the pointer is larger while on. [changes setting: put back with the value it had] [needs: HiDPI screen]
 - [ ] A-CONTROL-35 Boot menu artwork. How: Starting up, switch Off (in a terminal), then On. Expect: the terminal asks first; the boot menu shows plain or Amethystora's artwork at the next start. [changes setting: put back with On] [password]
 - [ ] A-CONTROL-36 Sounds. How: Sound, choices Soft, Off. Expect: the desktop's sounds change. [changes setting: put back with the value it had]

@@ -310,14 +310,14 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Tips
 
-- [ ] D-TIPS-01 A tip. How: after the first hour on a new account, shake the mouse or hold `Super`. Expect: a small card next to the feature with **Got it**; it never takes keys or clicks, closes after twelve seconds, comes once ever, never two at once, at least half an hour apart; none over fullscreen, a share, quiet, the overview or a dialog.
+- [ ] D-TIPS-01 A tip. How: after the first hour on a new account, hold `Super` (or shake the mouse, once Shake to find is on). Expect: a small card next to the feature with **Got it**; it never takes keys or clicks, closes after twelve seconds, comes once ever, never two at once, at least half an hour apart; none over fullscreen, a share, quiet, the overview or a dialog.
 - [ ] D-TIPS-02 Tips off and reset. How: `ame desktop hints off`; `ame desktop hints reset`. Expect: no tips; the seen ones can come again. [changes setting: put back with `ame desktop hints on`]
 
 ## Pointer
 
-- [ ] D-POINTER-01 Shake to grow. How: shake the mouse quickly. Expect: the pointer swells to about three and a half times while you shake, then back.
-- [ ] D-POINTER-02 Beacon. How: `ame desktop pointer-shake beacon`, shake. Expect: the pointer grows a little and rings go out from it. [changes setting: put back with `ame desktop pointer-shake grow`]
-- [ ] D-POINTER-03 Shake off. How: `ame desktop pointer-shake off`. Expect: nothing on shaking. [changes setting: put back with `ame desktop pointer-shake grow`]
+- [ ] D-POINTER-01 Shake to grow. How: shake the mouse first (it is off by default: nothing happens), then `ame desktop pointer-shake grow` and shake quickly. Expect: the pointer swells to about three and a half times while you shake, then back. [changes setting: put back with `ame desktop pointer-shake off`]
+- [ ] D-POINTER-02 Beacon. How: `ame desktop pointer-shake beacon`, shake. Expect: the pointer grows a little and rings go out from it. [changes setting: put back with `ame desktop pointer-shake off`]
+- [ ] D-POINTER-03 Shake off. How: `ame desktop pointer-shake off`. Expect: nothing on shaking; this is the default.
 - [ ] D-POINTER-04 Larger on dense screens. How: on a dense screen at 100 %. Expect: the pointer is 32 rather than 24; `ame desktop pointer-dense off` gives 24. [needs: HiDPI screen at 100 %] [changes setting: put back with `ame desktop pointer-dense on`]
 - [ ] D-POINTER-05 Pointer sets. How: `ame desktop pointer halo`, `ink`, `facet`, then `theme`. Expect: white Halo, dark Ink, Facet; in GNOME Shell, GTK 4, GTK 3 and a Flatpak app; theme follows the theme (Halo on dark, Ink on light). [changes setting: put back with `ame desktop pointer theme`]
 

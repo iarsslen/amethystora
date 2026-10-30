@@ -362,7 +362,7 @@ org.gnome.shell.extensions.amethystora-ui.tiling window-gap 8
 org.gnome.shell.extensions.amethystora-ui.tiling animation-time 0.25
 org.gnome.shell.extensions.amethystora-ui.tiling cycle-width-steps [0.38195000000000001, 0.5, 0.61804000000000003]
 org.gnome.shell.extensions.amethystora-ui.tiling winprops @as []
-org.gnome.shell.extensions.amethystora-ui.pointer shake 'grow'
+org.gnome.shell.extensions.amethystora-ui.pointer shake 'off'
 org.gnome.shell.extensions.amethystora-ui.pointer dense true
 org.gnome.shell.extensions.amethystora-ui.glass material 'prism'
 org.gnome.shell.extensions.amethystora-ui.glass solid false

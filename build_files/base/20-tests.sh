@@ -2191,7 +2191,7 @@ for name in Breeze_Light breeze_cursors amethystora-pointer-halo amethystora-poi
 done
 # The pointer module: its schema, its defaults, started by the extension, and the pointer handed back however it ends
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.pointer | sort | tr '\n' ' ')" == "dense shake " ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.pointer shake)" == "'grow'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.pointer shake)" == "'off'" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.pointer dense)" == "true" ]]
 grep -q "\['pointer', Pointer\]" "${UI_EXTENSION}/extension.js"
 grep -q "uninhibit_cursor_visibility" "${UI_EXTENSION}/modules/pointer.js"

@@ -10,7 +10,7 @@
         <choice value="beacon"/>
         <choice value="off"/>
       </choices>
-      <default>'grow'</default>
+      <default>'off'</default>
       <summary>What shaking the mouse does</summary>
       <description>grow swells the pointer to three and a half times its size while you shake it, beacon grows it a little and sends rings out from where it is, and off does nothing.</description>
     </key>
