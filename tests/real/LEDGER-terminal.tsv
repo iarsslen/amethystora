@@ -1,0 +1,14 @@
+2026-10-30 18:23:00	start	T-CHECK	the terminal track's own ledger
+2026-10-30 18:23:00	end	T-CHECK	pass works
+2026-10-30 18:24:43	start	S-SWITCH-01-03	settings list and a bad key, read only
+2026-10-30 18:24:46	end	S-SWITCH-01-03	pass read only
+2026-10-30 18:25:03	start	S-READ-1	profile, scan state, net, hardening, read only
+2026-10-30 18:25:13	end	S-READ-1	pass read only
+2026-10-30 18:25:30	start	S-NET-01	zone services, read only
+2026-10-30 18:25:35	end	S-NET-01	pass read only
+2026-10-30 18:26:24	start	S-READ-2	sends, logins, locked session, browsers, apps, disk: read only
+2026-10-30 18:26:29	end	S-READ-2	pass read only
+2026-10-30 18:26:59	start	S-READ-3	leftovers of the read-only group, one EICAR file scanned and removed
+2026-10-30 18:26:59	end	S-READ-3	pass read only; the test file removed
+2026-10-30 18:27:22	start	S-SCAN-03	one test file with clamscan, removed
+2026-10-30 18:27:27	end	S-SCAN-03	pass test file removed
