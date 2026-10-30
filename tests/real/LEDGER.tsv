@@ -1000,3 +1000,13 @@
 2026-10-30 19:50:24	step	D-OTHER-05	the picture again, Space, Right, Left, title each, Space
 2026-10-30 19:50:59	step	D-OTHER-05	close my Files window; is the previewer still running
 2026-10-30 19:51:19	end	D-OTHER-05	fail PDF, text, video, picture shown; Space closes; arrows partly; focus leaves Files on close
+2026-10-30 19:51:39	start	A-ALL-04	button layout at the start, reopen Updates, frame, put back
+2026-10-30 19:51:39	step	A-ALL-04	button-layout close,minimize,maximize; open Updates on workspace 5; frame
+2026-10-30 19:51:51	step	A-ALL-04	put the layout back; read
+2026-10-30 19:52:01	end	A-ALL-04	pass controls at the start, room made; put back and read back
+2026-10-30 19:52:11	start	A-ALL-06	Updates open: theme to light, frame at once, back
+2026-10-30 19:52:11	step	A-ALL-06	amethystora-theme set amethystora-light; frame at 1 s; set back; frame
+2026-10-30 19:52:48	step	A-ALL-06	bring Updates forward; frame; light; frame; back; frame
+2026-10-30 19:53:28	step	A-ALL-06	Updates to workspace 6; light; frame; back; frame
+2026-10-30 19:54:45	step	A-ALL-06	Updates on workspace 6 by its launcher; light; frame; back; frame
+2026-10-30 19:55:52	end	A-ALL-06	pass Updates dark to light and back within 1 s of the set; banner stayed on the first name
