@@ -432,3 +432,26 @@
 2026-10-30 17:46:09	step	D-DOCK-25	open the stack, shot, Escape
 2026-10-30 17:46:28	step	D-DOCK-25	same menu, No colour; close the Files windows
 2026-10-30 17:46:41	end	D-DOCK-25	pass jade on the stack from the script; No colour, metadata read back empty
+2026-10-30 17:46:53	start	D-DOCK-32	autohide
+2026-10-30 17:46:53	step	D-DOCK-32	autohide touch; maximize the scratch editor with its button; shot; push bottom edge; shot; unmaximize; autohide off
+2026-10-30 17:47:26	end	D-DOCK-32	pass window goes to the bottom, dock hidden; push against the edge brings it; goes when away; off, read back
+2026-10-30 17:47:26	start	D-TILE-01	strip of three windows
+2026-10-30 17:47:26	step	D-TILE-01	Alt+3 Files, then Ctrl+N in Files; shots
+2026-10-30 17:47:47	end	D-TILE-01	pass side by side at full height, new ones to the right of the focused, frame on the focused; focus stayed on it
+2026-10-30 17:47:47	start	D-TILE-02	focus left and right
+2026-10-30 17:47:47	step	D-TILE-02	Super+Right three times, a frame after each; Super+Left twice quickly; frame
+2026-10-30 17:48:05	end	D-TILE-02	pass focus moved each press, the strip scrolled to keep it in view; glide's smoothness not judged from stills
+2026-10-30 17:48:05	start	D-TILE-03	up and down in a column
+2026-10-30 17:48:05	step	D-TILE-03	Super+i stacks; Super+Down; Super+Up; frames
+2026-10-30 17:48:20	end	D-TILE-03	pass stacked by Super+I; Up and Down moved the focus within the column
+2026-10-30 17:48:20	start	D-TILE-04	first and last
+2026-10-30 17:48:20	step	D-TILE-04	Super+End; Super+Home; frames
+2026-10-30 17:48:23	end	D-TILE-04	pass End reached the editor, the last; Home the first window
+2026-10-30 17:48:23	start	D-TILE-05	slide the strip
+2026-10-30 17:48:23	step	D-TILE-05	hold Super+], frame while held; let go; frame; same with Super+[
+2026-10-30 17:48:41	end	D-TILE-05	pass slid while held both ways; on letting go the focus lands on the window most in view
+2026-10-30 17:48:41	start	D-TILE-06	move a column
+2026-10-30 17:48:41	step	D-TILE-06	Super+Ctrl+Right, Left, period, comma; frames
+2026-10-30 17:48:57	end	D-TILE-06	pass Ctrl+Right and period moved the whole column right, Ctrl+Left and comma back
+2026-10-30 17:48:57	start	cleanup	close the three Files windows; editor back to its width
+2026-10-30 17:49:29	end	cleanup	pass windows closed, editor back
