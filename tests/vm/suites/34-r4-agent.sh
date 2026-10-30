@@ -109,6 +109,10 @@ cleanup() {
     tester "amethystora-agent stop; amethystora-agent off" >/dev/null 2>&1
     for key in ask-selection pill; do gs reset "${AGENT_UI}" "${key}"; done
     for key in force-quit frozen-dialog; do gs reset "${QUIT_UI}" "${key}"; done
+    # The agent's changes below set Fade; a later run's must be a change again
+    gs reset org.gnome.shell.extensions.amethystora-transitions style
+    # The name the server killed outright (10) could not take away: a later run's "names gone" would find it
+    rm -f "/run/user/$(id -u "${TEST_USER}")/amethystora/agent-sessions/"[0-9]*
     rm -f "${HOME_DIR}/.local/bin/claude" "${PROMPT}"
 }
 trap cleanup EXIT
@@ -168,13 +172,14 @@ else
 fi
 rm -f "${PROMPT}"
 ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.PRIMARY, ''); 'set'" >/dev/null
+# keys.py waits 1.5 s after the chord, and the pill says it for 3 s: read at once
 keys super+shift+a
-sleep 2
 same "5 nothing selected: no card, the pill says so" "$(ast '.card') $(ev "${UI}.get('pill').state().text")" "false Select some text first"
 ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.PRIMARY, ('xxxxxxxxx' + String.fromCharCode(10)).repeat(10000)); 'set'" >/dev/null
-started="$(date +%s%N)"
+# Timed from keys.py's return (its own device takes seconds before the chord, and it waits 1.5 s after it)
 keys super+shift+a
-wait_for 5 card_open
+started="$(date +%s%N)"
+for _ in $(seq 15); do card_open && break; sleep 0.2; done
 same "6 a long selection opens the card at once, read only to 16 KiB" \
     "$(ev "${A}.card._text.length <= 4000") $(( ($(date +%s%N) - started) / 1000000 < 3000 ))" "true 1"
 keys return
@@ -190,6 +195,12 @@ rm -f "${PROMPT}"
 tester "amethystora-agent tools on" >/dev/null
 watching() { [[ "$(ast '.watching')" == true ]]; }
 check "7 level 2 on: the record and the tool servers are watched" wait_for 4 watching
+# A change, not a no-op: the transition as the image ships it (Grow), whatever a run before left; and no name left by a
+# server a run before killed outright
+gs reset org.gnome.shell.extensions.amethystora-transitions style
+rm -f "/run/user/$(id -u "${TEST_USER}")/amethystora/agent-sessions/"[0-9]*
+# The setting before the agent changes it, which Undo puts back
+before="$(tester "/usr/libexec/amethystora-control-list --json" | jq -r '.items[] | select(.id == "transition") | .state')"
 mcp_bg a 'pause 2' 'change {"id": "transition", "value": "fade"}' 'pause 400'
 server_named() { compgen -G "/run/user/$(id -u "${TEST_USER}")/amethystora/agent-sessions/[0-9]*" >/dev/null; }
 check "7 a running tool server is named in the runtime folder" wait_for 10 server_named
@@ -199,37 +210,38 @@ same "7 the pill's words and plate" "$(ev "${UI}.get('pill').state().text") $(ev
     "Agent · changing settings true"
 id="$(ev "${A}.changes.status.changes.at(-1).id")"
 same "7 the change can be undone" "$(ev "${A}.changes.status.changes.at(-1).undo")" true
-before="$(tester "ame control --json" | jq -r '.items[] | select(.id == "transition") | .state')"
 ev "${A}.changes._undo('${id}'); 'undoing'" >/dev/null
 undone() { [[ "$(ev "${A}.changes.status.changes.find(c => c.id === '${id}').undone")" == true ]]; }
 check "8 Undo takes it back through the tools" wait_for 90 undone
 check "8 the undoing is recorded with of" grep -q "\"of\":\"${id}\"" "${HOME_DIR}/.local/state/amethystora/agent-tools/actions.jsonl"
-same "8 the setting is as it was" "$(tester "ame control --json" | jq -r '.items[] | select(.id == "transition") | .state')" "${before}"
+same "8 the setting is as it was" "$(tester "/usr/libexec/amethystora-control-list --json" | jq -r '.items[] | select(.id == "transition") | .state')" "${before}"
 # A change of a setting this machine no longer offers: Undo is offered (its way back is its inverse), the tools refuse it
 LOG="${HOME_DIR}/.local/state/amethystora/agent-tools/actions.jsonl"
-printf '{"id":"0a1b2c3d","time":%s,"tool":"change","result":"ok","entry":"vmlab-gone","value":"b","before":"a","argv":["ame","x"],"undo":{"tool":"change","entry":"vmlab-gone","value":"a"}}\n' \
+# Ids of this run's own: the record keeps every run's, and an id it knows keeps its first place among them
+read -r R1 R2 R3 <<<"$(od -An -N12 -tx4 /dev/urandom)"
+printf '{"id":"'"${R1}"'","time":%s,"tool":"change","result":"ok","entry":"vmlab-gone","value":"b","before":"a","argv":["ame","x"],"undo":{"tool":"change","entry":"vmlab-gone","value":"a"}}\n' \
     "$(date +%s)" >>"${LOG}"
-offered() { [[ "$(ev "${A}.changes.status.changes.some(c => c.id === '0a1b2c3d' && c.undo)")" == true ]]; }
+offered() { [[ "$(ev "${A}.changes.status.changes.some(c => c.id === '${R1}' && c.undo)")" == true ]]; }
 wait_for 10 offered
-ev "${A}.changes._undo('0a1b2c3d'); 'undoing'" >/dev/null
-refused_said() { like "$(ev "${A}.changes.status.changes.find(c => c.id === '0a1b2c3d')?.said ?? ''")" '*no setting vmlab-gone*'; }
+ev "${A}.changes._undo('${R1}'); 'undoing'" >/dev/null
+refused_said() { like "$(ev "${A}.changes.status.changes.find(c => c.id === '${R1}')?.said ?? ''")" '*no setting vmlab-gone*'; }
 check "8 an undo the tools refuse says why on its row" wait_for 60 refused_said
 # A record whose way back is not its inverse is not offered Undo
-printf '{"id":"0a1b2c3e","time":%s,"tool":"change","result":"ok","entry":"theme","value":"nord","before":"amethystora","argv":["ame","x"],"undo":{"tool":"software","action":"remove","source":"flathub","id":"org.gnome.Maps"}}\n' \
+printf '{"id":"'"${R2}"'","time":%s,"tool":"change","result":"ok","entry":"theme","value":"nord","before":"amethystora","argv":["ame","x"],"undo":{"tool":"software","action":"remove","source":"flathub","id":"org.gnome.Maps"}}\n' \
     "$(date +%s)" >>"${LOG}"
 sleep 2
-same "8 a way back that is not the inverse gets no Undo" "$(ev "${A}.changes.status.changes.find(c => c.id === '0a1b2c3e')?.undo")" false
+same "8 a way back that is not the inverse gets no Undo" "$(ev "${A}.changes.status.changes.find(c => c.id === '${R2}')?.undo")" false
 # A hand-off: a command in a terminal, waiting for the person, and the terminal brought forward by Show
 mcp_bg b 'run {"argv": ["true"], "reason": "vmlab waits"}' 'pause 60'
 asking() { [[ "$(ev "${UI}.get('pill').state().text")" == "Agent asks you" ]]; }
 check "9 a hand-off waits: Agent asks you" wait_for 30 asking
 same "9 ... on the warning plate, with Show while its terminal is open" \
     "$(ev "${UI}.get('pill').clock.actor._plate.has_style_class_name('amethystora-pill-plate-agent-ask')") $(ev "${A}.changes.status.show")" "true true"
-printf '{"id":"0a1b2c3f","time":%s,"tool":"run","result":"opened","argv":["systemctl","restart","bluetooth"],"root":true,"mode":"terminal"}\n' \
+printf '{"id":"'"${R3}"'","time":%s,"tool":"run","result":"opened","argv":["systemctl","restart","bluetooth"],"root":true,"mode":"terminal"}\n' \
     "$(date +%s)" >>"${LOG}"
 root_asking() { [[ "$(ev "${UI}.get('pill').state().text")" == "Agent asks for root" ]]; }
 check "9 a root command waiting in its terminal: Agent asks for root" wait_for 10 root_asking
-printf '{"id":"0a1b2c3f","time":%s,"tool":"run","result":"declined","argv":["systemctl","restart","bluetooth"],"root":true,"mode":"terminal"}\n' \
+printf '{"id":"'"${R3}"'","time":%s,"tool":"run","result":"declined","argv":["systemctl","restart","bluetooth"],"root":true,"mode":"terminal"}\n' \
     "$(date +%s)" >>"${LOG}"
 # The hand-off's server ended by systemd (SIGTERM): it takes its name away itself
 user_bus systemctl --user stop vmlab-mcp-b >/dev/null 2>&1
@@ -282,7 +294,8 @@ keys super+ctrl+shift+esc
 list_open() { [[ "$(qst '.list?.open')" == true ]]; }
 check "12 Super+Ctrl+Shift+Esc opens the list" wait_for 5 list_open
 frozen_first() { [[ "$(ev "${Q}.state().list.rows[0]?.frozen")" == true ]]; }
-check "12 the frozen app comes first, marked" wait_for 20 frozen_first
+# Mutter gives up on a window the image gives 20 s to answer (check-alive-timeout): read past that
+check "12 the frozen app comes first, marked" wait_for 35 frozen_first
 check "12 its use is read" test "$(ev "${Q}.state().list.rows.every(r => /%$/.test(r.cpu) && /B$/.test(r.memory))")" == true
 # The Force quit button asks once more, naming the app; Escape goes back; Escape again closes the list
 first="$(ev "${Q}.state().list.rows[0].id")"
@@ -296,7 +309,7 @@ list_closed() { [[ "$(qst '.list')" == null ]]; }
 check "12 Escape at the list closes it" wait_for 5 list_closed
 keys super+ctrl+shift+esc
 wait_for 5 list_open
-wait_for 20 frozen_first
+wait_for 35 frozen_first
 ev "(() => { const l = ${Q}.list; l._select(l.state.rows.find(r => r.frozen).id); l._quit.emit('clicked', 1); return 'asked'; })()" >/dev/null
 sleep 1
 keys return
@@ -380,9 +393,16 @@ cycles() {
     ev "globalThis._vmlabCycles = null; (async () => {
         const CloseDialog = await import('resource:///org/gnome/shell/ui/closeDialog.js');
         const ext = Main.extensionManager;
-        const count = () => [Main.uiGroup.get_n_children(), Main.layoutManager.modalDialogGroup.get_n_children(), Main.modalCount].join(' ');
+        // The shell's own in its top layer; the extension's own there (some made only when first needed, as the dock's
+        // Recent caption on a hover) may be fewer after a restart, never more
+        const ours = () => Main.uiGroup.get_children().filter(a => (a.get_style_class_name?.() ?? '').includes('amethystora-')).length;
+        const count = () => [Main.uiGroup.get_n_children() - ours(), Main.layoutManager.modalDialogGroup.get_n_children(), Main.modalCount].join(' ');
+        const oursBefore = ours();
         const until = async want => { for (let n = 0; n < 50 && ext.lookup('${UUID}').state !== want; n++) await new Promise(r => setTimeout(r, 100)); };
+        // What uiGroup holds, by kind, to name what a failed run left or took away
+        const names = () => Main.uiGroup.get_children().map(a => a.constructor.name + (a.get_style_class_name?.() ? '.' + a.get_style_class_name() : ''));
         const before = count();
+        const named = names();
         let original = true;
         for (let i = 0; i < 10; i++) {
             ${UI}.get('pill').clock.openCard('agent');
@@ -401,8 +421,14 @@ cycles() {
         ${Q}.list?.destroy();
         ${UI}.get('pill').clock._closeCard();
         await new Promise(r => setTimeout(r, 800));
-        globalThis._vmlabCycles = JSON.stringify({same: before === count(), original,
-            keys: [Main.wm._allowedKeybindings['ask-selection'], Main.wm._allowedKeybindings['force-quit']].every(Boolean)});
+        // Left behind is what is still there once the dialogs' own endings had their time
+        for (let n = 0; n < 30 && count() !== before; n++)
+            await new Promise(r => setTimeout(r, 100));
+        const after = count(), now = names();
+        globalThis._vmlabCycles = JSON.stringify({same: before === after && ours() <= oursBefore, original,
+            keys: [Main.wm._allowedKeybindings['ask-selection'], Main.wm._allowedKeybindings['force-quit']].every(Boolean),
+            ...(before === after && ours() <= oursBefore ? {} : {counts: before + ' -> ' + after + ', ours ' + oursBefore + ' -> ' + ours(), added: now.filter(x => !named.includes(x)),
+                gone: named.filter(x => !now.includes(x))})});
     })().catch(e => { globalThis._vmlabCycles = 'ERR ' + e.message; }); 'started'" >/dev/null
     cycled() { [[ "$(ev "globalThis._vmlabCycles ?? ''")" != "" ]]; }
     wait_for 180 cycled
@@ -419,9 +445,10 @@ check "15 no JS ERROR since the suite began" test -z "$(journalctl --since "${si
 
 # --- 16: Control and the setup file -------------------------------------------------------------------------------------
 same "16 Control lists the four entries, each an ame command" \
-    "$(tester "ame control --json" | jq -r '[.items[] | select(.id | IN("agent-selection", "agent-pill", "force-quit", "frozen-dialog")) | .choices[0].command[:3] | join(" ")] | join(", ")')" \
-    "ame agent selection, ame agent pill, ame desktop force-quit, ame desktop frozen-dialog"
-gs set "${QUIT_UI}" force-quit "['<Super><Control><Shift>q']"
+    "$(tester "/usr/libexec/amethystora-control-list --json" | jq -r '[.items[] | select(.id | IN("agent-selection", "agent-pill", "force-quit", "frozen-dialog")) | .choices[0].command[:3] | join(" ")] | sort | join(", ")')" \
+    "ame agent pill, ame agent selection, ame desktop force-quit, ame desktop frozen-dialog"
+# gs hands its words to bash -lc: the value quoted once more, or gsettings gets it without its quotes
+gs set "${QUIT_UI}" force-quit "\"['<Super><Control><Shift>q']\""
 gs set "${QUIT_UI}" frozen-dialog false
 gs set "${AGENT_UI}" pill false
 saved="$(tester "/usr/libexec/amethystora-setup save - 2>/dev/null")"
