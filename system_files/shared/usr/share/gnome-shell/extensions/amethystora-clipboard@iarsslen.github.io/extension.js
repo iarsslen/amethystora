@@ -414,10 +414,10 @@ const ClipboardIndicator = GObject.registerClass({
                     const item = this._focusItemOnOpen;
                     this._focusItemOnOpen = null;
                     global.stage.set_key_focus(item.actor);
-                } else if (SHOW_SEARCH_BAR && this.clipItemsRadioGroup.length > 0) {
+                } else if (SHOW_SEARCH_BAR && !PRIVATEMODE && this.clipItemsRadioGroup.length > 0) {
                     this.searchEntry.set_text('');
                     global.stage.set_key_focus(this.searchEntry);
-                } else if (this.clipItemsRadioGroup.length > 0) {
+                } else if (!PRIVATEMODE && this.clipItemsRadioGroup.length > 0) {
                     const currentItem = this._getCurrentlySelectedItem();
                     if (currentItem) global.stage.set_key_focus(currentItem.actor);
                 } else if (SHOW_PRIVATE_MODE && this.privateModeMenuItem) {
