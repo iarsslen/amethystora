@@ -112,8 +112,11 @@ report() {
               accepted: (if $accepted == "" then null else $accepted end), switched_off: $switched}' --args "$@")")
     else
         # Kept by group, since a check is not always found among the others of its group
-        [[ -z "${accepted}" ]] || set -- "$@" "$(eval_gettext "Accepted on this machine. ame security allow report \${id} remove shows it again.")"
-        PRINTED["${group}"]+="$(print_record "${group}" "${state}" "${title}" "${text}" "$@")"$'\n'
+        PRINTED["${group}"]+="$(
+            print_record "${group}" "${state}" "${title}" "${text}" "$@"
+            # After the command, which follows the detail that introduces it
+            [[ -z "${accepted}" ]] || fold -s -w 88 <<<"$(eval_gettext "Accepted on this machine. ame security allow report \${id} remove shows it again.")" | sed 's/ *$//; s/^/          /'
+        )"$'\n'
     fi
     COMMAND=""
     SWITCHED_OFF=false
