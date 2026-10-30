@@ -622,3 +622,7 @@
 2026-10-30 18:17:32	step	D-TILESET-21	picture and colour on workspace 2; frame; Super+Page Down held, frame; Super+2
 2026-10-30 18:18:03	step	D-TILESET-21	seen: a second screen, HDMI-1, appeared between two frames at about 18:17:35, not by the walk; shell answering
 2026-10-30 18:18:51	end	D-TILESET-21	stopped second screen HDMI-1 appeared at 18:17:35, not by the walk; at 18:18:00 amdgpu REG_WAIT timeout and WARNING dcn31_program_compbuf_size from the shell's KMS thread, shell still answering; settings reset, read back empty
+2026-10-30 18:18:56	start	D-TILESET-22	folder for workspace 3 by gsettings, terminal there, read its folder, reset
+2026-10-30 18:18:56	step	D-TILESET-22	folder set by gsettings; Super+3; Super+Return; read the new terminal's folder; frame; end only that terminal; Super+2
+2026-10-30 18:19:32	step	D-TILESET-22	Super+Return's terminal was not in the folder; read the shell's own folder; a window started by the shell itself with the new-window key on my terminal, read its folder; end only mine
+2026-10-30 18:20:05	end	D-TILESET-22	fail Super+Return's terminal starts in the home folder; a window the shell starts itself (new-window key) starts in the folder; key reset, read back; shell's folder back
