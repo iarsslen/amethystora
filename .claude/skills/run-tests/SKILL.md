@@ -105,10 +105,14 @@ If the build cannot run here at all, go to section 5.
 - What is left, why, and what it needs from the user.
 - The run's folder in the lab (`/vm/runs/<when>`), for the screenshots and logs.
 
+When the final run of the whole suite is green, go on with the `queue-latest` skill: GitHub's Latest build of
+the validated commit, queued and followed.
+
 ## 5. GitHub instead of a local build
 
 Only when the build cannot run here (out of disk: `docker system df`; out of memory; a registry that does not
-answer). Never push to `main`; `gh` is logged in as the maintainer, and git pushes over SSH.
+answer). Never push an unvalidated commit to `main` (a validated one goes there through `queue-latest`); `gh` is
+logged in as the maintainer, and git pushes over SSH.
 
 ```bash
 sha=$(git rev-parse --short HEAD)
