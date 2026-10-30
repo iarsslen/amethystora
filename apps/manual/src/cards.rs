@@ -4,7 +4,8 @@
 //!
 //! Only the manual's own clips play, by an exact name under /usr/share/amethystora/manual/media, each with its poster
 //! beside it. A clip plays muted and looping only while its card is shown, the window is the active one and
-//! animations are on; otherwise the poster shows, as it does for good if the clip cannot be played. A click, or Space
+//! animations are on, and only while it is on the screen, up to MOST_OPEN at once: each clip is a pipeline of its own,
+//! and a page of them playing out of sight ran the program out of file descriptors. Otherwise the poster shows, as it does for good if the clip cannot be played. A click, or Space
 //! or Enter on the card, pauses it and plays it again.
 
 use std::cell::{Cell, RefCell};
@@ -15,6 +16,12 @@ use amethystora_ui::{adw, gdk, glib, gtk, t, ui};
 use adw::prelude::*;
 
 const MEDIA: &str = "/usr/share/amethystora/manual/media";
+/// Clips open at once. A pipeline takes some 60 descriptors, of the 1024 a program has by default
+const MOST_OPEN: usize = 8;
+
+thread_local! {
+    static OPEN: Cell<usize> = const { Cell::new(0) };
+}
 
 /// The clip a page names: `media/<name>.webm`, lower case letters, digits and dashes, and nothing else
 pub fn card_name(href: &str) -> Option<&str> {
@@ -28,6 +35,7 @@ struct Watch {
     window: glib::WeakRef<gtk::Window>,
     active: glib::SignalHandlerId,
     settings: Option<(gtk::Settings, glib::SignalHandlerId)>,
+    scrolled: Option<(gtk::Adjustment, glib::SignalHandlerId, glib::SignalHandlerId)>,
 }
 
 /// One card. Its widget holds it, through its handlers; it holds no reference back, so both go together.
@@ -46,27 +54,45 @@ struct Card {
 }
 
 impl Card {
+    /// Whether any of the card is inside the page's visible part
+    fn on_screen(root: &gtk::Button) -> bool {
+        let Some(page) = root.ancestor(gtk::ScrolledWindow::static_type()) else { return true };
+        root.compute_bounds(&page).is_some_and(|box_| box_.y() + box_.height() > 0.0 && box_.y() < page.height() as f32)
+    }
+
+    fn release(&self) {
+        if self.media.borrow_mut().take().is_some() {
+            OPEN.with(|open| open.set(open.get() - 1));
+        }
+    }
+
     fn may_play(&self, root: &gtk::Button) -> bool {
         let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(false);
         let active = root.root().and_downcast::<gtk::Window>().is_some_and(|window| window.is_active());
-        root.is_mapped() && active && animations && !self.held.get() && !self.failed.get()
+        let room = self.media.borrow().is_some() || OPEN.with(Cell::get) < MOST_OPEN;
+        root.is_mapped() && active && animations && !self.held.get() && !self.failed.get() && room && Self::on_screen(root)
     }
 
     fn sync(self: &Rc<Self>) {
         let Some(root) = self.root.upgrade() else { return };
         let play = self.may_play(&root);
         if play {
-            let media = self.media.borrow_mut().get_or_insert_with(|| self.open()).clone();
+            let media = self.media.borrow_mut().get_or_insert_with(|| {
+                OPEN.with(|open| open.set(open.get() + 1));
+                self.open()
+            }).clone();
             if !self.failed.get() {
                 self.picture.set_paintable(Some(&media));
                 media.play();
             }
-        } else if let Some(media) = self.media.borrow().as_ref() {
-            media.pause();
-            // Held by a click, the frame it was on stays; otherwise the poster
-            if !self.held.get() || self.failed.get() {
-                self.picture.set_paintable(Some(&self.poster));
+        } else if self.held.get() && !self.failed.get() {
+            // Held by a click, the frame it was on stays
+            if let Some(media) = self.media.borrow().as_ref() {
+                media.pause();
             }
+        } else {
+            self.picture.set_paintable(Some(&self.poster));
+            self.release();
         }
         let label = if play && !self.failed.get() {
             t!("{caption}, playing", caption = &self.caption)
@@ -114,7 +140,24 @@ impl Card {
             });
             (settings, id)
         });
-        self.watch.replace(Some(Watch { window: window.downgrade(), active, settings }));
+        // Scrolled, or the page laid out, a card may have come on or gone off the screen
+        let scrolled = root.ancestor(gtk::ScrolledWindow::static_type()).and_downcast::<gtk::ScrolledWindow>().map(|page| {
+            let adjustment = page.vadjustment();
+            let weak = Rc::downgrade(self);
+            let moved = adjustment.connect_value_changed(move |_| {
+                if let Some(card) = weak.upgrade() {
+                    card.sync();
+                }
+            });
+            let weak = Rc::downgrade(self);
+            let laid_out = adjustment.connect_changed(move |_| {
+                if let Some(card) = weak.upgrade() {
+                    card.sync();
+                }
+            });
+            (adjustment, moved, laid_out)
+        });
+        self.watch.replace(Some(Watch { window: window.downgrade(), active, settings, scrolled }));
     }
 
     fn unfollow(&self) {
@@ -125,7 +168,17 @@ impl Card {
             if let Some((settings, id)) = watch.settings {
                 settings.disconnect(id);
             }
+            if let Some((adjustment, moved, laid_out)) = watch.scrolled {
+                adjustment.disconnect(moved);
+                adjustment.disconnect(laid_out);
+            }
         }
+    }
+}
+
+impl Drop for Card {
+    fn drop(&mut self) {
+        self.release();
     }
 }
 
