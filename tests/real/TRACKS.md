@@ -16,6 +16,18 @@ files wait until the terminal track has finished with them. Every track pushes a
 **A hang stops every track.** After one: the tails of `journalctl -b -1` saved first (where `STATE.md` says), then each
 track resumes from its last pushed mark. Until the dock is understood, nothing plugs or unplugs it, and nothing suspends.
 
+## Added from the design boards (54 items, 2026-10-30)
+
+Written by the lab session after reading the boards (the Beyond macOS canvas, Round 4, Focus profiles) against the
+checklist and the code. Most fall in sections already walked, so they are not in the lists below. Walk them when the
+current stretch is done, by the same rules.
+
+- Track 1: D-TOPBAR-30; D-PILL-16; D-DOTS-09; D-NOTIFY-17 to 21; D-FOCUS-15, 16, 18, 19, 20; D-SOUND-03; D-SEARCH-24;
+  D-GRID-08; D-ACCESS-10, 11, 12; D-TOUCH-05; D-POINTER-06, 07; D-DOCK-36 to 42; D-CLASSIC-12; D-WIN-13, 14; D-WALL-10, 11;
+  D-ICONS-05; D-AGENT-09, 10, 11; D-OTHER-05; A-MANUAL-28; A-BACKUPS-30, 31; A-CONTROL-160; S-SENDS-08, 09; S-DESK-07
+- Track 3, with the person: D-QUICK-17, 18; D-FOCUS-17; D-DESKS-08, 09; Y-PHN-15, 16
+- Track 4, not on this machine: D-WIN-15
+
 ## 1. Desktop: the screen's walker (1007 items, one session, in order)
 
 The walk as it was: by RemoteDesktop or by the person's hands, one item at a time, the shell's journal read after each.

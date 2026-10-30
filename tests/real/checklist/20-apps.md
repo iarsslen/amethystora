@@ -50,6 +50,7 @@ Every app below is the one program built from `apps/` (`/usr/lib/amethystora-<ap
 - [!] A-MANUAL-25 Translated pages. How: `LANGUAGE=fr amethystora-manual`. Expect: translated pages in French, untranslated ones in English, group names translated; links to sections still land on the right heading; What's new stays English. → FAIL in part: LANGUAGE=fr: translated pages in French, untranslated ones (control, phone, setup) in English, groups translated, What's new English, a section of notes (same headings) lands. But updates#rolling-back opens at the top: 12 of fr's 20 pages have a different number of headings than the English (updates 8 of 11, desktop 17 of 77, security 19 of 30), so those pages' sections keep French ids and English links land nowhere. A translation lag: Weblate's
 - [ ] A-MANUAL-26 Sidebar width. How: widen and narrow the window. Expect: the sidebar stays between about 248 and 290 px (a quarter of the window); in Arabic it is on the right.
 - [x] A-MANUAL-27 Welcome page. How: `amethystora-manual welcome`. Expect: the Welcome page opens (the page a new account sees once at first login). → PASS: amethystora-manual welcome with the window on another page: title and heading Welcome to Amethystora, at the top
+- [ ] A-MANUAL-28 Moving cards with Reduce motion. How: `ame desktop comfort reduce-motion on`, open The desktop and scroll to the row of cards. Expect: every card still, showing its poster; they play again once it is off. [changes setting: put back with `ame desktop comfort reduce-motion off`]
 
 ## Security
 
@@ -294,6 +295,8 @@ Use a test account, or back up `~/.local/share/amethystora-notes` first (Setting
 - [ ] A-BACKUPS-27 Opened at a point. How: from a Security event, "Open in Backups" (or `amethystora-backups --at=<point>` with a point from the timeline). Expect: the timeline is on that point. [needs: snapshots]
 - [ ] A-BACKUPS-28 Error banner. How: if anything fails to read. Expect: "What is set up could not be read" with "Try again" and "Dismiss".
 - [ ] A-BACKUPS-29 Nothing deletes. How: look through every menu and button. Expect: no button deletes a snapshot or a backup, or thins the repository.
+- [ ] A-BACKUPS-30 Back in time on a folder. How: in Files, right-click a folder in your home, **Scripts › Back in time**. Expect: Backups opens on that folder's timeline, the folder as it was at the newest point.
+- [ ] A-BACKUPS-31 Back in time on anything else. How: the same on a file, on several things picked, and on a folder outside the home. Expect: a file's folder opens; of several, the first folder among them; outside the home it says that the snapshots and the backup do not keep it, and Backups does not open.
 
 ## Control
 
@@ -481,6 +484,7 @@ Every entry below comes from `amethystora-control-list --json` (`ame control` pr
 - [ ] A-CONTROL-157 Preview follows the picks. How: pick another theme, style, dock growing, pointer and window layout in turn. Expect: the preview changes at once (colours, corners, dock, pointer, windows), and the desktop takes each pick a moment later. [changes setting: put back with Control's same entries]
 - [ ] A-CONTROL-158 Done. How: click "Done" at the foot of Pick a look. Expect: the window closes; the picks stay applied, and the classic-windows notification no longer offers itself once the page was shown (the "Continue" in the preview is part of the drawing, not a button).
 - [ ] A-CONTROL-159 First look after login. How: create a new account and log in. Expect: GNOME's welcome dialog first; once it closes, Pick a look comes to the front by itself, never over a window the person opened. [needs: a new account]
+- [ ] A-CONTROL-160 Theme preview before choosing. How: Appearance, Theme: rest the pointer on a swatch, then `Tab` to another, without clicking; then click one. Expect: the small desktop above the swatches redraws in each theme's colours, and the real desktop stays as it is until the click. [changes setting: put back with the theme it had]
 
 ## Phone
 

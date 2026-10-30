@@ -37,6 +37,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-TOPBAR-27 Top bar on every screen. How: look at the second screen. Expect: a top bar as tall and as round as the main one, the workspaces (the one that screen shows lit) and the clock; no tray, quick settings or meters there. [needs: two screens] → PASS
 - [x] D-TOPBAR-28 Other screens' bars off. How: `ame desktop top-bar screens off`. Expect: the other screens lose their bar at once. [changes setting: put back with `ame desktop top-bar screens on`] [needs: two screens] → PASS
 - [x] D-TOPBAR-29 Tooltips and menus on the bar. How: rest the pointer on each bar item, open each menu. Expect: menus open under their button, inside the screen, in the current style's shape; text readable on the glass. → PASS (menus under their button, inside the screen, readable; no tooltip came on the meters or the system menu in 1.7 s, and the line asks for none)
+- [ ] D-TOPBAR-30 Dropping keeps you here. How: in the overview, on workspace 1, drag a window onto workspace 5's button. Expect: the window goes to 5, and the workspace you are on stays on screen.
 
 ## Quick settings
 
@@ -56,6 +57,8 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-QUICK-14 Phone tile. How: with a paired phone connected. Expect: a tile with the phone and its battery; a click opens the Phone app. [needs: phone]
 - [x] D-QUICK-15 Focus tile. How: open the **Focus** tile. Expect: chips Off, Work, Games and Sleep; it says what the profile does and when it ends: when turned off, after **1 hour**, or **tomorrow** (06:00). → PASS
 - [ ] D-QUICK-16 Screenshot, Lock, Settings, Power buttons. How: click each at the foot of quick settings. Expect: each does its job (screenshot bar, lock, GNOME Settings, power menu), and the menu closes first.
+- [ ] D-QUICK-17 Bluetooth tile. How: connect earbuds or another device that reports its battery, open quick settings. Expect: the tile names the device and its battery, e.g. **Earbuds · 80%**; the percentage goes with the device. [needs: Bluetooth device with a battery]
+- [ ] D-QUICK-18 Wi-Fi strength. How: on Wi-Fi, open quick settings near the access point and far from it. Expect: the tile names the network and its strength in a word: strong, good, fair or weak. [needs: Wi-Fi]
 
 ## Today and the calendar menu
 
@@ -86,6 +89,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-PILL-13 A link from the phone. How: share a link from the phone. Expect: the address with **Open** and **Not now**, never opened by itself; **Open in browser**, **Copy**; a look-alike name shows as `xn--…`. [needs: phone]
 - [x] D-PILL-14 Something finished, waiting banners. How: after quiet ends with banners held. Expect: the pill says e.g. **2 waiting in the list**; a click opens the list. → PASS
 - [x] D-PILL-15 Pill off. How: `ame desktop pill off`, then `ame desktop pill on`. Expect: GNOME's clock alone, then the pill back. [changes setting: put back with `ame desktop pill on`] → PASS
+- [ ] D-PILL-16 Where it is playing. How: play music, open the pill's card, change the sound output in quick settings. Expect: **Playing on <output>** in the card, which follows the output.
 
 ## Privacy dots and the recording glow
 
@@ -97,6 +101,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-DOTS-06 Recording glow. How: `Ctrl+Shift+Alt+R`, then stop. Expect: a thin red glow round every screen's edge over everything, gone when it stops. → PASS
 - [x] D-DOTS-07 Dots off. How: `ame desktop pill dots off`. Expect: GNOME's own icons back, no dots pill. [changes setting: put back with `ame desktop pill dots on`] → PASS (no dots pill; GNOME's own recording icon did not show either, the pill carrying Stop)
 - [x] D-DOTS-08 Glow off. How: `ame desktop pill glow off`, record. Expect: no glow. [changes setting: put back with `ame desktop pill glow on`] → PASS
+- [ ] D-DOTS-09 Glow during a share. How: share the whole screen (a browser's screen-share test page), watch the edges a few seconds, click on one; end the share. Expect: the same thin red glow as for a recording, on every screen, moving for its first three beats and then still; it takes no click; gone when the share ends.
 
 ## Privacy: share guard, shield, network by app
 
@@ -134,6 +139,11 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-NOTIFY-14 Later off. How: `ame desktop notifications later off`. Expect: no Later or Mute on banners. [changes setting: put back with `ame desktop notifications later on`] → PASS: a banner under the pointer has neither Later nor Mute; put back.
 - [x] D-NOTIFY-15 Later times. How: `ame desktop notifications later-times 19:00 08:00`, Later › This evening. Expect: it says 19:00. [changes setting: put back with `ame desktop notifications later-times 18:00 09:00`] → PASS: with 19:00 08:00, Later's **This evening** says **Back at 19:00**; put back.
 - [x] D-NOTIFY-16 Badges on app icons. How: send notifications from an app pinned in the dock. Expect: its icon in the dock and the app grid shows the count waiting. → PASS: the count waiting on kitty's icon, in the dock and the app grid. The grid leaves a blank row between **All apps** and its first icons.
+- [ ] D-NOTIFY-17 Mute lets urgent through. How: **Mute notify-send for an hour** on a banner, then `notify-send test` and `notify-send -u critical urgent`. Expect: the first waits in the list, the urgent one pops; calls and alarms pass too. [changes setting: put back with **Unmute**]
+- [ ] D-NOTIFY-18 Open and fold a stack. How: with a stack of three in the calendar's list (see D-NOTIFY-01), click it, then fold it again. Expect: the notifications open one under another, each with its own buttons, and the count after the app's name goes; folded, the count is back.
+- [ ] D-NOTIFY-19 Digest lets urgent through. How: `ame desktop digest on`, `notify-send -u critical urgent`, start a 1-minute timer. Expect: the urgent one pops at once and the timer rings; only the rest wait for the digest. [changes setting: put back with `ame desktop digest off`]
+- [ ] D-NOTIFY-20 Quiet with the digest on. How: `ame desktop digest on`, make a window fullscreen, `notify-send test`, leave fullscreen. Expect: no **N waiting in the list**: the notification waits for the next digest and comes with it. [changes setting: put back with `ame desktop digest off`]
+- [ ] D-NOTIFY-21 Fullscreen on another screen. How: make a window fullscreen on the second screen only, `notify-send test`. Expect: the banner pops: only a fullscreen window on the main screen makes it quiet. [needs: two screens]
 
 ## Focus
 
@@ -151,6 +161,12 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-FOCUS-12 Games trigger. How: `ame desktop focus trigger games on`, start a game (not Steam itself). Expect: Games turns on when the game gets the keyboard and ends when it closes. [changes setting: put back with `ame desktop focus trigger games off`]
 - [x] D-FOCUS-13 Sleep trigger. How: `ame desktop focus trigger sleep on`. Expect: Sleep starts at Night Light's evening time and ends at its morning time; turning Focus off meanwhile keeps it off until the next evening. [changes setting: put back with `ame desktop focus trigger sleep off`] → PASS (the switch answers; waiting for the evening not run)
 - [ ] D-FOCUS-14 Lock while a profile holds power. How: Games on, lock, check the power mode, unlock. Expect: the hold is let go while locked and taken again on unlock.
+- [ ] D-FOCUS-15 What always comes through. How: Sleep on, `notify-send test`, `notify-send -u critical urgent`, start a 1-minute timer. Expect: the first waits in the list; the urgent one pops and the timer rings. [changes setting: put back with `ame desktop focus off`]
+- [ ] D-FOCUS-16 From one profile to another. How: `ame desktop focus sleep`, then `ame desktop focus work` without turning it off, then `ame desktop focus off`. Expect: one profile at a time: Work takes back Sleep's Night Light, amber accent, night picture and power saver at once; Off leaves everything as it was before Sleep. [changes setting: put back with `ame desktop focus off`]
+- [ ] D-FOCUS-17 Logging out during Sleep. How: note Night Light's state and temperature, `ame desktop focus sleep`, log out and in, `ame desktop focus off`. Expect: Sleep is still on after the login, and Off gives back Night Light as you noted it, not Sleep's warmest. [logout] [changes setting: put back with `ame desktop focus off`]
+- [ ] D-FOCUS-18 Edit in Control. How: the Focus tile's **Edit in Control**; with a profile on, click the pill's mark and its **Edit in Control**. Expect: Control opens on the Focus cards, and the menu closes.
+- [ ] D-FOCUS-19 By hand wins. How: `ame desktop focus trigger games on`, start a game so that Games turns on, `ame desktop focus work`, close the game. Expect: Work stays on after the game closes. [changes setting: put back with `ame desktop focus off` and `ame desktop focus trigger games off`]
+- [ ] D-FOCUS-20 Focus with the digest on. How: `ame desktop digest on`, `ame desktop focus games`, `notify-send test`, `ame desktop focus off`. Expect: the notification waits for the next digest and comes with it, rather than being counted when Focus ends. [changes setting: put back with `ame desktop digest off`]
 
 ## Presenting
 
@@ -176,11 +192,14 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-DESKS-05 Not now remembered. How: answer **Not now** at a new desk, replug; then `ame desktop desks ask`. Expect: no card until asked again. [needs: external screen]
 - [ ] D-DESKS-06 List, rename, forget. How: `ame desktop desks list`, `ame desktop desks rename ID Office desk`, `ame desktop desks forget ID`. Expect: listed with what each sets (named like "2 screens" until renamed), renamed, forgotten.
 - [ ] D-DESKS-07 Unlock is no arrival. How: lock and unlock at a desk. Expect: no card, no toast.
+- [ ] D-DESKS-08 A saved set at a desk. How: save a workspace set, give it to the desk (Control's **A saved set**, or `ame desktop desks saved ID NAME`), unplug and plug back in. Expect: after the arrival, a question **Open the saved set “NAME”?**; nothing opens without a yes. [needs: external screen] [changes setting: put back with `ame desktop desks saved ID none`]
+- [ ] D-DESKS-09 Two screens alike. How: at a desk of two screens of one model (or without serial numbers), swap the connectors they are on, replug. Expect: told apart by connector: the swapped arrangement counts as another desk, and the first comes back when they are swapped back. [needs: two identical screens]
 
 ## Sounds, lock screen and the reveal
 
 - [ ] D-SOUND-01 Soft sound set. How: take a screenshot, plug in power, step the volume, press Backspace in an empty terminal (bell). Expect: Amethystora's soft sounds; a slow chord once the desktop has started after login.
 - [ ] D-SOUND-02 Sounds off. How: `ame desktop sounds off`. Expect: the desktop makes none of its own sounds; apps still make theirs. [changes setting: put back with `ame desktop sounds soft`]
+- [ ] D-SOUND-03 The rest of the set. How: `notify-send Test`; `canberra-gtk-play -i trash-empty`, `-i dialog-error`, `-i message-new-instant-phone`. Expect: Amethystora's soft sounds, each its own, none of the system's stock sounds.
 - [ ] D-LOCK-01 Lock screen. How: `Super+L`. Expect: a large clock and date, what is playing with controls, notifications as one row per app with a count, never their text; Amethystora's own colours whatever the theme.
 - [ ] D-LOCK-02 Lock screen with High Contrast. How: Settings › Accessibility › High Contrast on, lock. Expect: GNOME's own high-contrast lock screen. [changes setting: put back with High Contrast off]
 - [ ] D-LOCK-03 Unlock restores the desktop. How: unlock after a lock. Expect: every module back (dock, pill, meters, glass, pinned pictures, Later's held notifications) with no flash of an unstyled bar.
@@ -212,6 +231,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [!] D-SEARCH-21 Glance off. How: `ame desktop search glance off`. Expect: `Space` types a space. [changes setting: put back with `ame desktop search glance on`] → FAIL: with Glance off, Space on a file row closes the box and nothing opens, on either screen; it is in OPENING_KEYS (search.js), so it never types a space. Space in the field does. Space on the agent row starts the agent, against D-SEARCH-18's *nothing starts before Enter*. Not fixed here.
 - [x] D-SEARCH-22 Each switch listed. How: `ame desktop search`. Expect: all seven (answers, settings, manual, windows, clipboard, agent, glance) and whether each is on. → PASS
 - [x] D-SEARCH-23 Typing into an app afterwards. How: open search from a text field, `Escape`, type. Expect: the field still takes text with the input method (no lost IBus). → PASS (typed abc, Super+Space, Escape, def in Text Editor: abcdef; keys through RemoteDesktop, so no accented text through IBus)
+- [ ] D-SEARCH-24 Order of the rows. How: type a word several sources find, e.g. `dark`, and press `Enter` on a harmless one. Expect: the clipboard, the answer, **Do it** and open windows first, then the apps and GNOME's other sources, then the manual, and the agent last; `Enter` takes the first row. [changes setting: put back with the same row]
 
 ## Overview and app grid
 
@@ -222,6 +242,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-GRID-05 Folders reset. How: rename a folder, then `ame desktop app-grid folders reset`. Expect: the folders as the image has them. [risky: forgets your folder changes]
 - [ ] D-GRID-06 Uninstall from the app menu. How: right-click a Flatpak app in the grid. Expect: **Uninstall** and the app's page in Bazaar; Uninstall asks with choices in the theme's colours. [risky: removes the app if confirmed]
 - [ ] D-GRID-07 Updating app greyed. How: during a Flatpak update of an app. Expect: its icon greyed in the grid and dock; a progress bar while busy.
+- [ ] D-GRID-08 Typing in the grid. How: `Super+A`, type `calc`, then `Escape`. Expect: the search takes over at once with every letter typed, and `Escape` leaves it.
 
 ## Clipboard history
 
@@ -295,6 +316,9 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-ACCESS-07 Read aloud. How: `ame desktop access read-aloud on`, select text in Firefox, `Super+Ctrl+S`; press again. Expect: read in the screen reader's voice, sentence by sentence; the second press stops. [changes setting: put back with `ame desktop access read-aloud off`]
 - [ ] D-ACCESS-08 Read-aloud speed. How: `ame desktop access read-aloud-speed 1.5` (or Control). Expect: faster speech. [changes setting: put back with `ame desktop access read-aloud-speed 1`]
 - [ ] D-ACCESS-09 Focus grey with a filter. How: filter deutan on and a Focus profile with grey. Expect: both apply together, neither cancels the other.
+- [ ] D-ACCESS-10 Reading aloud in the pill. How: `ame desktop access read-aloud on`, select a long text, `Super+Ctrl+S`, click the pill. Expect: the pill says it is reading; its card has the speed, which steps 1, 1.5, 2 and 0.75 from the next sentence, and **Stop**; the pill goes when the reading ends. [changes setting: put back with `ame desktop access read-aloud off` and `ame desktop access read-aloud-speed 1`]
+- [ ] D-ACCESS-11 Ruler follows the text size. How: `ame desktop access ruler band`, `Super+Ctrl+R`, then Settings › Accessibility › Large Text on and off. Expect: the band grows with the text and comes back, at once. [changes setting: put back with Large Text off and `ame desktop access ruler off`]
+- [ ] D-ACCESS-12 Filter tile. How: `ame desktop access filter deutan`, open quick settings, click **Colour filter** twice. Expect: the filter goes and comes back with the same filter and strength. [changes setting: put back with `ame desktop access filter none`]
 
 ## Touch and pen
 
@@ -302,6 +326,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-TOUCH-02 Today from the right edge. How: in touch mode, swipe in from the right edge (or use the handle). Expect: the calendar menu opens. [needs: touch screen]
 - [ ] D-TOUCH-03 Follow the hinge. How: `ame desktop touch mode follow`, fold into a tablet. Expect: touch mode on folded, off unfolded; the on-screen keyboard follows. [needs: convertible] [changes setting: put back with `ame desktop touch mode off`]
 - [x] D-TOUCH-04 Status. How: `ame desktop touch`. Expect: how touch mode, the pen's tools and the pen's button are set. → PASS (says touch mode, the pen's tools, and the command for the pen's button; the button's own state is not said while the tools are off)
+- [ ] D-TOUCH-05 Touch mode tile. How: `ame desktop touch mode on`, open quick settings, click **Touch mode**; `gsettings get org.gnome.shell.extensions.amethystora-ui.touch touch-mode`. Expect: the shell goes back to its usual sizes and the key still says `on`: the tile forces the other state until the hinge moves or the session ends. With touch mode off, no tile. [changes setting: put back with `ame desktop touch mode off`]
 - [x] D-PEN-01 Ring. How: `ame desktop touch pen-ring ring`, `Super+Ctrl+P`. Expect: six tools round the tip: Scribble, Area, Note, Text, Right click, Back; move toward one to light it; a touch in the middle, `Escape` or a click outside closes. [changes setting: put back with `ame desktop touch pen-ring off`] → PASS (six tools round the pointer, moving toward one lights it, Escape closes; a touch in the middle and a click outside not tried, clicks do not land through RemoteDesktop. Put back off)
 - [ ] D-PEN-02 Each tool. How: pick each tool. Expect: Scribble draws (only where present mode offers it), Area takes an area screenshot, Note opens a quick note, Text copies an area's text with Gradia, Right click and Back act where the ring was opened. [needs: pen]
 - [x] D-PEN-03 Strip. How: `ame desktop touch pen-ring strip`. Expect: the tools in a column at the screen's edge. [changes setting: put back with `ame desktop touch pen-ring off`] → PASS (a column at the screen's right edge. Put back off)
@@ -320,6 +345,8 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-POINTER-03 Shake off. How: `ame desktop pointer-shake off`. Expect: nothing on shaking; this is the default. → PASS (off by default; shaking shows nothing the screenshot can see, where grow and beacon show)
 - [ ] D-POINTER-04 Larger on dense screens. How: on a dense screen at 100 %. Expect: the pointer is 32 rather than 24; `ame desktop pointer-dense off` gives 24. [needs: HiDPI screen at 100 %] [changes setting: put back with `ame desktop pointer-dense on`]
 - [x] D-POINTER-05 Pointer sets. How: `ame desktop pointer halo`, `ink`, `facet`, then `theme`. Expect: white Halo, dark Ink, Facet; in GNOME Shell, GTK 4, GTK 3 and a Flatpak app; theme follows the theme (Halo on dark, Ink on light). [changes setting: put back with `ame desktop pointer theme`] → PASS in part: captured with the pointer shown: Ink dark with a white rim over the Flatpak GTK 4 editor and the shell, Halo white and Facet two-faced in the shell. theme takes the flag away and gives Halo on this dark theme. GTK 3, and Ink under a light theme, not seen
+- [ ] D-POINTER-06 Every shape. How: under `ame desktop pointer halo`, `ink` and `facet`: rest on a link in Firefox (hand), on text (I-beam), on a window's edge and corner (resize), drag a title bar (move), start an app (working), `Print` (precise), drag a file where it cannot be dropped (not allowed). Expect: every shape drawn by that set, in the shell and in apps; never a square, GNOME's pointer or another set's. [changes setting: put back with `ame desktop pointer theme`]
+- [ ] D-POINTER-07 A size you chose is kept. How: Settings › Accessibility › the pointer's size, on a dense screen at 100 %, then at 200 %. Expect: the size chosen stays as chosen; at 200 % the scale doubles the pointer and the dense rule adds nothing. [needs: HiDPI screen] [changes setting: put back with the size it had]
 
 ## Dock
 
@@ -358,6 +385,13 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-DOCK-33 This workspace's apps. How: `ame desktop dock workspace-apps on`. Expect: running apps without a window here leave the dock; a click on a pinned app whose windows are elsewhere takes you to them. [changes setting: put back with `ame desktop dock workspace-apps off`] → PASS (running apps left the dock on a workspace without their windows, the pinned stayed; a click on pinned Thunderbird from workspace 5 went to its window on 6; put back off)
 - [x] D-DOCK-34 Settings list. How: `ame desktop dock`. Expect: every dock setting and its value. → PASS (magnify, amount, launch, indicator, recent, previews, edge, screens, autohide, workspace-apps, folders and stacks with their values)
 - [ ] D-DOCK-35 Three fingers down. How: three fingers down on the touchpad. Expect: the windows of the app in use fanned out from the dock. [needs: touchpad]
+- [ ] D-DOCK-36 Click on a running app. How: with two windows of an app, click its icon from another app, then again and again. Expect: a window not in front comes forward; one in front goes on to the app's next window, click after click; the focused app's icon is lit; a double click counts as one.
+- [ ] D-DOCK-37 Shift and middle click. How: Shift+click a running app; Shift+double-click it with more windows; middle-click it; Ctrl+click it. Expect: a window minimizes; the rest minimize; the last two each open a new window.
+- [ ] D-DOCK-38 Asking for attention. How: make an unfocused window ask for attention (e.g. in kitty `sleep 5; printf '\a'`, then go to another window). Expect: its icon gives two small shakes every three seconds until you go to it; a click brings that window first, before the app's others.
+- [ ] D-DOCK-39 Quit says how many. How: right-click an app with three windows, then one with a single window; do not press. Expect: **Quit 3 windows**; **Quit** for the single window.
+- [ ] D-DOCK-40 Windows stop beside a side dock. How: `ame desktop dock edge left`, maximize a window, then tile two; the same with `right`. Expect: they stop beside the dock, as they stop above it at the bottom, never under it. [changes setting: put back with `ame desktop dock edge bottom`]
+- [ ] D-DOCK-41 Comes back when the window goes. How: `ame desktop dock autohide touch`, then minimize or close the window touching the dock's strip. Expect: the dock comes back by itself, with no push at the edge. [changes setting: put back with `ame desktop dock autohide off`]
+- [ ] D-DOCK-42 A click opens where you look. How: `ame desktop dock screens every`; on the second screen's dock click an app with no window on that screen, one that can open a second window and one that cannot. Expect: a new window on this screen; else the window on the other screen comes forward. [changes setting: put back with `ame desktop dock screens` and the value it had] [needs: two screens]
 
 ## The Amethystora menu and the logo menu
 
@@ -453,6 +487,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-CLASSIC-09 Places. How: in classic, place a window, plug a screen, move it, unplug and replug. Expect: windows return to their places per arrangement; `ame desktop windows places forget` forgets. [needs: two screens]
 - [ ] D-CLASSIC-10 Places off. How: `ame desktop windows places off`. Expect: windows open where GNOME puts them. [changes setting: put back with `ame desktop windows places on`]
 - [ ] D-CLASSIC-11 Spread for the desktop. How: three-finger spread, then pinch. Expect: shows the desktop; brings windows back. [needs: touchpad]
+- [ ] D-CLASSIC-12 Moving through the switcher. How: in classic, `Super+Tab` and keep Super held: `Tab`, the arrows, rest the pointer on a window; let go. Again, and `Esc`. Expect: each moves the choice and letting go switches to it; `Esc` leaves everything as it was. [changes setting: put back with `ame desktop layout tiling`]
 
 ## Windows in both layouts
 
@@ -468,6 +503,9 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-WIN-10 Window lights. How: look at any title bar; hover the buttons; unfocus the window. Expect: three lights on the right, amber, green, red (minimize, maximize, close) in every theme, signs on hover, grey while unfocused. → PASS in part: on my scratch editor, in this theme: amber, green, red from the left, minimize, maximize, close, each showing its sign and a glow when the pointer is over it, dim on an unfocused window. Other themes not looked at here. Faults: none
 - [x] D-WIN-11 Super+` and Super+Tab. How: two windows of one app, `` Super+` ``; `Super+Tab`. Expect: switch between that app's windows; switch application. → PASS: Super+` with two Text Editor windows moves the focus between them; Super+Tab held shows the app switcher (Text Editor, kitty), Escape cancelled it, a real switch of apps not made so as not to focus the coordinator's terminal. Faults: none
 - [ ] D-WIN-12 Super+Escape. How: in a virtual machine window that grabbed the keyboard, `Super+Escape`. Expect: the keyboard comes back to the desktop.
+- [ ] D-WIN-13 A quick shortcut shows nothing. How: press `Super+Return`, `Super+2` and `Super+Space` at an ordinary speed. Expect: no shortcuts card and no numbers on the dock, at any point.
+- [ ] D-WIN-14 The card reads this machine's keys. How: change a shortcut the card shows in Settings › Keyboard, hold `Super` a second. Expect: the card shows the new keys. [changes setting: put back with that shortcut's reset]
+- [ ] D-WIN-15 Take a gesture back. How: start a three-finger pinch and open the fingers again before lifting them; the same with a spread. Expect: the app grid and the desktop follow the fingers and go back with them; nothing stays half-way. [needs: touchpad]
 
 ## Force quit and not responding
 
@@ -537,6 +575,8 @@ theme's colours, style, font, icon pack and pointer (themes.md's tables), text r
 - [ ] D-WALL-07 Colours from the wallpaper. How: `ame desktop colours vivid`, then `soft`, `mono`. Expect: ground and accent taken from the picture (mono keeps the theme's accent); light stays light. [changes setting: put back with `ame desktop colours off`]
 - [ ] D-WALL-08 Accent per workspace. How: `ame desktop accent-per-workspace on`, go through workspaces. Expect: workspace 1 the theme's, then Sky, Coral, Jade, Amber, Orchid; the shell and Amethystora's apps restyle once the slide ends, not during it. [changes setting: put back with `ame desktop accent-per-workspace off`]
 - [ ] D-WALL-09 A workspace's accent. How: right-click a workspace label › **Accent**; `ame desktop accent-per-workspace 3 coral`. Expect: that workspace takes it. [changes setting: put back with `ame desktop accent-per-workspace off`]
+- [ ] D-WALL-10 Colours follow the wallpaper. How: `ame desktop colours soft`, `Super+Ctrl+Space` twice. Expect: ground and accent worked out again from each new picture, revealed by one transition. [changes setting: put back with `ame desktop colours off` and the wallpaper it had]
+- [ ] D-WALL-11 Colours with every theme. How: under each of the ten themes, `ame desktop colours vivid`, `soft`, `mono`, on a bright and on a dark picture. Expect: every label readable; a light theme stays light and a dark one dark; a theme switch keeps the way chosen and works it out anew. [changes setting: put back with `ame desktop colours off` and the theme it had]
 
 ## Transitions
 
@@ -618,6 +658,7 @@ Set each style with `ame desktop style <name>` and check every surface. Put back
 - [ ] D-ICONS-02 Makers' logos untouched. How: look at Firefox, Steam, VSCodium icons under each pack. Expect: the maker's own icon, bare, no tile.
 - [ ] D-ICONS-03 Packs read on light themes. How: Glass for light and Clay on a light theme. Expect: every icon readable on the light ground.
 - [ ] D-ICONS-04 Folder colours. How: Files › Scripts › Folder colour › each colour, then No colour. Expect: the folder takes the colour in Files and in the icon pack; No colour gives special folders their emblem back. [changes setting: put back with No colour]
+- [ ] D-ICONS-05 Stars. How: in Files, right-click a folder and a file, **Star**; open **Starred** in the sidebar; then take the stars off. Expect: both listed under Starred with their star, a folder's colour kept. [changes setting: put back by taking the stars off]
 - [ ] D-CORNERS-01 Rounded screen corners. How: `ame desktop screen-corners on`. Expect: a small black curve in each corner of the laptop's own screen, over everything; external screens square. [changes setting: put back with `ame desktop screen-corners off`] [needs: laptop]
 
 ## Terminal and prompt look
@@ -666,6 +707,9 @@ Only while the agentic features are on (`ame agent toggle on`); put back with `a
 - [ ] D-AGENT-06 Agent in the pill. How: with `ame agent tools on`, have the agent change a setting. Expect: the live pill's agent activity lists each change (**Changes so far**) with **Undo** and **Stop the agent**; Undo reverts it, Stop ends the tool server. [changes setting: put back with `ame agent tools off`]
 - [ ] D-AGENT-07 Agent pill off. How: `ame agent pill off`. Expect: no agent activity in the pill. [changes setting: put back with `ame agent pill on`]
 - [ ] D-AGENT-08 Frozen app: Ask the agent why. How: freeze an app (`kill -STOP PID`, click it). Expect: the not-responding dialog has **Ask the agent why**, which opens the agent on it without ending it. Then `kill -CONT PID`.
+- [ ] D-AGENT-09 Undo all and History. How: with `ame agent tools on`, have the agent make two changes, open the pill's card. Expect: **Undo all** takes back every change that can be; **History** opens the record; once it is done, **Agent made 2 changes** and **Finished at** its time. [changes setting: put back with `ame agent tools off`]
+- [ ] D-AGENT-10 The agent asks. How: with `ame agent tools on`, have the agent want something that needs your yes, then something as root. Expect: the pill says **Agent asks you**, then **Agent asks for root**, with **Waiting for you** in its card; the answer is given where the agent asks, never by the pill. [changes setting: put back with `ame agent tools off`]
+- [ ] D-AGENT-11 Failure notices offer the agent. How: `sudo systemctl start amethystora-scan-alert@amethystora-clamav-scan.service.service`, then `notify-send Test`. Expect: the scan's notice has **Ask the agent**, which opens the agent on that unit, only while the features are on; `notify-send`'s has none, as no other app's has. [password]
 
 ## Uninstalling from the app menu
 
@@ -706,3 +750,4 @@ Check each against `/usr/share/amethystora/keybindings.md` (`ame desktop keybind
 - [ ] D-OTHER-02 Movement breaks. How: `ame desktop breaks movement`. Expect: a reminder to stand up for 5 minutes every 30 minutes. [changes setting: put back with `ame desktop breaks off`]
 - [ ] D-OTHER-03 Text shortcuts list and remove. How: `ame desktop text-shortcut list`, then `ame desktop text-shortcut remove ';sig'`. Expect: lists the shortcuts; removes one.
 - [ ] D-OTHER-04 Night Light. How: quick settings' Night Light toggle. Expect: the screen warmer at once and back; Quiet at night and Sleep follow its times. [changes setting: put back with the same toggle]
+- [ ] D-OTHER-05 Glance in Files. How: in Files select a picture, press `Space`; the arrows; `Space`; then a PDF, a video and a text file. Expect: each shown without opening its app; the arrows go to the next file; the second `Space` closes it; nothing is left running.

@@ -171,6 +171,8 @@
 - [x] S-SENDS-05 Location, this account. How: `ame security location` (Cancel), `ame security location off`, then the saved state. Expect: the BeaconDB sentence; "Off. Apps that need a place guess or ask you." [changes setting: put back with `ame security location <saved>`] → PASS in part: the state and the BeaconDB sentence seen; 'off' not run, since it writes a desktop setting while the walker has the desktop
 - [x] S-SENDS-06 Flatpak without the OS. How: `ls -l /etc/flatpak/no-report-os-info`. Expect: an empty file. [safe] → PASS with the Expect corrected: manual security.md, What the machine sends: the system is told unless the owner adds this empty file, so the image ships none, and none is here
 - [x] S-SENDS-07 Firefox unaltered. How: `ls /etc/firefox/policies/policies.json 2>&1`. Expect: no policy file unless browser protection or data collection off is on (see BROWSER). [safe] → PASS: no policy file, with protection and data collection off
+- [ ] S-SENDS-08 The weather's row. How: `ame security sends | grep -i -A2 weather`, `gsettings get org.gnome.shell.extensions.amethystora-ui.today weather`. Expect: a Weather row naming where the place goes (api.met.no, api.openweathermap.org, aviationweather.gov), on or off with the key. [safe]
+- [ ] S-SENDS-09 The captions model's row. How: once `ame desktop captions on` has downloaded the model (D-CAPTIONS-01), `ame security sends | grep -i -A2 captions`; after `ame desktop captions remove`, again. Expect: a Live captions row naming alphacephei.com while the model is here and nothing sent; no row without it. [safe]
 
 ## Logins (LOGIN)
 
@@ -232,6 +234,7 @@
 - [ ] S-DESK-04 Share guard. How: share the whole screen (a browser's screen-share test page) with Security open. Expect: Security's window blurred and labelled **Hidden while you share**; holding a click on the cover uncovers it; the covers go when the share ends. [safe]
 - [ ] S-DESK-05 Copy without hidden data. How: in Files, a photo with location data, **Scripts › Copy without hidden data**. Expect: `NAME (clean).EXT` beside it and a notification like "Removed: place, camera, time"; the original unchanged. [changes setting: put back by deleting the clean copy]
 - [ ] S-DESK-06 Network by app. How: `ame desktop network-apps on`, open the network meter's menu, then `ame desktop network-apps off`. Expect: the account's apps with connections open and how many; addresses shown as names only where the machine already knows one. [changes setting: put back with `ame desktop network-apps <saved>`]
+- [ ] S-DESK-07 Copy without hidden data, other files. How: a PDF and an office file, each **Scripts › Copy without hidden data**, the first one twice. Expect: `NAME (clean).EXT` beside each; the PDF's text can still be selected; a second run overwrites nothing; the originals unchanged. [changes setting: put back by deleting the clean copies]
 
 ## Afterwards (END)
 
