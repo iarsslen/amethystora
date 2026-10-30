@@ -12,3 +12,23 @@
 2026-10-30 18:26:59	end	S-READ-3	pass read only; the test file removed
 2026-10-30 18:27:22	start	S-SCAN-03	one test file with clamscan, removed
 2026-10-30 18:27:27	end	S-SCAN-03	pass test file removed
+2026-10-30 18:28:57	start	Y-READ-1	ame, top-level, updates, system: read only
+2026-10-30 18:29:03	end	Y-READ-1	pass read only; the report file it wrote removed
+2026-10-30 18:29:32	start	Y-READ-2	system group, read only
+2026-10-30 18:29:35	end	Y-READ-2	pass read only; the report file removed
+2026-10-30 18:29:47	start	Y-SYS-02	the disk-space finding, read only
+2026-10-30 18:29:47	end	Y-SYS-02	pass read only
+2026-10-30 18:30:18	start	Y-SYS-02	doctor's disk check, from the checkout's copy
+2026-10-30 18:30:18	end	Y-SYS-02	pass fixed from the checkout
+2026-10-30 18:30:50	start	Y-READ-3	agent, apps, software, packages, setup, new machine, disks, hardware: read only
+2026-10-30 18:31:04	end	Y-READ-3	pass read only
+2026-10-30 18:31:49	start	Y-READ-4	packages' columns, setup file, scrub state, hardware absences
+2026-10-30 18:31:57	end	Y-READ-4	pass setup.json removed after, as it did not exist before
+2026-10-30 18:32:40	start	T4-confirm	absences by lsusb, and read-only group lists
+2026-10-30 18:32:53	end	T4-confirm	pass read only; the report file removed
+2026-10-30 18:33:14	start	Y-AME-07	a language other than the session's
+2026-10-30 18:33:15	end	Y-AME-07	pass read only
+2026-10-30 18:33:28	start	S-END-01	French check, then everything as it was: read only
+2026-10-30 18:33:29	end	S-END-01	pass read only
+2026-10-30 18:33:56	start	S-REPORT-events	what the doctor's security finding names, read only
+2026-10-30 18:33:56	end	S-REPORT-events	pass read only
