@@ -482,22 +482,28 @@ export class Workspaces {
         this._queue();
     }
 
-    // Every click on the one you are on shows or hides the overview, even one that comes while it is still sliding
+    // Every click on the one you are on shows or hides the overview, even one that comes while it is still sliding. With
+    // a workspace per screen the click is about this bar's screen: the workspace comes there, as the wheel's does.
     clicked(index) {
         const manager = global.workspace_manager;
-        if (index === manager.get_active_workspace_index()) {
+        const monitor = Main.layoutManager.primaryIndex;
+        const shown = this._shownOn(monitor);
+        if (index === (shown?.index() ?? manager.get_active_workspace_index())) {
             Main.overview.toggle();
             return;
         }
         const workspace = manager.get_workspace_by_index(index);
         if (!workspace)
             return;
-        if (!hasWindows(workspace) && !Main.overview.visible) {
+        const empty = !hasWindows(workspace) && !Main.overview.visible;
+        if (shown)
+            this._ext.modules.get('tiling').engine.screens.bring(workspace, monitor);
+        else if (empty)
             workspace.activate(global.get_current_time());
+        else
+            this._goTo(workspace);
+        if (empty)
             Main.overview.show();
-            return;
-        }
-        this._goTo(workspace);
     }
 
     // ---- The rows of the other screens' bars (modules/bars.js) ----
