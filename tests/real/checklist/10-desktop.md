@@ -298,14 +298,14 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Touch and pen
 
-- [ ] D-TOUCH-01 Touch mode on. How: `ame desktop touch mode on`. Expect: top bar 12 px taller with larger text, dock icons up to 64 px, menu rows at least 44 px, and a handle at the right edge for Today. [changes setting: put back with `ame desktop touch mode off`]
+- [x] D-TOUCH-01 Touch mode on. How: `ame desktop touch mode on`. Expect: top bar 12 px taller with larger text, dock icons up to 64 px, menu rows at least 44 px, and a handle at the right edge for Today. [changes setting: put back with `ame desktop touch mode off`] → PASS (taller top bar with larger text, larger dock, roomier rows in the Today menu, a handle at the right edge; measured by eye, not in pixels. The workspace labels are cut short at the larger size: Termin…, Text E…. Put back off)
 - [ ] D-TOUCH-02 Today from the right edge. How: in touch mode, swipe in from the right edge (or use the handle). Expect: the calendar menu opens. [needs: touch screen]
 - [ ] D-TOUCH-03 Follow the hinge. How: `ame desktop touch mode follow`, fold into a tablet. Expect: touch mode on folded, off unfolded; the on-screen keyboard follows. [needs: convertible] [changes setting: put back with `ame desktop touch mode off`]
-- [ ] D-TOUCH-04 Status. How: `ame desktop touch`. Expect: how touch mode, the pen's tools and the pen's button are set.
-- [ ] D-PEN-01 Ring. How: `ame desktop touch pen-ring ring`, `Super+Ctrl+P`. Expect: six tools round the tip: Scribble, Area, Note, Text, Right click, Back; move toward one to light it; a touch in the middle, `Escape` or a click outside closes. [changes setting: put back with `ame desktop touch pen-ring off`]
+- [x] D-TOUCH-04 Status. How: `ame desktop touch`. Expect: how touch mode, the pen's tools and the pen's button are set. → PASS (says touch mode, the pen's tools, and the command for the pen's button; the button's own state is not said while the tools are off)
+- [x] D-PEN-01 Ring. How: `ame desktop touch pen-ring ring`, `Super+Ctrl+P`. Expect: six tools round the tip: Scribble, Area, Note, Text, Right click, Back; move toward one to light it; a touch in the middle, `Escape` or a click outside closes. [changes setting: put back with `ame desktop touch pen-ring off`] → PASS (six tools round the pointer, moving toward one lights it, Escape closes; a touch in the middle and a click outside not tried, clicks do not land through RemoteDesktop. Put back off)
 - [ ] D-PEN-02 Each tool. How: pick each tool. Expect: Scribble draws (only where present mode offers it), Area takes an area screenshot, Note opens a quick note, Text copies an area's text with Gradia, Right click and Back act where the ring was opened. [needs: pen]
-- [ ] D-PEN-03 Strip. How: `ame desktop touch pen-ring strip`. Expect: the tools in a column at the screen's edge. [changes setting: put back with `ame desktop touch pen-ring off`]
-- [ ] D-PEN-04 Tool order. How: `ame desktop touch pen-tools area note text right-click back`. Expect: the ring shows those, from the top, clockwise. [changes setting: put back with `ame desktop touch pen-tools scribble area note text right-click back`]
+- [x] D-PEN-03 Strip. How: `ame desktop touch pen-ring strip`. Expect: the tools in a column at the screen's edge. [changes setting: put back with `ame desktop touch pen-ring off`] → PASS (a column at the screen's right edge. Put back off)
+- [x] D-PEN-04 Tool order. How: `ame desktop touch pen-tools area note text right-click back`. Expect: the ring shows those, from the top, clockwise. [changes setting: put back with `ame desktop touch pen-tools scribble area note text right-click back`] → PASS (Area at the top, then clockwise as given. Put back to the six)
 - [ ] D-PEN-05 Pen button. How: `ame desktop touch pen-button on`, press the pen's side button; then `off`. Expect: the button opens the tools; off gives back what it did. [needs: pen]
 
 ## Tips
