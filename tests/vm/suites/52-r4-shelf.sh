@@ -514,8 +514,10 @@ toast_up() { [[ "$(desks .toast)" != null ]]; }
 check "D11 a toast is up" toast_up
 cycle10
 sleep 1
+# Left over: a card or toast the running module does not hold. The module started again reads this machine's own
+# screens (D13), a desk it has not seen, and may ask about it with a card of its own
 same "D11 nothing of desks is left in the shell" \
-    "$(ev "Main.layoutManager.uiGroup.get_children().filter(a => /amethystora-desks/.test(a.style_class ?? '')).map(a => a.style_class).join(', ')")" ""
+    "$(ev "Main.layoutManager.uiGroup.get_children().filter(a => /amethystora-desks/.test(a.style_class ?? '') && a !== ${DK}.card && a !== ${DK}.toast).map(a => a.style_class).join(', ')")" ""
 sleep 3
 same "D11 after the cycles desks are on again, no timer left" "$(desks '"\(.on) \(.fileMonitor) \(.timer)"')" "true true false"
 # The cycles started the module again without its stand-in: it read this machine's own screens, as Mutter has them
