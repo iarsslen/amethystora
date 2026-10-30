@@ -179,7 +179,7 @@ same "7 classic: no translation" "$(ev "${V}.tr(1)")" "0,0"
 in_session "ame desktop layout tiling" >/dev/null 2>&1
 sleep 1
 
-ev "global.force_animations = true; 1" >/dev/null
+gs set org.gnome.desktop.interface enable-animations false
 sleep 1
 ev "${V}.record()" >/dev/null
 minimize 1
@@ -189,7 +189,8 @@ restore 1
 wait_for 3 settled
 same "3 animations off: ends clean" "$(ev "${V}.end(1)")" shown
 same "3 animations off: GNOME's path" "$(ev "${V}.runs.map(r => r.kind).join(' ')")" "gnome gnome"
-ev "${V}.stop(); global.force_animations = true; 1" >/dev/null
+ev "${V}.stop(); 1" >/dev/null
+gs reset org.gnome.desktop.interface enable-animations
 sleep 1
 
 check "4 ame desktop minimize shrink" in_session "ame desktop minimize shrink"

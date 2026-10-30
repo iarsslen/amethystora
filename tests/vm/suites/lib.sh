@@ -26,8 +26,7 @@ skip() { echo "skip - $*"; }
 SUITE_BEGAN="$(date '+%Y-%m-%d %H:%M:%S')"
 shell_faults() {
     journalctl -b --since "${SUITE_BEGAN}" _COMM=gnome-shell --no-pager -o cat 2>/dev/null |
-        awk '/JS ERROR/ { block = $0; next } block && /@(resource|file):/// { block = block "
-" $0; next }
+        awk '/JS ERROR/ { block = $0; next } block && /@(resource|file):\/\// { block = block " | " $0; next }
             block { if (block ~ /amethystora-/) print block; block = "" }
             /Did not find color property/ { print }
             /Amethystora UI: .*(failed|threw|did not (start|stop cleanly))/ { print }
