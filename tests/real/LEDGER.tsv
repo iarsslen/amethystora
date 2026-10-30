@@ -637,3 +637,46 @@
 2026-10-30 18:21:43	step	D-TILE-24	pointer back on HDMI-1, a second terminal, to see whether the first now floats; frame
 2026-10-30 18:21:59	step	D-TILE-24	end the resized terminal, frame; end mine; back to the workspace layout
 2026-10-30 18:22:20	end	D-TILE-24	pass the resized terminal floats: the workspace label dropped it, a new terminal tiled under it, stops at the edge of its own screen; both terminals ended
+2026-10-30 18:22:25	start	D-TILESET-23	keyboard page
+2026-10-30 18:22:25	end	D-TILESET-23	skip needs a yes to GNOME's desktop-keys question, which the walk never grants
+2026-10-30 18:22:27	start	D-TILESET-24	window rule by gsettings: exact class, pattern, star; Calculator; reset
+2026-10-30 18:22:27	step	D-TILESET-24	no rule: Calculator, frame, end it
+2026-10-30 18:22:31	step	D-TILESET-24	exact class rule: Calculator, frame, end it
+2026-10-30 18:22:50	step	D-TILESET-24	pattern rule, Calculator, frame, end; star rule, same; reset; no rule again
+2026-10-30 18:23:45	end	D-TILESET-24	pass exact, pattern and star each float Calculator, no rule tiles it; by gsettings; key reset, read back; Calculator ended
+2026-10-30 18:23:45	start	D-TILESET-25	layout switch
+2026-10-30 18:23:45	end	D-TILESET-25	skip switches layout, for the maintainer
+2026-10-30 18:23:45	start	D-SCREENS-01..04	group through one session: pointer between screens, Super+Page Down on each, Super+4, focus and move a window between screens with my scratch editor
+2026-10-30 18:23:45	step	D-SCREENS-01..04	PageDown on HDMI-1; pointer to DP-1; PageDown; Super+2; Super+4; nudge; Super+Shift+Left; Super+Shift+Ctrl+Right; Super+Shift+Ctrl+Left; frame each
+2026-10-30 18:24:26	end	D-SCREENS-01..04	pass 01 to 04 seen in frames
+2026-10-30 18:24:46	start	D-SCREENS-05..06	group: swap and move workspaces between screens with their keys, each back; second bar on by gsettings, frame
+2026-10-30 18:24:46	step	D-SCREENS-05..06	Super+Alt+Right, frame, again; Ctrl+Alt+Shift+Right, frame, Left, frame; every-screen on, frame
+2026-10-30 18:25:12	step	D-SCREENS-05..06	Super+Alt+Right then Left; Ctrl+Alt+Shift+Right, Left; second bar: click 5, click 2 (shown by DP-1), click 5; frames; every-screen back off
+2026-10-30 18:25:52	end	D-SCREENS-05..06	pass swap and move each way, second bar shows and swaps; every-screen back off, read back
+2026-10-30 18:25:53	start	D-SCREENS-07	unplug
+2026-10-30 18:25:53	end	D-SCREENS-07	skip unplugging is the person's, and a suspect for the hangs
+2026-10-30 18:25:53	start	D-SCREENS-08	dynamic workspaces by gsettings, frame, back
+2026-10-30 18:25:53	step	D-SCREENS-08	dynamic on by gsettings, frame of the bar and read the count; back; read back
+2026-10-30 18:26:18	end	D-SCREENS-08	pass dynamic on: 1, 2, 3 shown by HDMI-1 although empty, 4 to spare; off: six again; read back
+2026-10-30 18:26:18	start	D-SCREENS-09	classic with two screens
+2026-10-30 18:26:18	end	D-SCREENS-09	skip switches layout, for the maintainer
+2026-10-30 18:26:18	start	D-SCREENS-10	mixed scales
+2026-10-30 18:26:18	end	D-SCREENS-10	skip both screens 2560x1440 at scale 1, no HiDPI one connected
+2026-10-30 18:26:18	start	D-CLASSIC-01	classic
+2026-10-30 18:26:18	end	D-CLASSIC-01	skip needs the classic layout, which re-places every window: for the maintainer
+2026-10-30 18:26:18	start	D-CLASSIC-03	classic
+2026-10-30 18:26:18	end	D-CLASSIC-03	skip needs the classic layout, which re-places every window: for the maintainer
+2026-10-30 18:26:18	start	D-CLASSIC-04	classic
+2026-10-30 18:26:18	end	D-CLASSIC-04	skip needs the classic layout, which re-places every window: for the maintainer
+2026-10-30 18:26:18	start	D-CLASSIC-05	classic
+2026-10-30 18:26:18	end	D-CLASSIC-05	skip needs the classic layout, which re-places every window: for the maintainer
+2026-10-30 18:26:18	start	D-CLASSIC-09	classic
+2026-10-30 18:26:18	end	D-CLASSIC-09	skip needs the classic layout, which re-places every window: for the maintainer
+2026-10-30 18:26:18	start	D-CLASSIC-02	layout offer
+2026-10-30 18:26:18	end	D-CLASSIC-02	skip needs a new account's first login
+2026-10-30 18:26:29	start	D-CLASSIC-06	classic
+2026-10-30 18:26:29	end	D-CLASSIC-06	skip this part runs only in the classic layout: for the maintainer
+2026-10-30 18:26:29	start	D-CLASSIC-07	classic
+2026-10-30 18:26:29	end	D-CLASSIC-07	skip this part runs only in the classic layout: for the maintainer
+2026-10-30 18:26:29	start	D-CLASSIC-10	classic
+2026-10-30 18:26:29	end	D-CLASSIC-10	skip this part runs only in the classic layout: for the maintainer

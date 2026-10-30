@@ -9,7 +9,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
   test is behind the freezes). After a hang, run `tests/real/ledger.sh hang` first: the test left open is the suspect, and
   `~/.local/state/amethystora/walk/{ledger,beats}.tsv` hold it, `tests/real/LEDGER.tsv` the pushed copy. The maintainer asked to speed up on 2026-10-30, so the terminal track runs beside
   the walker again, with its own `ledger-terminal.tsv` (`WALK_TRACK=terminal`); `ledger.sh hang` shows both. At 15:32 both ran too, with no record.
-- Track 1 (desktop walker), 18:23 EDT, walking from D-TILESET-21, now D-TILESET-23; two screens now (HDMI-1 since 18:17:35).
+- Track 1 (desktop walker), 18:27 EDT, walking from D-TILESET-21, now D-CLASSIC-08 and D-WIN; two screens (HDMI-1 since 18:17:35), the classic items left for the maintainer.
 - Updated: 2026-10-30 15:08 EDT. Boot e04b5405, started 15:01:44, after the hard hang at 14:57. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
