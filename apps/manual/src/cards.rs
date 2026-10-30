@@ -227,6 +227,12 @@ pub fn card(href: &str, caption: &str) -> Option<gtk::Widget> {
     root.connect_map(move |root| {
         shown.follow(root);
         shown.sync();
+        // Only laid out by the next frame can it tell whether it is on the screen, and a window already active says nothing more
+        let card = shown.clone();
+        root.add_tick_callback(move |_, _| {
+            card.sync();
+            glib::ControlFlow::Break
+        });
     });
     let hidden = card.clone();
     root.connect_unmap(move |_| {

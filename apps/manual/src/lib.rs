@@ -481,8 +481,11 @@ impl Manual {
         }
         let target = anchor.and_then(|anchor| self.headings.borrow().iter().find(|(id, _)| *id == anchor).map(|(_, widget)| widget.clone()));
         let this = self.rc();
-        // Once the new page has been laid out
-        glib::idle_add_local_once(move || {
+        // Once the new page has been laid out: a section's place means nothing before that, and an idle callback can come first
+        self.main.add_tick_callback(move |_, _| {
+            if target.as_ref().is_some_and(|target| target.width() == 0) {
+                return glib::ControlFlow::Continue;
+            }
             let main = this.main.clone();
             let child = main.child();
             let y = match (&target, child) {
@@ -492,6 +495,7 @@ impl Manual {
             if let Some(y) = y {
                 this.scroll_to(y, same);
             }
+            glib::ControlFlow::Break
         });
     }
 
