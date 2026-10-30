@@ -5,11 +5,12 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 
 ## Now
 
-- Updated: 2026-10-30 14:15 EDT. Boot 97075e68, started 13:59:21. Image `latest-44.20261030`, built from 587de45,
-  without today's search crash, deadlock, frozen-screen and Glance fixes. Checkout at aa1d7bd.
-- Running: the checklist walk (`10-desktop.md`, from D-GRID-05, a subagent of the desktop session, input through Mutter
-  RemoteDesktop) and the no-DisplayLink test.
-- The walk still runs inside the desktop session, so a shell crash takes it with it. Moving it out is not done.
+- Updated: 2026-10-30 14:50 EDT. Boot e68f5f3b, started 14:42:41, after a third hard hang in this log. Image
+  `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
+  restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
+- The walk stopped with the hang at 14:37 (last marks 64d7211). Nothing is walking now.
+- Journal tails of each hang are kept on the machine, in `~/.local/state/amethystora/hangs`, not here: this repository is
+  public and they hold personal data.
 - Owner: the real-machine Claude session, since the lab session handed this over on 2026-10-30. Nobody takes commits
   through the lab meanwhile, and nothing here is validated by it. Never start `Latest Images` from here.
 
@@ -24,7 +25,19 @@ Seen:
 - No kernel error, GPU reset, lockup, oops or core dump in the kept log of the 13:05 boot. `/var/lib/systemd/pstore` empty.
   `/sys/fs/pstore` needs sudo and has not been read.
 
-Inferred, weak:
+- 14:37: journal ends 14:37:33.02 with sync at 1 s, so this tail is firm. DisplayLink's service had been stopped since
+  14:06:29, `evdi` loaded. In the maintainer's words: "it crashed again afgter i plugged the dock back again. So i have a
+  multiswitch kvm, when i switched back to this machine. it froze". SysRq (`kernel.sysrq=1`) did nothing; a keyboard plugged
+  straight into the machine stayed off. No kernel line after 14:25:29 (the Lenovo dock's USB disconnect, which it
+  survived for 12 minutes), so no USB connect line for the replug. No oops, no core dump, `pstore` folder empty. The walk
+  was sending keys and screenshots at that moment.
+
+Inferred:
+- The kernel itself stopped: SysRq is handled in the kernel, and a powerless keyboard suggests the USB controller went too.
+  Not GNOME Shell, and not a daemon. DisplayLink's service is not required for it, since it was stopped; its driver was loaded.
+- Leading idea, not proven: a display hotplug hangs the machine (a KVM switch or a dock replug drops and re-trains the link).
+  The 14:37 hang came with one, and the 13:05 hang appeared across a break. Not yet asked: whether the KVM was switched
+  around 09:45, 10:21 and 13:05. Earlier amdgpu display warnings are in the same area (10:18 DSC, 12:13 ACT, 14:08 REG_WAIT).
 - The whole machine rather than GNOME Shell, since the console switch failed.
 - The journal then synced only every 5 minutes, so up to 5 minutes before each end may be missing: the last lines
   (a graphical program starting, in three of the four) are not firm evidence.
@@ -36,10 +49,11 @@ Inferred, weak:
   `/etc/systemd/journald.conf.d/hang-test.conf` with `SyncIntervalSec=1s`. `evdi` could not be unloaded (still loaded,
   use count 2): that needs a logout. The LG screens are off, the Samsungs are `DP-1` and `DP-11`.
 - Not input-free: the walk was resumed at the maintainer's word at about 14:12.
-- The first mark that means much: about 15:50, 110 minutes into this boot.
+- Ended by the 14:37 hang, 31 minutes in. Result: it hangs without DisplayLink's service. `evdi` stayed loaded, so the driver
+  is not ruled out.
 - Seen at 14:08:02, on a switch to the text console, recovered: amdgpu `REG_WAIT timeout ... dcn31_program_compbuf_size`,
   a WARNING at `dcn31_hubbub.c:151`, under `fbcon_init`.
-- If it hangs anyway: the Samsungs plugged directly into the machine, not through a dock (the maintainer's hands).
+- Next, the maintainer's hands: switch the KVM away and back with nothing walking, to see if that alone hangs it; then the same with the Samsungs plugged directly into the machine.
 - Take away afterwards: `sudo rm /etc/systemd/journald.conf.d/hang-test.conf`, `sudo systemctl restart systemd-journald`.
   The mask and `sysrq` end at the next restart.
 
