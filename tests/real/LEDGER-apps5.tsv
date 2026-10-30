@@ -1,0 +1,45 @@
+2026-10-30 19:02:06	start	A-ALL-16	version of each app
+2026-10-30 19:02:06	end	A-ALL-16	pass nine apps
+2026-10-30 19:02:33	start	A-ALL-manual	open Manual, read the window
+2026-10-30 19:03:20	step	A-ALL-manual	A-ALL-02 second launch of Manual with an argument
+2026-10-30 19:04:02	step	A-ALL-manual	manual in fr
+2026-10-30 19:04:06	step	A-ALL-manual	manual in es
+2026-10-30 19:04:10	step	A-ALL-manual	manual in de
+2026-10-30 19:04:14	step	A-ALL-manual	manual in ar
+2026-10-30 19:04:41	end	A-ALL-manual	pass Manual languages read
+2026-10-30 19:04:50	start	A-ALL-logs	Logs: languages, then English window
+2026-10-30 19:04:50	step	A-ALL-logs	logs in fr
+2026-10-30 19:04:54	step	A-ALL-logs	logs in es
+2026-10-30 19:04:58	step	A-ALL-logs	logs in de
+2026-10-30 19:05:02	step	A-ALL-logs	logs in ar
+2026-10-30 19:05:21	end	A-ALL-logs	skip Logs is held by another session
+2026-10-30 19:05:21	start	A-ALL-backups	Backups: languages, then English window
+2026-10-30 19:05:22	step	A-ALL-backups	backups in fr
+2026-10-30 19:05:25	step	A-ALL-backups	backups in es
+2026-10-30 19:05:29	step	A-ALL-backups	backups in de
+2026-10-30 19:05:33	step	A-ALL-backups	backups in ar
+2026-10-30 19:05:49	step	A-ALL-backups	Backups in English, second launch with status
+2026-10-30 19:05:55	end	A-ALL-backups	pass Backups read
+2026-10-30 19:06:10	start	A-ALL-security	Security: languages on its first page, English window
+2026-10-30 19:06:10	step	A-ALL-security	security in fr
+2026-10-30 19:06:14	step	A-ALL-security	security in es
+2026-10-30 19:06:18	step	A-ALL-security	security in de
+2026-10-30 19:06:22	step	A-ALL-security	security in ar
+2026-10-30 19:06:38	step	A-ALL-security	Security English, second launch with a page
+2026-10-30 19:06:45	end	A-ALL-security	pass Security read
+2026-10-30 19:06:54	start	A-PHONE-window	Phone window with the link running, no pairing
+2026-10-30 19:07:34	step	A-PHONE-window	A-PHONE-29 unknown commands
+2026-10-30 19:07:35	step	A-PHONE-window	A-PHONE-26 messages with no phone
+2026-10-30 19:07:49	step	A-PHONE-window	A-PHONE-17 send a scratch file, no phone
+2026-10-30 19:08:03	step	A-PHONE-window	A-PHONE-28 messages, close, reopen
+2026-10-30 19:08:12	step	A-PHONE-window	Phone in four languages
+2026-10-30 19:08:13	step	A-PHONE-window	phones in fr
+2026-10-30 19:08:26	step	A-PHONE-window	phones in es
+2026-10-30 19:08:40	step	A-PHONE-window	phones in de
+2026-10-30 19:08:55	step	A-PHONE-window	phones in ar
+2026-10-30 19:09:19	step	A-PHONE-window	phone in fr
+2026-10-30 19:09:33	step	A-PHONE-window	phone in es
+2026-10-30 19:09:38	step	A-PHONE-window	phone in de
+2026-10-30 19:09:42	step	A-PHONE-window	phone in ar
+2026-10-30 19:10:22	step	A-PHONE-window	page changes with the accessibility bus on
+2026-10-30 19:10:41	end	A-PHONE-window	pass Phone window items read
