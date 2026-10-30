@@ -200,6 +200,17 @@ same "...and the main bar lights its own screen's workspace with the keyboard el
 keys "move:${bar_at}"
 sleep 1
 
+# With animations off, a switch to a workspace no screen shows: GNOME's slide would end inside its loop over the screens,
+# and an "already disposed" fails this suite
+user_bus gsettings set org.gnome.desktop.interface enable-animations false
+sleep 1
+ev "(() => { const e = ${UI}.get('tiling').engine; const n = global.workspace_manager.n_workspaces; for (let i = n - 1; i >= 0; i--) { const w = global.workspace_manager.get_workspace_by_index(i); if (!e.screens.wasShown(w)) { w.activate(global.get_current_time()); return i; } } return -1; })()" >/dev/null
+sleep 1
+same "with animations off a switch leaves no slide behind" "$(ev "Main.wm._workspaceAnimation._switchData === null")" true
+user_bus gsettings reset org.gnome.desktop.interface enable-animations
+keys "move:${bar_at}"
+sleep 1
+
 # A JS error whose stack goes through the extension, or the extension's own word that a module failed (GNOME's own
 # errors while the session is ended for a restart are not its)
 errors="$(journalctl -b "_UID=$(id -u "${TEST_USER}")" _COMM=gnome-shell --since "${since}" --no-pager -o cat 2>/dev/null |

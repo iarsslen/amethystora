@@ -111,6 +111,10 @@ export class ShellPatches {
                 if (e?.screens?.separate &&
                     e.screens.wasShown(global.workspace_manager.get_workspace_by_index(to)))
                     return onComplete();
+                // With animations off GNOME's slide ends within its loop over the screens, as soon as it reaches the
+                // primary one, and destroys what the rest of the loop goes on to move: nothing to slide, so no slide
+                if (!St.Settings.get().enable_animations)
+                    return onComplete();
                 if (e && !hiding) {
                     hiding = e;
                     e.boxHidden++;
