@@ -179,6 +179,9 @@ def main(argv):
         node = find(app, rest[0], rest[1] if len(rest) > 1 else None)
         if node is None:
             fail(f"nothing to click named {rest[0]!r}")
+        # A table cell takes the name of what it holds: the widget that can be pressed, not the cell above it
+        if not actionable(node) and len(rest) == 1:
+            node = find_pressable(app, rest[0]) or node
         if not activate(node):
             try:
                 pointer_click(node)
