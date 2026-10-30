@@ -1255,7 +1255,7 @@ impl Logs {
         let field = ui::hbox(9, &["search"]);
         let glass = icon("search", 17);
         field.append(&glass);
-        let input = gtk::Text::builder().placeholder_text(t!("Search messages")).hexpand(true).valign(gtk::Align::Center).build();
+        let input = gtk::Text::builder().accessible_role(gtk::AccessibleRole::TextBox).placeholder_text(t!("Search messages")).hexpand(true).valign(gtk::Align::Center).build();
         input.set_text(&search);
         input.update_property(&[gtk::accessible::Property::Label(&t!("Search messages"))]);
         field.append(&input);
@@ -1702,7 +1702,7 @@ impl Logs {
         } else {
             let field = ui::hbox(9, &["search", "wide"]);
             field.append(&icon("search", 17));
-            let filter = gtk::Text::builder().placeholder_text(t!("Find an app or service")).hexpand(true).valign(gtk::Align::Center).build();
+            let filter = gtk::Text::builder().accessible_role(gtk::AccessibleRole::TextBox).placeholder_text(t!("Find an app or service")).hexpand(true).valign(gtk::Align::Center).build();
             filter.set_text(&self.state.borrow().source_filter);
             filter.update_property(&[gtk::accessible::Property::Label(&t!("Find an app or service"))]);
             field.append(&filter);

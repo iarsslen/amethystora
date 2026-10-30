@@ -235,6 +235,7 @@ impl Manual {
     fn new(shell: Rc<Shell>) -> Rc<Manual> {
         let pages = read_pages();
         let search = gtk::Entry::builder().placeholder_text(t!("Search the manual")).css_classes(["search-input"]).build();
+        search.update_property(&[gtk::accessible::Property::Label(&t!("Search the manual"))]);
         let toc = ui::vbox(0, &["toc"]);
         let results = ui::vbox(0, &["results"]);
         let toc_scroller = gtk::ScrolledWindow::builder().hscrollbar_policy(gtk::PolicyType::Never).vexpand(true).child(&toc).build();

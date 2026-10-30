@@ -355,7 +355,7 @@ impl Control {
         sidebar.foot.append(&frame::terminal(&t!("Also in a terminal:"), "ame control"));
 
         // The search, with the window's own buttons beside it
-        let search = gtk::Text::builder().placeholder_text(t!("Search the settings")).hexpand(true).build();
+        let search = gtk::Text::builder().accessible_role(gtk::AccessibleRole::TextBox).placeholder_text(t!("Search the settings")).hexpand(true).build();
         search.update_property(&[gtk::accessible::Property::Label(&t!("Search the settings"))]);
         let field = ui::hbox(9, &["search"]);
         field.append(&icon("search", 18));
