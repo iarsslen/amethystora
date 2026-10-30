@@ -875,3 +875,22 @@
 2026-10-30 19:10:03	end	D-GLASS-04..07	fail dock on a bright picture: grid dots unreadable; rest seen
 2026-10-30 19:10:03	start	D-COMFORT-01..04	reduce transparency, increase contrast, power saver, status
 2026-10-30 19:10:03	step	D-COMFORT-01..04	each on, a frame with the calendar, off, read back; profile through its D-Bus property
+2026-10-30 19:10:53	end	D-COMFORT-01..04	pass three comfort settings seen and put back; status followed
+2026-10-30 19:10:53	start	D-FONT-01..02	interface font kept across themes; mono font in kitty and the terminal style
+2026-10-30 19:10:53	step	D-FONT-01..02	font Space Grotesk, frame, theme switch and back, read; font theme; list in a kitty; mono font with a kitty of mine open, frame; put back
+2026-10-30 19:14:17	end	D-FONT-01..02	pass font kept; mono's kitty part not seen
+2026-10-30 19:14:17	start	D-ICONS-01..03	eight packs in grid and Files; makers' logos; light packs on a light theme
+2026-10-30 19:14:17	step	D-ICONS-01..03	each pack, app grid frame, Files frame; light theme with Glass for light and Clay; back to the theme
+2026-10-30 19:15:45	step	D-ICONS-01..03	light theme: Glass for light and Clay, grid frames; back
+2026-10-30 19:16:33	end	D-ICONS-01..03	pass packs seen; light packs read
+2026-10-30 19:16:33	start	D-ICONS-04	Folder colour on a scratch folder of mine
+2026-10-30 19:16:33	step	D-ICONS-04	Files on the scratch folder, right-click it, frame
+2026-10-30 19:17:02	end	D-ICONS-04	skip over the minute: the strip scrolled under the menu, another track's window came in; scratch folder removed, nothing coloured
+2026-10-30 19:17:02	start	D-ICONS-05	stars
+2026-10-30 19:17:02	end	D-ICONS-05	skip my scratch folder has no Star in its menu and the person's folders are not touched
+2026-10-30 19:17:33	start	D-TERM-02..04	prompt in a repository; live theme; greeting, in kittys I start and close by their own process
+2026-10-30 19:17:33	step	D-TERM-02..04	kitty in the checkout, frame; theme switch and back; greeting off, kitty, frame, on
+2026-10-30 19:18:19	end	D-TERM-02..04	pass prompt, live theme, greeting
+2026-10-30 19:18:19	start	D-TERM-01	kitty by Super+Return, Ctrl+Alt+T, Ctrl+Alt+Return; each closed by its own close button once framed
+2026-10-30 19:18:19	step	D-TERM-01	Super+Return, frame
+2026-10-30 19:19:17	end	D-TERM-01	pass three keys
