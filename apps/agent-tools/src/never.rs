@@ -133,7 +133,7 @@ const JUST_RUNNERS: &[&str] = &["--command", "-c", "--shell", "--shell-arg", "--
 /// out (`ame -q security`, `just --justfile FILE security`), every `--` passed over (a refusal never depends on where
 /// one stands), and a module path `a::b` as the two words `a b`, each in lower case. A group's own justfile named with
 /// -f or --justfile (`just -f /usr/share/amethystora/just/agent.just pill off`) is given back too, for the words with the
-/// group in front, as ame names them. An option that makes just run something other than a recipe is refused
+/// group in front, as `ame` names them. An option that makes just run something other than a recipe is refused
 fn recipe_words(args: &[String]) -> Result<(Vec<String>, Option<String>), String> {
     let mut words = Vec::new();
     let mut justfile: Option<&str> = None;
