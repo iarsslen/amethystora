@@ -298,3 +298,25 @@
 2026-10-30 17:17:59	end	D-SHELF-04	pass seen with two.txt: icon and name grey
 2026-10-30 17:17:59	start	D-SHELF-06	Alt+Tab with the shelf open
 2026-10-30 17:17:59	end	D-SHELF-06	pass the shelf is in the switcher
+2026-10-30 17:18:10	start	D-SHELF-02	drop a second kind; drag the file out to another folder
+2026-10-30 17:18:10	step	D-SHELF-02	drop walk.txt at the edge; second Files window on another scratch folder
+2026-10-30 17:18:27	step	D-SHELF-02	drag the item from the shelf into the other folder
+2026-10-30 17:18:43	end	D-SHELF-02	pass a file drags out as a copy, the item leaves, shelf closes; text, a picture and Ctrl not tried
+2026-10-30 17:18:43	start	D-SHELF-05	shake mode
+2026-10-30 17:18:43	step	D-SHELF-05	shelf shake; drag and shake over a scratch window
+2026-10-30 17:19:13	end	D-SHELF-05	fail no card on a shake injected while dragging, eight swings of 160 px; a real mouse not tried; put back off
+2026-10-30 17:19:26	start	D-SHOT-05	thumbnail after a screenshot
+2026-10-30 17:19:26	step	D-SHOT-05	Print, whole screen, capture; watch the corner
+2026-10-30 17:19:47	end	D-SHOT-05	pass thumbnail for six seconds with its five buttons, blurred under the input session
+2026-10-30 17:19:47	start	D-SHOT-08	pin handling
+2026-10-30 17:19:47	step	D-SHOT-08	screenshot, Pin on top on the thumbnail
+2026-10-30 17:20:27	step	D-SHOT-08	wheel on the pin; Ctrl+wheel; right-click
+2026-10-30 17:20:44	end	D-SHOT-08	pass drag moves; wheel grows; Ctrl+wheel more see-through
+2026-10-30 17:20:44	start	D-SHOT-10	pin's menu, cross and Esc
+2026-10-30 17:20:44	end	D-SHOT-10	pass menu seen; Close tested below
+2026-10-30 17:21:01	step		right-click through the pin, into the editor below
+2026-10-30 17:21:04	step		arrow again; right-click the pin; click it and Esc
+2026-10-30 17:21:25	step		click the pin, Esc
+2026-10-30 17:21:44	end		pass menu, Close offered; Esc lets the pin go; cross not pressed
+2026-10-30 17:21:44	start	D-SHOT-09	click-through
+2026-10-30 17:21:44	end	D-SHOT-09	pass amber ring, a right-click reached the editor below, the arrow gave it back
