@@ -1,0 +1,13 @@
+2026-10-30 18:53:02	start	A-CONTROL-01	open Control on the second screen, read the tree
+2026-10-30 18:56:34	step	A-CONTROL-01	one screenshot of the window
+2026-10-30 18:57:09	step	A-CONTROL-01	A-CONTROL-02 each page's head
+2026-10-30 18:57:17	step	A-CONTROL-01	A-CONTROL-05 launched with a page while open
+2026-10-30 18:57:21	step	A-CONTROL-01	close, reopen, re-read
+2026-10-30 18:59:00	end	A-CONTROL-01	pass 01 02 05 read
+2026-10-30 18:59:00	start	A-CONTROL-74 75 78 139	typing only, refused presses, nothing added
+2026-10-30 18:59:33	end	A-CONTROL-74 75 78 139	pass refusals read, nothing added
+2026-10-30 18:59:33	start	A-CONTROL-130	Show: the record, read only
+2026-10-30 18:59:36	end	A-CONTROL-130	pass output read
+2026-10-30 18:59:48	start	A-CONTROL-156	Pick a look, state folder a scratch one, read only
+2026-10-30 19:00:28	end	A-CONTROL-156	pass page read, real marker not written, window closed
+2026-10-30 19:00:28	start	A-CONTROL marks	write marks, no window
