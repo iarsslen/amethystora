@@ -403,3 +403,32 @@
 2026-10-30 17:41:12	end	D-DOCK-17	pass all labels right; Hotkeys, Crashes, Apps and Services, Backup Status, Virus Scan, Appearance, System reach their pages; Notes showed first-run setup in place of Tasks; favourites put back
 2026-10-30 17:41:12	start	D-DOCK-18	Alt+number
 2026-10-30 17:41:12	step	D-DOCK-18	Alt+5 with no pinned app in slot 5 first look; Alt+1 goes to Firefox
+2026-10-30 17:41:24	step	D-DOCK-18	Alt+3 opens Files; Alt+Tab-free back with a click on the editor; Alt+3 switches back
+2026-10-30 17:41:44	end	D-DOCK-18	pass Alt+3 opened Files, and from the editor switched back to it
+2026-10-30 17:42:01	start	D-DOCK-20	badges and progress
+2026-10-30 17:42:01	step	D-DOCK-20	launcher-entry signal: count and progress on Text Editor; shot; do not disturb on for a moment; shot; clear
+2026-10-30 17:42:20	step	D-DOCK-20	stand-in program keeps the entry alive: count and progress, then updating
+2026-10-30 17:42:39	end	D-DOCK-20	pass stand-in program: count, progress bar, greyed while updating, gone at its end; kitty's count gone under do not disturb
+2026-10-30 17:42:39	start	D-DOCK-21	make a folder
+2026-10-30 17:42:39	step	D-DOCK-21	drag Bazaar onto Files, hold until it lights, drop; shot; click it
+2026-10-30 17:43:53	end	D-DOCK-21	fail three drags held over Files and Thunderbird with motion: the target did not light, no folder made, favourites unchanged; may be the input session
+2026-10-30 17:43:53	start	D-DOCK-22	downloads stack
+2026-10-30 17:43:53	step	D-DOCK-22	fourteen stand-in files in Downloads; click the stack; shot; Escape
+2026-10-30 17:44:05	end	D-DOCK-22	pass the twelve newest of fourteen, newest first, and Open in Files
+2026-10-30 17:44:05	start	D-DOCK-23	add a stack
+2026-10-30 17:44:05	step	D-DOCK-23	stack add Documents; shot; stack remove; read
+2026-10-30 17:44:16	end	D-DOCK-23	skip added and shown beside Downloads; removal goes with the next item
+2026-10-30 17:44:16	start	D-DOCK-24	drop files on a stack
+2026-10-30 17:44:16	step	D-DOCK-24	open Downloads in Files; drag a stand-in file to the Documents stack; again with Ctrl
+2026-10-30 17:45:05	end	D-DOCK-24	pass moved by Files with its Moved toast, Ctrl copied; Ctrl+Z in Files undid neither, progress too quick to see
+2026-10-30 17:45:05	start	D-DOCK-23b	stack off the dock
+2026-10-30 17:45:05	step	D-DOCK-23b	drag the Documents stack off the dock; read stacks
+2026-10-30 17:45:30	end	D-DOCK-23b	pass stack added, dragged off, gone from the key
+2026-10-30 17:45:30	start	D-TIPS-02	tips off and reset
+2026-10-30 17:45:30	step	D-TIPS-02	hints off; reset; read file; put the file back; hints on
+2026-10-30 17:45:30	end	D-TIPS-02	pass key off and on; reset emptied what was shown, file put back
+2026-10-30 17:45:30	start	D-DOCK-25	folder colour on a stack
+2026-10-30 17:45:30	step	D-DOCK-25	open Home in Files; right-click Downloads; Scripts, Folder colour, Jade
+2026-10-30 17:46:09	step	D-DOCK-25	open the stack, shot, Escape
+2026-10-30 17:46:28	step	D-DOCK-25	same menu, No colour; close the Files windows
+2026-10-30 17:46:41	end	D-DOCK-25	pass jade on the stack from the script; No colour, metadata read back empty
