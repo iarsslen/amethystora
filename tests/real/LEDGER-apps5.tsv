@@ -43,3 +43,14 @@
 2026-10-30 19:09:42	step	A-PHONE-window	phone in ar
 2026-10-30 19:10:22	step	A-PHONE-window	page changes with the accessibility bus on
 2026-10-30 19:10:41	end	A-PHONE-window	pass Phone window items read
+2026-10-30 19:11:12	start	A-SHELF-12	shelf opened by hand, empty
+2026-10-30 19:11:28	end	A-SHELF-12	pass empty shelf
+2026-10-30 19:11:39	start	A-SHELF-04	shelf take: files, text, picture, by hand-off
+2026-10-30 19:11:43	step	A-SHELF-04	A-SHELF-10 move a scratch file meanwhile
+2026-10-30 19:12:02	step	A-SHELF-04	A-SHELF-09 Clear
+2026-10-30 19:12:03	end	A-SHELF-04	pass 04 09 10
+2026-10-30 19:12:03	start	A-SHELF-11	limits: 40 files, then a 33 MB picture, by hand-off
+2026-10-30 19:12:12	step	A-SHELF-11	33 MB picture
+2026-10-30 19:12:19	end	A-SHELF-11	pass limits
+2026-10-30 19:12:31	start	A-SHELF-11b	a picture over 32 MB
+2026-10-30 19:12:53	end	A-SHELF-11b	pass picture limit
