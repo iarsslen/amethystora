@@ -192,6 +192,13 @@ for ((i = 0; i < steps; i++)); do
     notch UP
 done
 same "...and back up to where it was" "$(bar_shows)" "${restore}"
+# The main bar lights what its own screen shows, also while the keyboard is on another screen
+other_at="$(ev "(() => { const m = Main.layoutManager.monitors.find((m, i) => i !== ${primary}), s = global.stage; return ((m.x + m.width / 2) / s.width).toFixed(3) + ',' + ((m.y + m.height / 2) / s.height).toFixed(3); })()")"
+keys "move:${other_at}"
+sleep 1
+same "...and the main bar lights its own screen's workspace with the keyboard elsewhere" "$(ev "${UI}.get('workspaces')._labels.findIndex(l => l.has_style_class_name('amethystora-workspaces-active'))")" "$(bar_shows)"
+keys "move:${bar_at}"
+sleep 1
 
 # A JS error whose stack goes through the extension, or the extension's own word that a module failed (GNOME's own
 # errors while the session is ended for a restart are not its)

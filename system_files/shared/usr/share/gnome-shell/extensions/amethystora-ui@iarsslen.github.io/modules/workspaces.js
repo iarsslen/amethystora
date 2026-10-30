@@ -428,7 +428,8 @@ export class Workspaces {
         while (this._labels.length > count)
             this._labels.at(-1).destroy();
 
-        const active = manager.get_active_workspace_index();
+        // With a workspace per screen, GNOME's own is the screen with the keyboard's: this bar lights what its screen shows
+        const active = this._shownOn(Main.layoutManager.primaryIndex)?.index() ?? manager.get_active_workspace_index();
         const names = this._prefs.get_strv(NAMES);
         const auto = this._settings?.get_boolean('auto-names') ?? false;
         this._order = this._workspaces();
