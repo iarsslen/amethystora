@@ -15,3 +15,15 @@
 2026-10-30 18:49:54	end	A-MANUAL-25	fail fr: 12 of the 20 translated pages have fewer headings
 2026-10-30 18:49:54	start	A-MANUAL-17	Copy through the tree
 2026-10-30 18:50:06	end	A-MANUAL-17	pass said Copied; clipboard not read
+2026-10-30 18:50:16	start	A-MANUAL-17	again: the last entry's pass was wrong, the window was still in French
+2026-10-30 18:50:34	end	A-MANUAL-17	skip button said Copied and went back; clipboard not changed for an unfocused window, left for the walker
+2026-10-30 18:50:35	start	A-LOGS-01	open Logs on the second screen
+2026-10-30 18:51:18	end	A-LOGS-01	pass 01, 02, 04
+2026-10-30 18:51:18	start	A-LOGS-08	Time and Level, opened through the tree
+2026-10-30 18:53:12	end	A-LOGS-08	pass 05, 08, 09
+2026-10-30 18:53:12	start	A-LOGS-06	crashes, route
+2026-10-30 18:53:15	step	A-LOGS-06	Read again
+2026-10-30 18:53:23	step	A-LOGS-06	Follow and logger
+2026-10-30 18:54:08	end	A-LOGS-06	pass 06 failed, 20, 23, 28
+2026-10-30 18:54:08	start	A-LOGS-24	Apps and services
+2026-10-30 18:55:41	end	A-LOGS-24	pass 19, 24; 25 failed
