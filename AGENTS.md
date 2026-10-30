@@ -325,7 +325,9 @@ The terminal is kitty (the maintainer's choice of 2026-10-24, over Ptyxis, which
 Hyprland era's kitty went): Fedora's package, first in `xdg-terminal-exec`'s three lists (`/etc/xdg/xdg-terminals.list`,
 `gnome-xdg-terminals.list`, `usr/share/xdg-terminal-exec/gnome-xdg-terminals.list`: 20-tests.sh holds all three), so
 `Super+Return`, `amethystora-in-terminal`, the logo menu and every `Terminal=true` launcher open it; its launcher's
-`X-TerminalArg*` keys say how. Ptyxis, the base image's, stays installed and second, for its container menu.
+`X-TerminalArg*` keys say how. Ptyxis, the base image's, stays installed and second, for its container menu. There is one
+launcher (the maintainer's choice of 2026-10-30): `17-cleanup.sh` gives kitty's the name, translations and icon of a Terminal
+and makes Ptyxis's `NoDisplay`, never `Hidden`, which xdg-terminal-exec would drop.
 - **Settings are the image's `/etc/xdg/kitty/kitty.conf`**, which kitty reads under the account's own
   `~/.config/kitty/kitty.conf` (a line of the account's wins; checked against kitty 0.47). Keep the title bar
   (`hide_window_decorations no`: the Hyprland era's config hid it and left GNOME windows without a close button), keep

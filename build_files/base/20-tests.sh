@@ -171,6 +171,11 @@ for list in /etc/xdg/xdg-terminals.list /etc/xdg/gnome-xdg-terminals.list /usr/s
 done
 rpm -q kitty >/dev/null
 grep -q "^X-TerminalArgExec=--$" /usr/share/applications/kitty.desktop
+# ...and it is the one Terminal in the app grid, with Ptyxis's launcher out of sight but not Hidden
+grep -qx "Name=Terminal" /usr/share/applications/kitty.desktop
+grep -qx "NoDisplay=true" /usr/share/applications/org.gnome.Ptyxis.desktop
+[[ "$(grep -cx "NoDisplay=true" /usr/share/applications/kitty.desktop)" == 0 ]]
+[[ "$(grep -cx "Hidden=true" /usr/share/applications/org.gnome.Ptyxis.desktop)" == 0 ]]
 grep -qx "terminal='kitty'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
 # The image's kitty.conf loads, and takes the theme's colours from the account's own folder
 grep -q "^include ~/.config/amethystora/current/theme/kitty-theme.conf$" /etc/xdg/kitty/kitty.conf

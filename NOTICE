@@ -23,6 +23,10 @@ release packages, which Fedora's trademark guidelines ask a system built this
 way to replace: the artwork is Amethystora's own, and Fedora's generic-release
 stands in the package database for fedora-release.
 
+kitty's launcher (GPL-3.0-only, https://github.com/kovidgoyal/kitty) is not as
+Fedora builds it: each time an image is built, build_files/base/17-cleanup.sh
+calls it Terminal, in Ptyxis's translations, with the image's terminal icon.
+
 GNOME Tour (GPL-3.0-or-later, https://gitlab.gnome.org/GNOME/gnome-tour) is
 not the app as Fedora builds it. Fedora puts a picture with Fedora's logo on
 its first page; since October 2026 Amethystora replaces that picture with its

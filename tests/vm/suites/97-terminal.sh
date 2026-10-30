@@ -27,6 +27,9 @@ check "kitty is installed" rpm -q kitty
 check "the Terminal launchers of the image name kitty first" \
     test "$(grep -hv '^#' /etc/xdg/xdg-terminals.list /etc/xdg/gnome-xdg-terminals.list | sort -u | head -n1)" == "kitty.desktop"
 
+check "the app grid has one Terminal, and it opens kitty" \
+    test "$(grep -lx 'Name=Terminal' /usr/share/applications/*.desktop | xargs grep -Lx 'NoDisplay=true')" == "/usr/share/applications/kitty.desktop"
+
 user_bus pkill -x kitty 2>/dev/null
 in_session "xdg-terminal-exec sleep 120" >/dev/null 2>&1 &
 if wait_for 60 kitty_running; then

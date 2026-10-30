@@ -8,7 +8,8 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 - Updated: 2026-10-30 14:50 EDT. Boot e68f5f3b, started 14:42:41, after a third hard hang in this log. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
-- The walk stopped with the hang at 14:37 (last marks 64d7211). Nothing is walking now.
+- The walk stopped with the hang at 14:37 (last marks 64d7211) and was resumed after it, from where it stopped.
+- One Terminal launcher, the maintainer's choice of 2026-10-30, is committed; it reaches this machine with an image.
 - Journal tails of each hang are kept on the machine, in `~/.local/state/amethystora/hangs`, not here: this repository is
   public and they hold personal data.
 - Owner: the real-machine Claude session, since the lab session handed this over on 2026-10-30. Nobody takes commits

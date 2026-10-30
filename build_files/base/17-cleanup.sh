@@ -145,6 +145,14 @@ for file in fish htop nvtop; do
     fi
 done
 
+# One Terminal in the app grid: kitty's launcher, under the name and translations of Ptyxis's and the icon packs' terminal.
+# Ptyxis's is NoDisplay and not Hidden, since xdg-terminal-exec drops a Hidden one and Ptyxis stays its second choice
+sed '/^\[Desktop Action/q' /usr/share/applications/org.gnome.Ptyxis.desktop | grep '^Name\[' >/tmp/terminal-names
+sed -i -e 's/^Name=kitty$/Name=Terminal/' -e '/^Name=Terminal$/r /tmp/terminal-names' -e 's/^Icon=kitty$/Icon=utilities-terminal/' \
+    /usr/share/applications/kitty.desktop
+rm -f /tmp/terminal-names
+sed -i '0,/^\[Desktop Entry\]$/s//[Desktop Entry]\nNoDisplay=true/' /usr/share/applications/org.gnome.Ptyxis.desktop
+
 #Add the Flathub Flatpak remote and remove the Fedora Flatpak remote. It is added from the .flatpakrepo
 # the base image carries, which machines add it from too (flatpak-add-flathub-repos.service), once the
 # key inside has been checked against Flathub's fingerprint, rather than from Flathub's server unchecked
