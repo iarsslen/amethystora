@@ -20,7 +20,8 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 const BUS_NAME = 'org.gnome.NautilusPreviewer';
 const OBJECT = '/org/gnome/NautilusPreviewer';
 const INTERFACE = 'org.gnome.NautilusPreviewer2';
-const PREVIEWER = 'org.gnome.NautilusPreviewer.desktop';
+const PREVIEWER_ID = 'org.gnome.NautilusPreviewer';
+const PREVIEWER = `${PREVIEWER_ID}.desktop`;
 const FILES = 'org.gnome.Nautilus.desktop';
 // Gtk.DirectionType, as the previewer sends its arrow keys
 const BACK = new Set([2, 4]);
@@ -173,8 +174,11 @@ export class Glance {
         }
     }
 
+    // By its sandbox first: Flathub's previewer has no launcher, so GNOME finds no app for its window, and Glance took
+    // the previewer's own window for another one and closed itself
     _isPreviewer(window) {
-        return Shell.WindowTracker.get_default().get_window_app(window)?.get_id() === PREVIEWER;
+        return window.get_sandboxed_app_id() === PREVIEWER_ID ||
+            Shell.WindowTracker.get_default().get_window_app(window)?.get_id() === PREVIEWER;
     }
 
     // The previewer's window: the hint goes under it and follows it

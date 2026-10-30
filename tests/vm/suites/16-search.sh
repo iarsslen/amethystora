@@ -422,7 +422,7 @@ for n in 1 2; do install -o "${TEST_USER}" -g "${TEST_USER}" -m 0644 "${picture}
 user_bus gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
     --method org.freedesktop.DBus.StartServiceByName org.freedesktop.LocalSearch3 0 >/dev/null 2>&1
 files_found() { search "vmlab-glance"; [[ "$(q '[.sections[].rows[].title | select(startswith("vmlab-glance"))] | length')" == 2 ]]; }
-previewer() { [[ "$(ev "global.display.get_tab_list(0, null).some(w => Shell.WindowTracker.get_default().get_window_app(w)?.get_id() === 'org.gnome.NautilusPreviewer.desktop')")" == true ]]; }
+previewer() { [[ "$(ev "global.display.get_tab_list(0, null).some(w => w.get_sandboxed_app_id() === 'org.gnome.NautilusPreviewer')")" == true ]]; }
 no_previewer() { ! previewer; }
 on_file() { [[ "$(q '[.sections[].rows[] | select(.selected and (.title | startswith("vmlab-glance-1")))] | length')" == 1 ]]; }
 to_first_file() { keys down; for _ in $(seq 12); do on_file && return 0; keys down; done; on_file; }
