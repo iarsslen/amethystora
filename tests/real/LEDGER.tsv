@@ -534,3 +534,13 @@
 2026-10-30 18:03:13	step	D-TILE-27	hold Super+Ctrl, grave, frame; grave, frame; let go, frame
 2026-10-30 18:03:26	step	D-TILE-27	move Files back: Super+Shift+2 with Files focused; frame
 2026-10-30 18:03:44	end	D-TILE-27	pass first press showed the workspace before, second one more back, carried window dropped there; moved back to 2
+2026-10-30 18:03:48	start	D-TILE-28	live switcher
+2026-10-30 18:03:48	step	D-TILE-28	bind live-alt-tab to Super+Y with gsettings (not through the window); hold Super, Y, frame; Y, frame; let go, frame; reset
+2026-10-30 18:04:05	end	D-TILE-28	pass bound by gsettings; switcher with the chosen window drawn where the strip would scroll it, others fogged; reset, read back empty
+2026-10-30 18:04:07	start	D-TILE-29	close, minimize, full screen, resize by keys
+2026-10-30 18:04:07	step	D-TILE-29	Files focused: Shift+F11, frame, again; Super+Backspace, Right three times, Escape, frame; Super+H, frame; Super+W on the one after, frame
+2026-10-30 18:04:31	step	D-TILE-29	Super+W with Files focused, frame
+2026-10-30 18:04:34	end	D-TILE-29	pass full screen keeps title bar; arrow keys resize, Escape cancels; Super+H minimizes; Super+W closes
+2026-10-30 18:04:55	step		close my Files: Super+Left, Super+W twice with the guard; Alt+3 raises the minimized one, Super+W
+2026-10-30 18:05:16	start	D-TILE-30	shortcut collision kept
+2026-10-30 18:05:16	end	D-TILE-30	skip not run: switching to classic would move the windows of other sessions on workspace 1; held for the coordinator
