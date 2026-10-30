@@ -21,3 +21,13 @@
 2026-10-30 19:19:42	end	A-NOTES-09	fail 09: locks; the choice not shown
 2026-10-30 19:19:42	start	A-NOTES-58..62	quick note, locked and before setup
 2026-10-30 19:21:03	end	A-NOTES-58..62	pass 61,62; 58-60,63-66 for the walker; 50-52 need a key
+2026-10-30 19:21:13	start	A-NOTES-09b	does the away lock hold after turning encryption on in a running window
+2026-10-30 19:26:27	end	A-NOTES-09b	pass 09b: locked at 5 min after turning encryption on; the earlier session that did not lock is not explained
+2026-10-30 19:27:09	start	A-NOTES-55,28,57	save dialogs under the input lock, scratch home
+2026-10-30 19:42:21	end	A-NOTES-55,28,57	stopped kernel panic 19:29 while this was open
+2026-10-30 19:44:22	start	A-NOTES-33,36,20,59	entries: does the tree have an activate action
+2026-10-30 19:45:20	end	A-NOTES-33,36,20,59	skip activate action fires no Enter; 20,33,36,59 stay for the walker
+2026-10-30 19:45:20	start	A-NOTES-15	selection through the text interface, then each format button
+2026-10-30 19:46:27	end	A-NOTES-15	pass 15: prefixes, placeholders and undo one step seen; a selection cannot be set through the tree
+2026-10-30 19:46:42	start	A-NOTES-66,19	Notes in a namespace with no network, scratch data; an attachment seeded, its chip read
+2026-10-30 19:48:28	end	A-NOTES-66,19	pass 66 in part: all used with no network device; 19 chip seen, click for the walker; no fault
