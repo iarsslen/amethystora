@@ -894,3 +894,23 @@
 2026-10-30 19:18:19	start	D-TERM-01	kitty by Super+Return, Ctrl+Alt+T, Ctrl+Alt+Return; each closed by its own close button once framed
 2026-10-30 19:18:19	step	D-TERM-01	Super+Return, frame
 2026-10-30 19:19:17	end	D-TERM-01	pass three keys
+2026-10-30 19:19:19	start	D-CLIPX-01	clipboard menu
+2026-10-30 19:19:19	end	D-CLIPX-01	skip the brief forbids photographing the clipboard menu and changing the clipboard; left for a person
+2026-10-30 19:19:19	start	D-CLIPX-02	clipboard menu
+2026-10-30 19:19:20	end	D-CLIPX-02	skip the brief forbids photographing the clipboard menu and changing the clipboard; left for a person
+2026-10-30 19:19:20	start	D-CLIPX-04	clipboard menu
+2026-10-30 19:19:20	end	D-CLIPX-04	skip the brief forbids photographing the clipboard menu and changing the clipboard; left for a person
+2026-10-30 19:19:20	start	D-CLIPX-06	clipboard menu
+2026-10-30 19:19:20	end	D-CLIPX-06	skip the brief forbids photographing the clipboard menu and changing the clipboard; left for a person
+2026-10-30 19:19:20	start	D-CLIPX-07	clipboard menu
+2026-10-30 19:19:20	end	D-CLIPX-07	skip the brief forbids photographing the clipboard menu and changing the clipboard; left for a person
+2026-10-30 19:19:50	start	D-WIDGET-01..07	none listed; hello, pomodoro, dnd from examples; edit, broken, check, off and on; removed after
+2026-10-30 19:19:50	step	D-WIDGET-01..07	list; new hello, bar crop; run; edit; exit 1, bar crop, click its menu; off, on
+2026-10-30 19:21:38	step	D-WIDGET-01..07	dnd follows banners key; extension off, restart; Control's list; desktop widgets in a corner, two stacked; off
+2026-10-30 19:22:37	step	D-WIDGET-01..07	seen: the keyboard's screen had moved to HDMI-1, so Super+5 and my Escapes did not go where I meant; go now homes through the join
+2026-10-30 19:22:58	step	D-WIDGET-01..07	seen: the pointer had been on HDMI-1 since a window change; my clicks on the bar's right part landed on that screen's top edge and my Escapes after them on the terminal focused there; pointer brought back; no Escape from here without its surface in a frame
+2026-10-30 19:24:09	end	D-WIDGET-01..07	skip runs a real agent
+2026-10-30 19:24:09	start	D-WIDGET-10	Control's widget list
+2026-10-30 19:24:09	end	D-WIDGET-10	skip Control's Desktop page opened; its widgets group is below the first screen, not reached in the minute; the list says it has a widgets entry and a desktop-widgets switch
+2026-10-30 19:24:09	start	D-WIDGET-11	while locked
+2026-10-30 19:24:09	end	D-WIDGET-11	skip needs a lock and unlock
