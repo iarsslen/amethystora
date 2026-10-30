@@ -100,3 +100,31 @@
 2026-10-30 16:28:42	step	D-QUICK-16	open quick settings, click Power, one screenshot
 2026-10-30 16:28:57	step	D-QUICK-16	Escape closes the power submenu, Escape again closes quick settings
 2026-10-30 16:29:00	end	D-QUICK-16	skip screenshot bar, settings and power submenu each came up; lock not pressed, it blanks the screen and needs the password; left open
+2026-10-30 16:29:22	start	D-TODAY-02	scratch tasks in Notes, one due today and one overdue, look at the calendar menu, then take them away
+2026-10-30 16:29:22	step	D-TODAY-02	launch Notes
+2026-10-30 16:29:25	step	D-TODAY-02	read what the window says
+2026-10-30 16:29:34	step	D-TODAY-02	Notes: continue without encryption, for scratch data removed after
+2026-10-30 16:29:35	step	D-TODAY-02	Notes: open tasks
+2026-10-30 16:29:44	step	D-TODAY-02	Notes: Keep unencrypted, then read the window
+2026-10-30 16:29:54	step	D-TODAY-02	Notes: open Tasks
+2026-10-30 16:30:02	step	D-TODAY-02	Notes: type a scratch task due today into the box, Return
+2026-10-30 16:30:05	step	D-TODAY-02	Notes: type a scratch overdue task, Return
+2026-10-30 16:30:18	step	D-TODAY-02	Notes: Tasks, one screenshot to find the box
+2026-10-30 16:30:29	step	D-TODAY-02	input session; click the Add a task box; one screenshot
+2026-10-30 16:30:33	step	D-TODAY-02	type a scratch task due today, Return
+2026-10-30 16:30:34	step	D-TODAY-02	type a scratch overdue task, Return
+2026-10-30 16:30:48	step	D-TODAY-02	new input session; hold the pointer on the share guard's cover to uncover Notes; click the box
+2026-10-30 16:30:54	step	D-TODAY-02	type a scratch task due today, Return
+2026-10-30 16:30:55	step	D-TODAY-02	type a scratch overdue task, Return
+2026-10-30 16:31:41	step	D-TODAY-02	the guard stays on; close Notes, write the two scratch tasks into its scratch data, open it again
+2026-10-30 16:31:47	step	D-TODAY-02	click the clock for the calendar menu; one screenshot
+2026-10-30 16:32:00	step	D-TODAY-02	the pill showed its card; click its date row for the calendar; one screenshot
+2026-10-30 16:32:14	step	D-TODAY-02	click October 29 in the calendar, one screenshot
+2026-10-30 16:32:16	step	D-TODAY-02	click October 30 again, click the walktest row, read which window is active
+2026-10-30 16:32:48	step	D-TODAY-02	new input session, one screenshot of the calendar
+2026-10-30 16:33:01	step	D-TODAY-02	click the walktest row
+2026-10-30 16:33:03	step	D-TODAY-02	end the input session
+2026-10-30 16:33:05	step	D-TODAY-02	close Notes
+2026-10-30 16:33:07	step	D-TODAY-02	right click the clock place for the calendar with Notes closed; one screenshot
+2026-10-30 16:33:25	step	D-TODAY-02	seen: a new core dump, Notes aborted at 16:33:02, within a second or two of the click on the Notes row in the calendar under the input session
+2026-10-30 16:34:01	end	D-TODAY-02	stopped Notes aborted on the row's click while open and covered; not repeated; scratch Notes data removed
