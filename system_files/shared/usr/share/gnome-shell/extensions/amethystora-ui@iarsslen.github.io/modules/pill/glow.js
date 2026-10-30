@@ -4,6 +4,7 @@
 // shell cannot leave one of its own pieces out of what it records.
 
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -16,6 +17,13 @@ const BREATH = 2400;
 const BREATHS = 3;
 // The breath's low point: the board's two keyframes' ratio
 const LOW = Math.round(0.72 * 255);
+
+// reactive: false only keeps events off an actor. GNOME's drag and drop picks with PickMode.ALL, which sees every mapped
+// actor, so a layer the size of the screen would take every drop in the shell. This one, and all in it, is never picked.
+const GlowLayer = GObject.registerClass(class AmethystoraPillGlowLayer extends Clutter.Actor {
+    vfunc_pick(_context) {
+    }
+});
 
 export class Glow {
     constructor(capture, reduceMotion) {
@@ -59,7 +67,7 @@ export class Glow {
             return;
         if (this._actor)
             this._remove(false);
-        this._actor = new Clutter.Actor({name: NAME, reactive: false, opacity: 0});
+        this._actor = new GlowLayer({name: NAME, reactive: false, opacity: 0});
         this._build();
         Main.uiGroup.add_child(this._actor);
         Main.uiGroup.set_child_above_sibling(this._actor, null);

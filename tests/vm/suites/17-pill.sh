@@ -290,6 +290,9 @@ elif wait_for 8 recording; then
     [[ "$(st .text)" =~ ^\"0?0:0[0-9].*Stop\"$ ]] && ok "8 its time and Stop" || not_ok "8 its text" "$(st .text)"
     same "8 the screen's dot" "$(st .dots.screen)" true
     same "8 a glow on every monitor" "$(st .glow)" "$(ev "Main.layoutManager.monitors.length")"
+    # GNOME's drag and drop picks with PickMode.ALL, in the bar too: the glow must not stand in the way of a drop
+    same "8 a drop reaches what is under the glow" \
+        "$(ev "(() => { const glow = Main.uiGroup.get_children().find(a => a.name === 'amethystora-pill-glow'); const m = Main.layoutManager.primaryMonitor; return [[m.x + m.width / 2, m.y + 5], [m.x + m.width / 2, m.y + m.height / 2]].some(([x, y]) => glow.contains(global.stage.get_actor_at_pos(imports.gi.Clutter.PickMode.ALL, x, y))); })()")" false
     same "8 GNOME's recording and sharing buttons hidden" \
         "$(ev "Main.panel.statusArea.screenRecording.container.visible + ' ' + Main.panel.statusArea.screenSharing.container.visible")" "false false"
     same "8 quiet, for the recording" "$(st .quiet.reason)" '"recording"'
