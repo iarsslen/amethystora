@@ -147,6 +147,7 @@ keys "move:${at}" btn:down sleep:900 btn:up
 arranging() { [[ "$(ev "${Q}._arrange.active")" == true ]]; }
 check "5 holding a tile starts arrange mode" wait_for 3 arranging
 same "5 the press that started it toggled nothing" "$(ev "$(tile dark-style).checked")" "${was}"
+same "5 the tile held has the keyboard" "$(ev "$(tile dark-style) === [...${Q}._arrange._handles.values()].find(e => e.handle.has_key_focus())?.actor")" true
 shrunk() { [[ "$(ev "${Q}.tiles().every(t => Math.abs(t.scale_x - 0.96) < 0.001)")" == true ]]; }
 check "5 every tile shrinks a little" wait_for 2 shrunk
 if shell_click "Hide Do Not Disturb"; then
@@ -159,6 +160,13 @@ hidden_dnd() { [[ "$(gs get "${QUICK}" tile-hidden)" == "['dnd']" ]]; }
 check "5 tile-hidden is ['dnd']" wait_for 5 hidden_dnd
 [[ ",$(ids)," != *",dnd,"* ]] && ok "5 Do Not Disturb left the tiles" || not_ok "5 Do Not Disturb left the tiles" "$(ids)"
 same "5 the Hidden row holds it while arranging" "$(ev "${Q}.arrangeable().some(a => ${Q}.hiddenActor(a) && ${Q}.idOf(a) === 'dnd')")" true
+# Tab goes from handle to handle, and so to the tile put away. The menu keeps the keyboard wherever it goes
+hidden_focused() { [[ "$(ev "[...${Q}._arrange._handles.values()].some(e => e.hidden && e.handle.has_key_focus())")" == true ]]; }
+for ((i = 0; i < 40; i++)); do
+    hidden_focused && break
+    keys tab
+done
+check "5 Tab reaches the tile put away" hidden_focused
 
 # --- 6. Moving a tile, against GNOME's order (power mode comes before dark style), by dragging it -------------------
 [[ ",$(ids)," == *",power-mode,"*"dark-style,"* ]] && ok "6 GNOME has power mode before dark style" ||

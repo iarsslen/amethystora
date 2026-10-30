@@ -44,14 +44,15 @@ export class Arrange {
         return Boolean(this._layer);
     }
 
-    // keyboardOn: the tile Menu was pressed on, whose handle then takes the keyboard
+    // keyboardOn: the tile held, or Menu was pressed on, whose handle then takes the keyboard
     enter(keyboardOn = null) {
         if (this._layer)
             return;
         const quick = this._quick;
         quick.menu._activeMenu?.close();
-        // Over the grid: bound to GNOME's own layer of toggle menus, which sits exactly over it
-        this._layer = new Clutter.Actor({name: 'amethystora-quick-arrange', reactive: false});
+        // Over the grid: bound to GNOME's own layer of toggle menus, which sits exactly over it. An St.Widget, since Tab
+        // walks through widgets alone and would never go from one handle to the next through a plain actor
+        this._layer = new St.Widget({name: 'amethystora-quick-arrange', reactive: false});
         this._layer.add_constraint(new Clutter.BindConstraint({source: quick.menu._overlay,
             coordinate: Clutter.BindCoordinate.POSITION}));
         this._layer.add_constraint(new Clutter.BindConstraint({source: quick.grid,
@@ -73,7 +74,7 @@ export class Arrange {
         };
         quick.arrangeChanged(true);
         this.refresh();
-        // Started from the keyboard, the tile it was on keeps it, so that the arrows and Delete work at once
+        // The tile it was started on takes the keyboard, so that the arrows and Delete work at once
         if (keyboardOn)
             this._handles.get(keyboardOn)?.handle.grab_key_focus();
     }

@@ -293,7 +293,7 @@ export class Quick {
         if (this._held.has(actor))
             return;
         const gesture = new Clutter.LongPressGesture({long_press_duration_ms: HOLD_MS});
-        gesture.connect('recognize', () => this.arrange(true));
+        gesture.connect('recognize', () => this.arrange(true, actor));
         actor.add_action(gesture);
         actor._amethystoraQuickHold = gesture;
         actor.connectObject('popup-menu', () => {
@@ -621,9 +621,9 @@ export class Quick {
         return this._ids('tile-hidden');
     }
 
-    arrange(on) {
+    arrange(on, tile = null) {
         if (on && this.menu?.isOpen)
-            this._arrange.enter();
+            this._arrange.enter(tile);
         else if (!on)
             this._arrange?.leave();
         return this._arrange?.active ?? false;
