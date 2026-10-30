@@ -30,3 +30,7 @@
 2026-10-30 18:48:41	end	A-SECURITY-69	pass 69 network and an unknown name
 2026-10-30 18:48:50	start	A-SECURITY-69b	fresh start on the Network category, again
 2026-10-30 18:48:56	end	A-SECURITY-69b	pass 69b
+2026-10-30 18:49:55	start	A-UPDATES-01	open Updates without a token, read
+2026-10-30 18:50:47	end	A-UPDATES-01	pass 01 04 05 23 25 28 read
+2026-10-30 18:50:47	start	A-UPDATES-26	Firmware, Check now, which needs no password (refresh-remote)
+2026-10-30 18:51:05	end	A-UPDATES-26	pass 26
