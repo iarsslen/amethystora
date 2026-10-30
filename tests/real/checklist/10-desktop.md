@@ -700,10 +700,10 @@ Set each style with `ame desktop style <name>` and check every surface. Put back
 Only while the agentic features are on (`ame agent toggle on`); put back with `ame agent toggle off`.
 
 - [ ] D-AGENT-01 Agent launcher. How: `Super+Ctrl+Shift+A`. Expect: the agent opens in a terminal (first time it offers to install the chosen agent).
-- [ ] D-AGENT-02 Ask about a selection. How: select text in any window, `Super+Shift+A`. Expect: a card shows the start of the text with **What do you want to know?**, **Cancel** and **Ask**; Ask opens the agent in a terminal with the text quoted as data.
-- [ ] D-AGENT-03 Nothing selected. How: `Super+Shift+A` with nothing selected. Expect: **Select some text first**.
+- [x] D-AGENT-02 Ask about a selection. How: select text in any window, `Super+Shift+A`. Expect: a card shows the start of the text with **What do you want to know?**, **Cancel** and **Ask**; Ask opens the agent in a terminal with the text quoted as data. → PASS in part: a test selection in the primary, Super+Shift+A: a card with its text, What do you want to know?, Opens Claude Code in a terminal, Cancel and Ask; Cancel closed it. Ask not pressed. Primary was empty before, cleared after. Faults: none
+- [x] D-AGENT-03 Nothing selected. How: `Super+Shift+A` with nothing selected. Expect: **Select some text first**. → PASS: nothing selected: Select some text first, in the bar's pill
 - [ ] D-AGENT-04 Key unbound while off. How: `ame agent toggle off`, `Super+Shift+A`. Expect: nothing.
-- [ ] D-AGENT-05 Selection key off. How: `ame agent selection off`. Expect: the key does nothing. [changes setting: put back with `ame agent selection on`]
+- [x] D-AGENT-05 Selection key off. How: `ame agent selection off`. Expect: the key does nothing. [changes setting: put back with `ame agent selection on`] → PASS: ame agent selection off: the key does nothing; on: the key back, read back
 - [ ] D-AGENT-06 Agent in the pill. How: with `ame agent tools on`, have the agent change a setting. Expect: the live pill's agent activity lists each change (**Changes so far**) with **Undo** and **Stop the agent**; Undo reverts it, Stop ends the tool server. [changes setting: put back with `ame agent tools off`]
 - [ ] D-AGENT-07 Agent pill off. How: `ame agent pill off`. Expect: no agent activity in the pill. [changes setting: put back with `ame agent pill on`]
 - [ ] D-AGENT-08 Frozen app: Ask the agent why. How: freeze an app (`kill -STOP PID`, click it). Expect: the not-responding dialog has **Ask the agent why**, which opens the agent on it without ending it. Then `kill -CONT PID`.
@@ -713,9 +713,9 @@ Only while the agentic features are on (`ame agent toggle on`); put back with `a
 
 ## Uninstalling from the app menu
 
-- [ ] D-BAZAAR-01 Uninstall entry. How: right-click a Flatpak app in the app grid or dock. Expect: **Uninstall** and the app's page in Bazaar.
+- [x] D-BAZAAR-01 Uninstall entry. How: right-click a Flatpak app in the app grid or dock. Expect: **Uninstall** and the app's page in Bazaar. → PASS: right-click Bazaar in the dock: App Details and Uninstall, Uninstall not pressed. Faults: none
 - [ ] D-BAZAAR-02 Uninstall dialog. How: **Uninstall**. Expect: **Uninstall <App>?** with **Keep its data** or **Delete its data**, explaining each, in the theme's colours; afterwards **<App> is uninstalled** and whether its data was kept. [risky: removes the app]
-- [ ] D-BAZAAR-03 Not a Flatpak. How: right-click Firefox (an image app). Expect: no Uninstall, or **Nothing to uninstall**.
+- [x] D-BAZAAR-03 Not a Flatpak. How: right-click Firefox (an image app). Expect: no Uninstall, or **Nothing to uninstall**. → PASS: right-click Firefox, an image app: no Uninstall
 
 ## First look and new accounts
 

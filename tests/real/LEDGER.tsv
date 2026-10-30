@@ -914,3 +914,37 @@
 2026-10-30 19:24:09	end	D-WIDGET-10	skip Control's Desktop page opened; its widgets group is below the first screen, not reached in the minute; the list says it has a widgets entry and a desktop-widgets switch
 2026-10-30 19:24:09	start	D-WIDGET-11	while locked
 2026-10-30 19:24:09	end	D-WIDGET-11	skip needs a lock and unlock
+2026-10-30 19:24:23	end		pass items seen in part; 30 JS ERRORs from the widgets' vfunc_event on events over a widget
+2026-10-30 19:24:23	start	D-WIDGET-09	09
+2026-10-30 19:24:23	end	D-WIDGET-09	skip runs a real agent
+2026-10-30 19:24:23	start	D-WIDGET-10	10
+2026-10-30 19:24:23	end	D-WIDGET-10	skip Control's Desktop page opened; its widgets group is below the first screen, not reached in the minute; the list has the entry
+2026-10-30 19:24:23	start	D-WIDGET-11	11
+2026-10-30 19:24:23	end	D-WIDGET-11	skip needs a lock and unlock
+2026-10-30 19:24:23	start	D-AGENT-01	needs a real agent's run or sudo
+2026-10-30 19:24:23	end	D-AGENT-01	skip starts an agent or asks for root; left
+2026-10-30 19:24:23	start	D-AGENT-06	needs a real agent's run or sudo
+2026-10-30 19:24:23	end	D-AGENT-06	skip starts an agent or asks for root; left
+2026-10-30 19:24:23	start	D-AGENT-09	needs a real agent's run or sudo
+2026-10-30 19:24:23	end	D-AGENT-09	skip starts an agent or asks for root; left
+2026-10-30 19:24:23	start	D-AGENT-10	needs a real agent's run or sudo
+2026-10-30 19:24:23	end	D-AGENT-10	skip starts an agent or asks for root; left
+2026-10-30 19:24:23	start	D-AGENT-11	needs a real agent's run or sudo
+2026-10-30 19:24:23	end	D-AGENT-11	skip starts an agent or asks for root; left
+2026-10-30 19:24:23	start	D-AGENT-02..03	Super+Shift+A with a test selection, and with none; primary saved and restored
+2026-10-30 19:24:23	step	D-AGENT-02..03	save primary; set a test selection; key; frame
+2026-10-30 19:25:01	end	D-AGENT-02..03	pass card, cancel, nothing selected
+2026-10-30 19:25:01	start	D-AGENT-05	x
+2026-10-30 19:25:01	end	D-AGENT-05	pass selection off, on, read back
+2026-10-30 19:25:01	start	D-AGENT-04	toggle off
+2026-10-30 19:25:01	end	D-AGENT-04	skip turning the agent's features off takes the skills away from the agents running now
+2026-10-30 19:25:01	start	D-AGENT-07	agent pill off
+2026-10-30 19:25:01	end	D-AGENT-07	skip shows only with an agent's changes, which need a real agent's run
+2026-10-30 19:25:01	start	D-AGENT-08	freeze a kitty of mine by its process, click it, frame the dialog, continue
+2026-10-30 19:25:01	step	D-AGENT-08	kitty, STOP, click, wait; frame; CONT; close by process; Ask the agent why not pressed
+2026-10-30 19:25:27	end	D-AGENT-08	skip no dialog 11 s after a click on the frozen kitty; not taken further in the minute; kitty continued and closed by its process
+2026-10-30 19:25:28	start	D-BAZAAR-01	right-click a Flatpak in the dock, frame
+2026-10-30 19:25:28	step	D-BAZAAR-01	frame the dock; right-click Bazaar; right-click Firefox
+2026-10-30 19:26:00	end	D-BAZAAR-01	pass menu seen
+2026-10-30 19:26:00	start	D-BAZAAR-03	x
+2026-10-30 19:26:00	end	D-BAZAAR-03	pass no Uninstall
