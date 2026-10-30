@@ -173,6 +173,7 @@ export const Section = GObject.registerClass({
         this._leaving = [];
         this._leaveLater = 0;
         this.connect('destroy', () => {
+            this._gone = true;
             if (this._leaveLater)
                 global.compositor.get_laters().remove(this._leaveLater);
             this._leaveLater = 0;
@@ -239,13 +240,13 @@ export const Section = GObject.registerClass({
         try {
             metas = await this.provider.getResultMetas(shown, null);
         } catch (e) {
-            if (serial === this._serial)
+            if (serial === this._serial && !this._gone)
                 this.clear();
             console.warn(`Amethystora UI: the ${this.provider.id} search results: ${e.message}`);
             return;
         }
-        // A newer search began meanwhile, or the section went
-        if (serial !== this._serial || !this._list)
+        // A newer search began meanwhile, or the section went (its rows would queue a later after its own was removed)
+        if (serial !== this._serial || this._gone)
             return;
         this._terms = terms;
         this._retireRows();

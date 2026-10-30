@@ -101,6 +101,10 @@ const MODULES = [
 
 export default class AmethystoraUI extends Extension {
     enable() {
+        // GNOME turns an extension on and off asynchronously: modules still running from an enable that no disable
+        // reached are stopped first, or they would run on, unseen, beside the new ones (their laters included)
+        if (this.modules)
+            this.disable();
         // The running modules by name, for a module that needs another's actors (the glass, the dock's)
         this.modules = new Map();
         for (const [name, Module] of MODULES) {
@@ -120,7 +124,7 @@ export default class AmethystoraUI extends Extension {
     }
 
     disable() {
-        for (const [name, module] of [...this.modules].reverse()) {
+        for (const [name, module] of [...this.modules ?? []].reverse()) {
             try {
                 module.disable();
             } catch (e) {

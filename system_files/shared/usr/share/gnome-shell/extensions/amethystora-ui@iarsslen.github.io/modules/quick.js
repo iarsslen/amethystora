@@ -305,7 +305,9 @@ export class Quick {
     }
 
     _layout() {
-        if (!this.grid || this._laying)
+        // Nothing once the module stopped, or once GNOME's grid is gone (a destroyed actor has no layout manager left):
+        // a later queued before either still comes
+        if (!this.grid?.layout_manager || this._laying)
             return;
         this._laying = true;
         try {

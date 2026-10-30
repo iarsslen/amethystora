@@ -209,7 +209,8 @@ export class Providers {
             let at = 0;
             for (const provider of sorted) {
                 const display = provider.display;
-                if (display && display.get_parent() === content)
+                // A section already destroyed (its provider not yet out of the list) is passed over
+                if (display && !display._gone && display.get_parent() === content)
                     content.set_child_at_index(display, at++);
             }
         } finally {
