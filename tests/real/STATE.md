@@ -12,7 +12,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 - The first 40 items of `10-desktop.md` from D-GRID-05 are walked (last marks fa85ddd, 14:49). Nothing is walking now. Next:
   the items the walk left for a mouse or a person, then the rest of `10-desktop.md`, then 20, 30, 40. Left held: D-MENU-01, 02.
 - Driver: `$D click` never landed (RemoteDesktop); a large relative move stops at the current screen's edge, so home through the join.
-- One Terminal launcher, the maintainer's choice of 2026-10-30, is committed (6e8e0dd); put on this machine through the overlay until the next restart.
+- One Terminal launcher, the maintainer's choice of 2026-10-30, is committed (6e8e0dd) and on this machine through the overlay until the next restart. Files' Open in Console still opens Ptyxis while a Ptyxis is running, since it then holds the bus name; a click on it has not been seen reaching kitty.
 - Journal tails of each hang are kept on the machine, in `~/.local/state/amethystora/hangs`, not here: this repository is
   public and they hold personal data.
 - Owner: the real-machine Claude session, since the lab session handed this over on 2026-10-30. Nobody takes commits
@@ -22,7 +22,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 
 Seen:
 - Abrupt ends of today's boots, by journal: 09:45:46, 10:21:20, 12:13:17, 13:05:32. Uptimes 35, 35, 110 and 51 minutes.
-- 15:32:16: boot e04b5405 ended the same way, 31 minutes in: no kernel error, no core dump; the maintainer reported it. Tails in `~/.local/state/amethystora/hangs`.
+- 15:32:16: boot e04b5405 ended the same way, 31 minutes in: no kernel error, no core dump. Boot 917847cd ended at 15:38:26, four minutes in, the maintainer saying "it crashed again" at 15:38:01, but its journal shows an orderly shutdown, so that one was a restart after whatever they saw, not a cut-off. Tails in `~/.local/state/amethystora/hangs`.
 - 12:13: the maintainer forced the restart, all 4 screens black, 30 s after a resume, with `Failed to get ACT` and
   `Bad EDID` before it. That login turned the two DisplayLink LG screens on; the healthy logins at 12:15 and 12:30 did not.
 - 13:05: all screens black, keyboard dead, `Ctrl+Alt+F3` nothing, direct monitor and keyboard no help, forced power-off,
