@@ -790,3 +790,18 @@
 2026-10-30 18:44:16	step	D-THEME-15..18	own theme sunset from the shipped colours, frame; wallpapers read; back to amethystora; my folder removed; list, current, reload
 2026-10-30 18:44:54	step	D-THEME-15..18	own theme removed; amethystora-theme reload
 2026-10-30 18:45:28	end	D-THEME-15..18	pass Control page, high contrast, reload seen; own theme: one wallpaper file, not four; removed
+2026-10-30 18:45:42	start	D-WALL-01..02	group: next wallpaper six times round to the first; a picture of my own listed and reached; removed
+2026-10-30 18:45:42	step	D-WALL-01..02	Super+Ctrl+Space, read; five more, read; own JPG in the folder, list, keys, read; remove
+2026-10-30 18:46:35	end	D-WALL-01..02	pass next wallpaper round, own picture listed and reached; removed; wallpaper back, read back
+2026-10-30 18:46:35	start	D-WALL-03	daylight
+2026-10-30 18:46:35	end	D-WALL-03	skip the brief leaves Daylight alone: it is the maintainer's to put back
+2026-10-30 18:46:35	start	D-WALL-04	daylight
+2026-10-30 18:46:35	end	D-WALL-04	skip the brief leaves Daylight alone: it is the maintainer's to put back
+2026-10-30 18:46:35	start	D-WALL-05	accent jade, frame, back
+2026-10-30 18:46:35	step	D-WALL-05	ame desktop accent jade; frame; ame desktop accent theme; read back; transitions extension on again; frame
+2026-10-30 18:47:11	step	D-WALL-05	seen: wallpaper had moved on to violet-waves after my read-back, presses landing late; extension off, bg set to the first, read back, extension on
+2026-10-30 18:48:07	end	D-WALL-05	pass jade reached the shell, back to the theme, read back
+2026-10-30 18:48:07	start	D-WALL-06	each accent on the dark theme, the bar's lit workspace framed; back to the theme
+2026-10-30 18:48:07	step	D-WALL-06	twelve accents through ame on Amethystora, a crop of the bar each; ame desktop accent theme
+2026-10-30 18:50:09	step	D-WALL-06	seen: stuck picture during the accents, JS ERROR this._reveal is not a function 18:49:44; extension off, 2 s, on; frame
+2026-10-30 18:50:24	end	D-WALL-06	skip the accents' reveal stuck the picture, none judged; recovered; accent back to the theme, read back
