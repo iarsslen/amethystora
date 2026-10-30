@@ -313,7 +313,14 @@ export default class TransitionsExtension extends Extension {
         this._clearTimeout('_capId');
         this._capId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MAX_HOLD_MS, () => {
             this._capId = 0;
-            this._reveal();
+            // The screen is given back whatever goes wrong: a reveal that throws must not leave the old picture over
+            // the desktop, where it looks like a machine that has hung
+            try {
+                this._reveal();
+            } catch (error) {
+                console.error(`Amethystora Transitions: the reveal failed: ${error.message}`);
+                this._finish();
+            }
             return GLib.SOURCE_REMOVE;
         });
         return true;

@@ -343,5 +343,15 @@ check "24 ...and the reveal takes the picture away" wait_for 15 open
 same "24 ...without an error" "$(journalctl -b --since "${SUITE_SINCE}" "_UID=$(id -u "${NEW}")" --no-pager -o cat 2>/dev/null | grep -c 'is not a function')" 0
 gs set org.gnome.desktop.interface color-scheme "${scheme}"
 wait_for 15 open
+# A reveal that throws still gives the screen back within the five seconds the extension promises
+ev "${T}._realReveal = ${T}._reveal; ${T}._reveal = () => { throw new Error('vmlab'); }; 1" >/dev/null
+gs set org.gnome.desktop.interface color-scheme "$([[ "${scheme}" == "'prefer-light'" ]] && echo default || echo prefer-light)"
+check "24 a reveal that throws freezes the screen" wait_for 5 frozen
+check "24 ...and still gives it back" wait_for 8 open
+ev "delete ${T}._reveal; delete ${T}._realReveal; 1" >/dev/null
+gs set org.gnome.desktop.interface color-scheme "${scheme}"
+wait_for 15 open
+# The errors of that throw were made on purpose: the shell's faults are counted from here
+SUITE_BEGAN="$(date '+%Y-%m-%d %H:%M:%S')"
 
 finish
