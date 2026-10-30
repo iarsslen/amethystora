@@ -109,6 +109,11 @@ export class Engine {
             'workareas-changed', () => this.layoutAll(false),
             'restacked', () => this._restackBoxes(),
             this);
+        // After everyone else's handlers, GNOME's and the motion's, which say whether the window is opening
+        global.window_manager.connectObject(
+            'map', (wm, actor) => this._boxFollows(actor), GObject.ConnectFlags.AFTER,
+            'unminimize', (wm, actor) => this._boxFollows(actor), GObject.ConnectFlags.AFTER,
+            this);
         global.workspace_manager.connectObject(
             'active-workspace-changed', () => this._workspaceChanged(),
             'workspace-removed', () => this._prune(),
@@ -129,6 +134,7 @@ export class Engine {
     // suspend: the screen is locking. What the strips are is kept for unlock, and everything drawn is put back.
     disable(suspend = false) {
         global.display.disconnectObject(this);
+        global.window_manager.disconnectObject(this);
         global.workspace_manager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
         Main.overview.disconnectObject(this);
@@ -400,6 +406,7 @@ export class Engine {
             // GNOME shows a window again on its own occasions: one off the screen stays hidden
             if (actor.visible && this._info?.get(window)?.hidden)
                 actor.hide();
+            this._boxFollows(actor);
         }, 'effects-completed', actor => {
             // While GNOME drew the window itself (busy: its own minimize and way back, an open, a change of size) the
             // strip moved it nowhere; once that is over it is drawn where the strip has it now
@@ -409,6 +416,7 @@ export class Engine {
             const frame = window.get_frame_rect();
             actor.translation_x = now.vis.x - frame.x;
             actor.translation_y = now.vis.y - frame.y;
+            this._boxFollows(actor);
         }, this);
         return info;
     }
@@ -1390,11 +1398,15 @@ export class Engine {
             return;
         const window = strip.selected;
         const info = window ? this._info.get(window) : null;
+        const actor = window?.get_compositor_private();
         const showing = strip.workspace === global.workspace_manager.get_active_workspace();
         // What else follows the windows as they glide (the dimming of a navigation)
         this.session?.follow?.(strip);
+        // The box is filled, and the window covers all but its edge: not before the window is drawn, nor while it
+        // opens or comes back small, when it would stand there as a coloured sheet (_boxFollows brings it back)
         if (!info?.vis || !showing || window.is_fullscreen() || this.boxHidden > 0 || info.hidden ||
-            this.dragging?.window === window || config.border <= 0) {
+            this.dragging?.window === window || config.border <= 0 || !actor?.visible ||
+            Main.wm._mapping?.has(actor) || Main.wm._unminimizing?.has(actor)) {
             this._boxes.get(strip)?.hide();
             return;
         }
@@ -1404,9 +1416,16 @@ export class Engine {
         const active = this.session ? this.session.strip === strip : focus === window;
         box.opacity = active ? 255 : INACTIVE;
         box.show();
-        const actor = window.get_compositor_private();
-        if (actor && box.get_parent() === actor.get_parent())
+        if (box.get_parent() === actor.get_parent())
             global.window_group.set_child_below_sibling(box, actor);
+    }
+
+    // A window was shown or began or ended its opening: the box of its strip follows, when it is that strip's focused one
+    _boxFollows(actor) {
+        const window = actor.meta_window;
+        const info = this._info?.get(window);
+        if (info?.strip?.selected === window)
+            this.updateBox(info.strip);
     }
 
     // Where the frame goes round a window drawn at `vis`: it stands out on no side where the window reaches the

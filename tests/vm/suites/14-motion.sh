@@ -265,11 +265,14 @@ ev "globalThis.vmlabOpen = null; const app = imports.gi.Shell.AppSystem.get_defa
         const id = global.stage.connect('after-paint', () => { const e = a.get_transformed_extents();
             if (imports.gi.GLib.get_monotonic_time() - t0 > 100000) { global.stage.disconnect(id); return; }
             const cx = e.origin.x + e.size.width / 2, cy = e.origin.y + e.size.height / 2;
-            if (globalThis.vmlabOpen.near === null) globalThis.vmlabOpen.near = Math.hypot(cx - box.x - box.width / 2, cy - box.y - box.height / 2) < box.width; }); }, globalThis);
+            if (globalThis.vmlabOpen.near === null) { globalThis.vmlabOpen.near = Math.hypot(cx - box.x - box.width / 2, cy - box.y - box.height / 2) < box.width;
+                const engine = ${UI}.get('tiling').engine, info = engine?.info(a.meta_window);
+                globalThis.vmlabOpen.frame = info?.strip?.selected === a.meta_window && !!engine._boxes.get(info.strip)?.visible; } }); }, globalThis);
     dock._sites[0].dash._clicks.appTargetFor(app).launch(); 1" >/dev/null
 opened() { [[ "$(ev "globalThis.vmlabOpen?.kind ?? ''")" != "" ]]; }
 wait_for 20 opened
 same "12 an app opened from the dock grows out of its icon" "$(ev "globalThis.vmlabOpen.kind + ' ' + globalThis.vmlabOpen.near")" "open true"
+same "12 the strip's focus box stands no sheet behind it meanwhile" "$(ev "globalThis.vmlabOpen.frame")" false
 sleep 2
 wait_for 3 settled
 same "12 and settles clean" "$(ev "${V}.end(0)")" shown
