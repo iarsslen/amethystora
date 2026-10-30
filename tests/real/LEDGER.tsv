@@ -954,3 +954,24 @@
 2026-10-30 19:27:31	step	D-KEYS-03..08	kitty from the run box; quick note key, frame
 2026-10-30 19:27:58	step	D-KEYS-03..08	Super+D frame and back; Print frame; recording twice, my file removed
 2026-10-30 19:28:42	end	D-KEYS-03..08	pass keys opened their windows; 13 opens the UI, not a recording
+2026-10-30 19:43:50	start	D-KEYS-09	Super+D on an empty workspace with a scratch editor; the lock part left
+2026-10-30 19:43:50	step	D-KEYS-09	go to workspace 5, open the scratch Text Editor
+2026-10-30 19:43:55	step	D-KEYS-09	Super+D, frame; Super+D, frame
+2026-10-30 19:44:11	step	D-KEYS-09	Super+D again, frame after 5 s; back
+2026-10-30 19:44:29	step	D-KEYS-09	focus the editor by a click on its empty area; Super+D, frames at 1 s and 5 s; back
+2026-10-30 19:44:51	step	D-KEYS-09	focus check on the editor; Super+D if it holds the focus; frames at 1 s and 5 s; back
+2026-10-30 19:45:08	end	D-KEYS-09	pass Super+D seen once: window hidden, tinted pane there 1.5 s later; back; the focus then moved to other tracks; lock left
+2026-10-30 19:45:08	start	D-KEYS-10	add a second layout for the moment, Super+Shift+Space, frame, put back
+2026-10-30 19:45:08	step	D-KEYS-10	sources us + us intl; Super+Shift+Space; frame; put back
+2026-10-30 19:45:21	end	D-KEYS-10	pass indicator en1 to en2, order of the sources moved; put back, read back us alone
+2026-10-30 19:45:32	start	D-KEYS-11	clipboard key; only the bar's strip kept, the rest of the frame deleted at once
+2026-10-30 19:45:32	step	D-KEYS-11	Super+Shift+V; frame reduced to the bar strip and a menu outline
+2026-10-30 19:45:53	step	D-KEYS-11	Escape closes the menu; bar strip
+2026-10-30 19:45:55	end	D-KEYS-11	pass menu opened by the key, bar's icon lit, closed by Escape; not photographed
+2026-10-30 19:45:55	start	D-KEYS-14	needs a VM window that grabs the keyboard
+2026-10-30 19:45:55	end	D-KEYS-14	skip no VM window here; none started
+2026-10-30 19:45:55	start	D-KEYS-15	read every keybinding schema for duplicates; Settings frame
+2026-10-30 19:45:55	step	D-KEYS-15	read every keybinding key with gsettings
+2026-10-30 19:46:15	end	D-KEYS-15	fail read by gsettings: Super+F1 on GNOME's help and the Manual; ruler and read aloud keys clear; tiling's wrapped keys by design
+2026-10-30 19:46:30	start	D-KEYS-16	Control's zoom and reload: another track holds Control
+2026-10-30 19:46:30	end	D-KEYS-16	skip Control's window is the Control track's; focus moves between tracks
