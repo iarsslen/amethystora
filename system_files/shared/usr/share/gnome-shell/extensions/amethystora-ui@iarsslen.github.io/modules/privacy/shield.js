@@ -370,11 +370,12 @@ export class Shield {
                     ? ngettext('%d needs a look', '%d need a look', report.failing.length).format(report.failing.length)
                     : _('Protected'));
             const zone = ZONES[network?.zone];
-            if (zone) {
-                parts.push(parts.length > 0
-                    ? {home: C_('shield', 'home'), away: C_('shield', 'away'),
-                        default: C_('shield', 'default zone')}[zone]
-                    : {home: _('Home'), away: _('Away'), default: _('Default')}[zone]);
+            // A tile holds some 18 characters, and the menu says the zone: after the report's word only a short home
+            // or away, and nothing after a count, which comes first
+            if (zone && !report) {
+                parts.push({home: _('Home'), away: _('Away'), default: _('Default')}[zone]);
+            } else if (zone && report.failing.length === 0 && zone !== 'default') {
+                parts.push({home: C_('shield', 'home'), away: C_('shield', 'away')}[zone]);
             }
             this._toggle.subtitle = parts.join(' · ') || null;
         }

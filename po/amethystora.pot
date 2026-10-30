@@ -12197,11 +12197,6 @@ msgctxt "shield"
 msgid "away"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
-msgctxt "shield"
-msgid "default zone"
-msgstr ""
-
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
 msgid "Show %s"
 msgstr ""
