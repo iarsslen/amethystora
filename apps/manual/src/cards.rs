@@ -32,7 +32,7 @@ struct Watch {
 
 /// One card. Its widget holds it, through its handlers; it holds no reference back, so both go together.
 struct Card {
-    root: glib::WeakRef<gtk::Box>,
+    root: glib::WeakRef<gtk::Button>,
     picture: gtk::Picture,
     clip: PathBuf,
     poster: gdk::Texture,
@@ -46,7 +46,7 @@ struct Card {
 }
 
 impl Card {
-    fn may_play(&self, root: &gtk::Box) -> bool {
+    fn may_play(&self, root: &gtk::Button) -> bool {
         let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(false);
         let active = root.root().and_downcast::<gtk::Window>().is_some_and(|window| window.is_active());
         root.is_mapped() && active && animations && !self.held.get() && !self.failed.get()
@@ -94,7 +94,7 @@ impl Card {
         media
     }
 
-    fn follow(self: &Rc<Self>, root: &gtk::Box) {
+    fn follow(self: &Rc<Self>, root: &gtk::Button) {
         if self.watch.borrow().is_some() {
             return;
         }
@@ -140,17 +140,17 @@ pub fn card(href: &str, caption: &str) -> Option<gtk::Widget> {
     let picture = gtk::Picture::builder().paintable(&poster).content_fit(gtk::ContentFit::Cover).can_shrink(true).build();
     picture.set_size_request(150, 112);
     picture.add_css_class("mcard-art");
-    let root = ui::vbox(0, &["mcard"]);
+    // A button, so that a screen reader's click, Space and Enter all press it, as a pointer does
+    let inner = ui::vbox(0, &[]);
+    let root = gtk::Button::builder().child(&inner).css_classes(["mcard"]).build();
     root.set_overflow(gtk::Overflow::Hidden);
     root.set_size_request(150, 158);
     root.set_halign(gtk::Align::Start);
-    root.set_focusable(true);
-    root.set_accessible_role(gtk::AccessibleRole::Button);
     // The poster is twice the size it is shown at: the card is as wide as the board has it, whatever the picture
-    root.append(&ui::limit(&picture, 150));
+    inner.append(&ui::limit(&picture, 150));
     let words = ui::label(caption, &["mcard-cap"]);
     words.set_xalign(0.0);
-    root.append(&words);
+    inner.append(&words);
     let card = Rc::new(Card {
         root: root.downgrade(),
         picture,
@@ -163,25 +163,11 @@ pub fn card(href: &str, caption: &str) -> Option<gtk::Widget> {
         watch: RefCell::new(None),
     });
 
-    let click = gtk::GestureClick::new();
-    let clicked = card.clone();
-    click.connect_released(move |_, _, _, _| {
-        clicked.held.set(!clicked.held.get());
-        clicked.sync();
-    });
-    root.add_controller(click);
-    let keys = gtk::EventControllerKey::new();
     let pressed = card.clone();
-    keys.connect_key_pressed(move |_, key, _, _| {
-        if matches!(key, gdk::Key::space | gdk::Key::Return | gdk::Key::KP_Enter) {
-            pressed.held.set(!pressed.held.get());
-            pressed.sync();
-            glib::Propagation::Stop
-        } else {
-            glib::Propagation::Proceed
-        }
+    root.connect_clicked(move |_| {
+        pressed.held.set(!pressed.held.get());
+        pressed.sync();
     });
-    root.add_controller(keys);
 
     // Shown: it follows its window and the animations setting; hidden: it lets go of them, and its clip stops
     let shown = card.clone();
