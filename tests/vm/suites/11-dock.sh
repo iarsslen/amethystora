@@ -189,7 +189,7 @@ check "ame desktop dock alone prints twelve settings" test "$(in_session "ame de
 # --- Swell -----------------------------------------------------------------------------------------------------------
 user_bus gsettings set org.gnome.shell favorite-apps "['org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop', \
 'amethystora-manual.desktop', 'amethystora-update.desktop', 'amethystora-backups.desktop', 'amethystora-security.desktop', \
-'org.gnome.Ptyxis.desktop', 'amethystora-notes.desktop', 'amethystora-control.desktop']"
+'kitty.desktop', 'amethystora-notes.desktop', 'amethystora-control.desktop']"
 sleep 2
 away
 # Item N's state as "scale translation away"

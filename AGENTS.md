@@ -327,7 +327,9 @@ Hyprland era's kitty went): Fedora's package, first in `xdg-terminal-exec`'s thr
 `Super+Return`, `amethystora-in-terminal`, the logo menu and every `Terminal=true` launcher open it; its launcher's
 `X-TerminalArg*` keys say how. Ptyxis, the base image's, stays installed and second, for its container menu. There is one
 launcher (the maintainer's choice of 2026-10-30): `17-cleanup.sh` gives kitty's the name, translations and icon of a Terminal
-and makes Ptyxis's `NoDisplay`, never `Hidden`, which xdg-terminal-exec would drop.
+and makes Ptyxis's `NoDisplay`, never `Hidden`, which xdg-terminal-exec would drop, and hides `kitty-open.desktop`, which
+listed a kitty icon under Open With. Files' Open in Console asks only for `org.gnome.Ptyxis` on the bus, so that name's service starts
+`/usr/libexec/amethystora-terminal-here`, which opens the default terminal in the folder and exits, leaving the name to `ptyxis`.
 - **Settings are the image's `/etc/xdg/kitty/kitty.conf`**, which kitty reads under the account's own
   `~/.config/kitty/kitty.conf` (a line of the account's wins; checked against kitty 0.47). Keep the title bar
   (`hide_window_decorations no`: the Hyprland era's config hid it and left GNOME windows without a close button), keep

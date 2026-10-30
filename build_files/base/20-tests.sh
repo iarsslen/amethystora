@@ -176,6 +176,11 @@ grep -qx "Name=Terminal" /usr/share/applications/kitty.desktop
 grep -qx "NoDisplay=true" /usr/share/applications/org.gnome.Ptyxis.desktop
 [[ "$(grep -cx "NoDisplay=true" /usr/share/applications/kitty.desktop)" == 0 ]]
 [[ "$(grep -cx "Hidden=true" /usr/share/applications/org.gnome.Ptyxis.desktop)" == 0 ]]
+# ...no launcher shows kitty's name or icon, and asking for Ptyxis's bus name (Files' Open in Console) opens the default
+grep -qx "Hidden=true" /usr/share/applications/kitty-open.desktop
+grep -q "^Keywords=.*shell" /usr/share/applications/kitty.desktop
+[[ "$(grep -ci ptyxis /usr/share/applications/kitty.desktop)" == 0 ]]
+grep -qx "Exec=/usr/libexec/amethystora-terminal-here" /usr/share/dbus-1/services/org.gnome.Ptyxis.service
 grep -qx "terminal='kitty'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
 # The image's kitty.conf loads, and takes the theme's colours from the account's own folder
 grep -q "^include ~/.config/amethystora/current/theme/kitty-theme.conf$" /etc/xdg/kitty/kitty.conf

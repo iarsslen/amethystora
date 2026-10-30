@@ -1,0 +1,47 @@
+#!/usr/bin/python3 -I
+# Files' Open in Console asks only for org.gnome.Ptyxis on the session bus, so `17-cleanup.sh` has that name's D-Bus
+# service start this program, which opens the default terminal (xdg-terminal-exec) in the folder asked for and exits,
+# leaving the name free for `ptyxis` itself. Each window gets a unit of its own, since the service's is stopped on exit.
+import os
+import subprocess
+
+from gi.repository import Gio, GLib
+
+NAME = "org.gnome.Ptyxis"
+PATH = "/org/gnome/Ptyxis"
+INTERFACE = """
+<node><interface name="org.freedesktop.Application">
+  <method name="Activate"><arg type="a{sv}" direction="in"/></method>
+  <method name="Open"><arg type="as" direction="in"/><arg type="a{sv}" direction="in"/></method>
+  <method name="ActivateAction">
+    <arg type="s" direction="in"/><arg type="av" direction="in"/><arg type="a{sv}" direction="in"/>
+  </method>
+</interface></node>
+"""
+
+loop = GLib.MainLoop()
+
+
+def terminal(folder):
+    subprocess.run(
+        ["systemd-run", "--user", "--collect", "--quiet", f"--working-directory={folder}", "--", "xdg-terminal-exec"],
+        check=False,
+    )
+
+
+def called(_bus, _sender, _path, _interface, method, parameters, invocation):
+    folders = [Gio.File.new_for_uri(uri).get_path() for uri in parameters[0]] if method == "Open" else []
+    for folder in folders or [None]:
+        terminal(folder if folder and os.path.isdir(folder) else GLib.get_home_dir())
+    invocation.return_value(None)
+    # The reply has to leave before the program does
+    GLib.idle_add(loop.quit)
+
+
+def acquired(bus, _name):
+    bus.register_object(PATH, Gio.DBusNodeInfo.new_for_xml(INTERFACE).interfaces[0], called, None, None)
+
+
+Gio.bus_own_name(Gio.BusType.SESSION, NAME, Gio.BusNameOwnerFlags.NONE, acquired, None, lambda *_: loop.quit())
+GLib.timeout_add_seconds(25, loop.quit)
+loop.run()

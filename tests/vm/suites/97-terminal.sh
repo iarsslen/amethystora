@@ -4,7 +4,7 @@
 # rewrites them and a window that is open reads them again and stays open (SIGUSR1); and the prompt is the powerline
 # one, drawn from the same palette: user@host, the folder and, in a git repository, its branch, each followed by
 # Nerd Fonts' arrow, then the command on a line of its own.
-# vmlab-paths: @sf/etc/xdg/kitty/* @sf/*themed/kitty* @sf/*themed/starship* @sf/usr/bin/amethystora-theme @sf/usr/lib/amethystora/theme/*
+# vmlab-paths: @sf/usr/libexec/amethystora-terminal-here @sf/etc/xdg/kitty/* @sf/*themed/kitty* @sf/*themed/starship* @sf/usr/bin/amethystora-theme @sf/usr/lib/amethystora/theme/*
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"
@@ -29,6 +29,17 @@ check "the Terminal launchers of the image name kitty first" \
 
 check "the app grid has one Terminal, and it opens kitty" \
     test "$(grep -lx 'Name=Terminal' /usr/share/applications/*.desktop | xargs grep -Lx 'NoDisplay=true')" == "/usr/share/applications/kitty.desktop"
+
+check "no other launcher shows kitty's name or icon" \
+    test -z "$(grep -lE '^(Name=.*kitty|Icon=kitty$)' /usr/share/applications/*.desktop | xargs -r grep -Lx 'Hidden=true')"
+
+user_bus pkill -x ptyxis 2>/dev/null
+user_bus pkill -x kitty 2>/dev/null
+user_bus gdbus call --session --dest org.gnome.Ptyxis --object-path /org/gnome/Ptyxis --method org.freedesktop.Application.Open \
+    "['file:///var/tmp']" "{}" >/dev/null
+check "Files' Open in Console opens kitty" wait_for 30 kitty_running
+check "...in the folder asked for" test "$(readlink "/proc/$(pgrep -u "${TEST_USER}" -xn kitty)/cwd")" == "/var/tmp"
+check "...and not Ptyxis" test -z "$(pgrep -u "${TEST_USER}" -x ptyxis)"
 
 user_bus pkill -x kitty 2>/dev/null
 in_session "xdg-terminal-exec sleep 120" >/dev/null 2>&1 &

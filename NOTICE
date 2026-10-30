@@ -25,7 +25,10 @@ stands in the package database for fedora-release.
 
 kitty's launcher (GPL-3.0-only, https://github.com/kovidgoyal/kitty) is not as
 Fedora builds it: each time an image is built, build_files/base/17-cleanup.sh
-calls it Terminal, in Ptyxis's translations, with the image's terminal icon.
+calls it Terminal, in Ptyxis's translations, with the image's terminal icon, and
+hides kitty-open.desktop. Ptyxis's launcher (GPL-3.0-or-later,
+https://gitlab.gnome.org/chergert/ptyxis) is hidden, and its D-Bus service starts
+/usr/libexec/amethystora-terminal-here.
 
 GNOME Tour (GPL-3.0-or-later, https://gitlab.gnome.org/GNOME/gnome-tour) is
 not the app as Fedora builds it. Fedora puts a picture with Fedora's logo on

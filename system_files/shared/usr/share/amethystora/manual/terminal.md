@@ -6,7 +6,8 @@ When you do, it is ready for you.
 ## Opening one
 
 The keyboard shortcut `Super+Return` opens a terminal, and so do `Ctrl+Alt+T` and `Ctrl+Alt+Return`, the
-shortcuts most Linux desktops use ([Hotkeys](../keybindings.md#launching)), and **Terminal** in the app grid. The
+shortcuts most Linux desktops use ([Hotkeys](../keybindings.md#launching)), **Terminal** in the app grid, and
+**Open in Console** on a folder in Files. The
 terminal is kitty, a fast terminal that draws on the graphics card. Its settings are the image's, in
 `/etc/xdg/kitty/kitty.conf`: put a line of your own in `~/.config/kitty/kitty.conf` and yours wins, the rest
 stays as the image has it. Ptyxis is still installed, without a launcher of its own: run `ptyxis` to open it. It is the
