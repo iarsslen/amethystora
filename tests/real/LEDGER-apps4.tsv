@@ -11,3 +11,4 @@
 2026-10-30 18:59:48	start	A-CONTROL-156	Pick a look, state folder a scratch one, read only
 2026-10-30 19:00:28	end	A-CONTROL-156	pass page read, real marker not written, window closed
 2026-10-30 19:00:28	start	A-CONTROL marks	write marks, no window
+2026-10-30 19:00:52	end	A-CONTROL marks	pass marks written
