@@ -672,7 +672,7 @@ impl I18n {
     /// "yesterday", "today", "tomorrow", "in 3 days": a day relative to today, in the language's words
     pub fn days(&self, days: i64) -> String {
         let mut options = RelativeTimeFormatterOptions::default();
-        options.numeric = Numeric::Auto;
+        options.numeric = Some(Numeric::Auto);
         match RelativeTimeFormatter::try_new_long_day((&self.locale).into(), options) {
             Ok(formatter) => formatter.format(Decimal::from(days)).to_string(),
             Err(_) => format!("{days}"),
