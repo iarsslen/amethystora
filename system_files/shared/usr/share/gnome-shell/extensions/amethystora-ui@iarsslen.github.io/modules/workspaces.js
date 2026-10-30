@@ -565,15 +565,28 @@ export class Workspaces {
         if (this._scrollPause)
             return Clutter.EVENT_STOP;
 
+        // With a workspace per screen, the bar's screen goes through its own, as the page keys do: a workspace another
+        // screen shows would take the pointer there, off the bar, and every later notch with it
+        const screens = this._ext.modules?.get('tiling')?.engine?.screens;
+        const monitor = Main.layoutManager.primaryIndex;
         const manager = global.workspace_manager;
-        const target = manager.get_workspace_by_index(manager.get_active_workspace_index() + step);
+        let target;
+        if (screens?.separate) {
+            const list = screens.workspacesFor(monitor, false);
+            target = list[list.indexOf(screens.shownOn(monitor)) + step];
+        } else {
+            target = manager.get_workspace_by_index(manager.get_active_workspace_index() + step);
+        }
         if (!target)
             return Clutter.EVENT_STOP;
         this._scrollPause = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SCROLL_PAUSE_MS, () => {
             this._scrollPause = 0;
             return GLib.SOURCE_REMOVE;
         });
-        this._goTo(target);
+        if (screens?.separate)
+            screens.bring(target, monitor);
+        else
+            this._goTo(target);
         return Clutter.EVENT_STOP;
     }
 
