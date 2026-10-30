@@ -220,10 +220,10 @@ fn n_digits(number: &str) -> bool {
     (1..=2).contains(&number.len()) && number.chars().all(|c| c.is_ascii_digit())
 }
 
-/// A key as the Manual names one: Super, Ctrl, F5, a letter or digit, or one of . , / ` = -
+/// A key as the Manual names one: Super, Ctrl, F5, a letter or digit, or one of . , / ` = - [ ]
 fn is_key(key: &str) -> bool {
     const NAMED: &[&str] = &[
-        "Super", "Ctrl", "Alt", "Shift", "Fn", "Tab", "Esc", "Return", "Enter", "Space", "Backspace", "Delete", "Print", "Home", "End",
+        "Super", "Ctrl", "Alt", "Shift", "Fn", "Tab", "Esc", "Escape", "Return", "Enter", "Space", "Backspace", "Delete", "Print", "Home", "End",
         "PageUp", "PageDown", "Up", "Down", "Left", "Right",
     ];
     if NAMED.contains(&key) {
@@ -233,7 +233,7 @@ fn is_key(key: &str) -> bool {
         return n_digits(number);
     }
     let mut chars = key.chars();
-    matches!((chars.next(), chars.next()), (Some(c), None) if c.is_ascii_uppercase() || c.is_ascii_digit() || ".,/`=-".contains(c))
+    matches!((chars.next(), chars.next()), (Some(c), None) if c.is_ascii_uppercase() || c.is_ascii_digit() || ".,/`=-[]".contains(c))
 }
 
 /// The keys of a code span that is a key or a combination of keys: `Super+Shift+B`. On its own, only a
@@ -825,6 +825,9 @@ mod tests {
         assert_eq!(keycaps("F5"), Some(vec!["F5"]));
         assert_eq!(keycaps("Super"), Some(vec!["Super"]));
         assert_eq!(keycaps("K"), Some(vec!["K"]));
+        assert_eq!(keycaps("Super+Escape"), Some(vec!["Super", "Escape"]));
+        assert_eq!(keycaps("Super+["), Some(vec!["Super", "["]));
+        assert_eq!(keycaps("["), None);
         assert_eq!(keycaps("1"), None);
         assert_eq!(keycaps("-"), None);
         assert_eq!(keycaps("ame update"), None);
