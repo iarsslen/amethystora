@@ -1,0 +1,32 @@
+2026-10-30 18:43:15	start	A-SECURITY-01	open Security without a token, read the overview
+2026-10-30 18:43:48	end	A-SECURITY-01	pass 01 overview read
+2026-10-30 18:43:48	start	A-SECURITY-02	change pages through the tree, read the sidebar foot
+2026-10-30 18:43:58	end	A-SECURITY-02	pass 02 foot read on seven pages
+2026-10-30 18:43:58	start	A-SECURITY-06	Check again
+2026-10-30 18:44:13	end	A-SECURITY-06	pass 06
+2026-10-30 18:45:40	start	A-SECURITY-32	open the whole machine's row, read, back
+2026-10-30 18:45:54	end	A-SECURITY-32	pass 32 34 36 row opened and Done
+2026-10-30 18:45:54	start	A-SECURITY-37	launcher argument pages on the open window, 37 and 71
+2026-10-30 18:46:06	end	A-SECURITY-37	pass 37 71 through the argument
+2026-10-30 18:46:27	start	A-SECURITY-57	open each category through its Open button, read
+2026-10-30 18:46:27	step	A-SECURITY-57	open The security watcher
+2026-10-30 18:46:33	step	A-SECURITY-57	open What the audit log records
+2026-10-30 18:46:38	step	A-SECURITY-57	open Looking for new threats
+2026-10-30 18:46:44	step	A-SECURITY-57	open Virus scans
+2026-10-30 18:46:50	step	A-SECURITY-57	open Network
+2026-10-30 18:46:56	step	A-SECURITY-57	open Logins
+2026-10-30 18:47:02	step	A-SECURITY-57	open Devices
+2026-10-30 18:47:07	step	A-SECURITY-57	open Apps and updates
+2026-10-30 18:47:13	step	A-SECURITY-57	open Kernel and boot
+2026-10-30 18:47:19	step	A-SECURITY-57	open What is said
+2026-10-30 18:47:25	step	A-SECURITY-57	open What leaves this machine
+2026-10-30 18:47:30	end	A-SECURITY-57	pass 57 to 67 read
+2026-10-30 18:47:52	start	A-SECURITY-23	scan the home folder for seconds, read counters only, stop
+2026-10-30 18:48:04	step	A-SECURITY-23	stop
+2026-10-30 18:48:07	end	A-SECURITY-23	pass 23 24 stopped
+2026-10-30 18:48:22	start	A-SECURITY-33	Scan again on the stopped home result, stop, recent row
+2026-10-30 18:48:29	end	A-SECURITY-33	pass 33 and the recent row
+2026-10-30 18:48:29	start	A-SECURITY-69	fresh start on a category page, and an unknown name
+2026-10-30 18:48:41	end	A-SECURITY-69	pass 69 network and an unknown name
+2026-10-30 18:48:50	start	A-SECURITY-69b	fresh start on the Network category, again
+2026-10-30 18:48:56	end	A-SECURITY-69b	pass 69b
