@@ -51,7 +51,9 @@ settled() {
 }
 # Opens the card (when closed) and types TEXT into its field, then waits for the search to settle
 search() {
-    card_open || { keys super+space; soon 5 card_open; }
+    # A card that does not open leaves the text in the hidden overview's field, where GNOME still searches: said here,
+    # since the step that then fails sees results without the card (its keys go nowhere)
+    card_open || { keys super+space; soon 5 card_open || echo "# the card did not open for '${1:0:30}': $(shell_state)"; }
     ev "Main.overview.searchEntry.set_text($(js "$1")); 'typed'" >/dev/null
     soon 10 settled
 }
@@ -323,17 +325,29 @@ search "rolling back"
 place="$(q '[.sections[].rows[]] | map(.title) | index("Updates › Rolling back")')"
 manual_open() { [[ "$(ev "global.display.get_tab_list(0, null).some(w => w.get_wm_class() === 'org.amethystora.Manual')")" == true ]]; }
 if [[ "${place}" =~ ^[0-9]+$ ]] && ((place < 9)); then
+    open_before="$(q .open)"
     keys "ctrl+$((place + 1))"
-    check "11 Ctrl+N opens the Manual" wait_for 30 manual_open
+    if wait_for 30 manual_open; then
+        ok "11 Ctrl+N opens the Manual"
+    else
+        not_ok "11 Ctrl+N opens the Manual" "card open before the key: ${open_before}" "$(shell_state)" \
+            "$(pgrep -af amethystora-manual || echo 'no amethystora-manual process')"
+    fi
 else
     not_ok "11 Ctrl+N opens the Manual" "Updates › Rolling back is result '${place}', not one of the nine" "$(shell_state)"
 fi
 ev "global.display.get_tab_list(0, null).filter(w => w.get_wm_class() === 'org.amethystora.Manual').forEach(w => w.delete(0)); 'closed'" >/dev/null
 
 # --- 12: clip: ------------------------------------------------------------------------------------------------------
+# wl-copy takes the clipboard only once a surface of its own gets the keyboard, which nothing of the shell may hold then
+close_card
 user_bus systemd-run --user --quiet --collect --unit=vmlab-16-clip -- wl-copy --foreground "vmlab-clip-${RUN}"
 recorded() { [[ "$(ev "Main.extensionManager.lookup('amethystora-clipboard@iarsslen.github.io')?.stateObj?.history?.().some(i => i.text === 'vmlab-clip-${RUN}')")" == true ]]; }
-check "12 the clipboard extension recorded the copy" soon 10 recorded
+if soon 10 recorded; then
+    ok "12 the clipboard extension recorded the copy"
+else
+    not_ok "12 the clipboard extension recorded the copy" "the shell's clipboard: $(clipboard)" "$(shell_state)"
+fi
 search "vmlab-clip"
 same "12 no clipboard section without clip:" "$(q '[.sections[].id] | index("amethystora-clipboard")')" null
 search "clip:"
@@ -350,9 +364,12 @@ if wait_for 60 editor_up && soon 10 editor_focused; then
     pasted() { user_bus python3 "${HERE}/atspi.py" gnome-text-editor text 2>/dev/null | grep -q "vmlab-clip-${RUN}"; }
     check "12 Enter pastes it into the document" wait_for 5 pasted
 else
-    not_ok "12 Text Editor did not open"
+    not_ok "12 Text Editor did not open" "focus: $(ev "global.display.focus_window?.get_wm_class() ?? 'none'")" "$(shell_state)"
 fi
+# The app runs in a scope of its own, which stopping flatpak run's unit leaves: a window that comes late would take the
+# keyboard from the card in the next step
 user_bus systemctl --user stop vmlab-16-editor >/dev/null 2>&1
+user_bus flatpak kill org.gnome.TextEditor >/dev/null 2>&1
 # Private mode is the clipboard menu's switch, kept in no setting
 private_mode() {
     ev "(() => { const c = Main.extensionManager.lookup('amethystora-clipboard@iarsslen.github.io').stateObj.clipboardIndicator; if (c.privateModeMenuItem.state !== $1) c.togglePrivateMode(); return String(c.privateModeMenuItem.state); })()"
@@ -372,13 +389,19 @@ agent_last() { [[ "$(q '.sections[-1].id')" == amethystora-agent ]]; }
 check "13 within 3 s the row is last" soon 3 agent_last
 same "13 its header" "$(q '.sections[-1].title')" "THE AGENT"
 same "13 its row" "$(q '.sections[-1].rows[0].title')" "Ask the agent: ${QUESTION}"
+# The spec's question also finds apps (the forgiving app search takes "screen", and "is" inside "Disks"), which come
+# before the manual and the agent (spec 1.1), so its row may be past the nine: the key is tried on words nothing else
+# answers, which leave the agent row among the first few
+ASK="zqxj vbkw"
+search "${ASK}"
+soon 3 agent_last
 place="$(q '[.sections[].rows[]] | length')"
-asked() { pgrep -af "amethystora-agent ask -- ${QUESTION}" >/dev/null; }
-if [[ "${place}" =~ ^[0-9]+$ ]] && ((place >= 1 && place <= 9)); then
+asked() { pgrep -af "amethystora-agent ask -- ${ASK}" >/dev/null; }
+if [[ "$(q '.sections[-1].id')" == amethystora-agent && "${place}" =~ ^[0-9]+$ ]] && ((place >= 1 && place <= 9)); then
     keys "ctrl+${place}"
-    check "13 Ctrl+${place} starts amethystora-agent ask -- QUESTION" soon 5 asked
+    check "13 Ctrl+${place} starts amethystora-agent ask -- ${ASK}" soon 5 asked
 else
-    not_ok "13 the agent row has a Ctrl key" "it is result '${place}', past the nine" "$(snap)"
+    not_ok "13 the agent row has a Ctrl key" "it is result '${place}'" "$(snap)" "$(shell_state)"
 fi
 pkill -f "amethystora-agent ask --" 2>/dev/null
 pkill -f "xdg-terminal-exec .*amethystora-agent" 2>/dev/null
@@ -394,6 +417,10 @@ close_card
 install -d -o "${TEST_USER}" -g "${TEST_USER}" "${HOME_DIR}/Pictures"
 picture="$(find /usr/share/backgrounds -name '*.png' | head -1)"
 for n in 1 2; do install -o "${TEST_USER}" -g "${TEST_USER}" -m 0644 "${picture}" "${HOME_DIR}/Pictures/vmlab-glance-${n}-${RUN}.png"; done
+# Fedora's indexer starts on demand (no login starts it: its unit has no [Install] and its autostart is skipped under
+# systemd), as Nautilus's provider asks it; started here as that does, so that its first crawl is not the search's wait
+user_bus gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
+    --method org.freedesktop.DBus.StartServiceByName org.freedesktop.LocalSearch3 0 >/dev/null 2>&1
 files_found() { search "vmlab-glance"; [[ "$(q '[.sections[].rows[].title | select(startswith("vmlab-glance"))] | length')" == 2 ]]; }
 previewer() { [[ "$(ev "global.display.get_tab_list(0, null).some(w => Shell.WindowTracker.get_default().get_window_app(w)?.get_id() === 'org.gnome.NautilusPreviewer.desktop')")" == true ]]; }
 no_previewer() { ! previewer; }
@@ -423,7 +450,10 @@ if wait_for 120 files_found; then
     gs set "${SEARCH}" glance true
     pkill -f loupe 2>/dev/null
 else
-    not_ok "14 Files did not find the pictures in 120 s"
+    not_ok "14 Files did not find the pictures in 120 s" \
+        "localsearch-3: $(user_bus systemctl --user is-active localsearch-3.service 2>&1)" \
+        "$(in_session "localsearch status 2>&1; localsearch info ~/Pictures/vmlab-glance-1-${RUN}.png 2>&1 | head -3" 2>&1 | head -8)" \
+        "sections: $(q '[.sections[].id] | join(" ")')" "$(shell_state)"
 fi
 close_card
 
@@ -433,6 +463,8 @@ search "2+3*4"
 same "15 answers off: no answer" "$(q '[.sections[].id] | index("amethystora-answers")')" null
 gs set "${SEARCH}" answers true
 close_card
+# GNOME searches only when the text changes, and the field keeps it while the card never opened: emptied first
+ev "Main.overview.searchEntry.set_text(''); 'cleared'" >/dev/null
 search "2+3*4"
 same "15 answers on again" "$(first_section)" amethystora-answers
 gs set "${SEARCH}" windows false
@@ -448,10 +480,10 @@ same "16 ar: ٢+٣" "$(calc '٢+٣' ar-EG)" "$(ev "new Intl.NumberFormat('ar-EG'
 ev "Main.overview.show(); 'shown'" >/dev/null
 overview_up() { [[ "$(ev "Main.overview.visible && !Main.overview.animationInProgress")" == true ]]; }
 soon 5 overview_up
-ev "Main.overview.searchEntry.set_text('2+3*4'); 'typed'" >/dev/null
+ev "Main.overview.searchEntry.set_text(''); Main.overview.searchEntry.set_text('2+3*4'); 'typed'" >/dev/null
 soon 10 settled
 same "17 the overview's results begin with the answer" \
-    "$(ev "(() => { const c = Main.overview.searchController._searchResults._content; const s = c.get_children().find(s => s.visible); return s.provider.id + ' ' + s.getFirstResult()?.metaInfo.name; })()")" \
+    "$(ev "(() => { const c = Main.overview.searchController._searchResults._content; const s = c.get_children().find(s => s.visible); return s.provider.id + ' ' + (s.getFirstResult()?.metaInfo?.name ?? s.getFirstResult()?.app?.get_name?.()); })()")" \
     "amethystora-answers 14"
 ev "Main.overview.searchEntry.set_text(''); Main.overview.hide(); 'hidden'" >/dev/null
 overview_gone() { [[ "$(ev "Main.overview.visible")" == false ]]; }
@@ -508,7 +540,7 @@ if relogin && [[ "$(shell_locale)" == "fr-FR "* ]]; then
     ok "7 the shell reads French numbers"
     search "1,5 + 1"
     same "7 fr session: 1,5 + 1" "$(first_title)" "2,5"
-    search $'1 234,5 * 2'
+    search $'1 234,5 * 2'
     same "7 fr session: grouped with U+202F, through the provider" "$(first_title)" "$(ev "new Intl.NumberFormat('fr-FR').format(2469)")"
     keys return
     same "7 fr session: copied without its group" "$(clipboard)" "2469"
