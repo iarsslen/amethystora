@@ -273,7 +273,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-SHOT-13 Pins blurred while sharing. How: share the whole screen with a pin and a thumbnail showing. Expect: both blurred with a small mark; sharp again when the share ends.
 - [x] D-SHOT-14 Pinning off. How: `ame desktop screenshot pin off`. Expect: no Pin buttons; pinned pictures let go. [changes setting: put back with `ame desktop screenshot pin on`] → PASS (the bar has no Pin button and the pin went at once; the thumbnail's Pin not looked at. Put back, capture-pin true)
 - [ ] D-SHOT-15 Extract text. How: `Print`, drag over text, **Extract Text** or `Ctrl+E`. Expect: Gradia (first time asks a language to download) copies the text and says **Copied!**; the button is off for a window, the whole screen or a recording.
-- [ ] D-SHOT-16 Screen recording. How: `Ctrl+Shift+Alt+R` twice. Expect: starts and stops a recording (pill, glow, red dot).
+- [!] D-SHOT-16 Screen recording. How: `Ctrl+Shift+Alt+R` twice. Expect: starts and stops a recording (pill, glow, red dot). → FAIL: the first Ctrl+Shift+Alt+R only opens the bar in recording mode, and a second press does nothing there; Enter starts it. keybindings.md says it starts or stops. Once recording: the pill with the time and Stop, the glow and the red dot are right, the key stops it, and the file is saved. Sound and a long recording not tried
 
 ## Live captions
 
