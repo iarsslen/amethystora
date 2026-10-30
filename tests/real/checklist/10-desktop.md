@@ -194,7 +194,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-SEARCH-03 Numbered results. How: type `files`, look at Amethystora's rows, press `Ctrl+2`. Expect: each Amethystora row shows its number at its end; `Ctrl+2` opens the second. → PASS
 - [x] D-SEARCH-04 Typos forgiven. How: type `calxu`, then `mc`. Expect: Calculator; Mission Center. → PASS
 - [!] D-SEARCH-05 Actions. How: type `power off` and `restart`. Expect: GNOME's Power Off and Restart actions are found (do not press Enter). → FAIL: not fixed here: GNOME's Power Off is found, but the first row, which Enter takes, is a Control setting that only matches the word: Battery details: Off for power off, Clipboard history: Until a restart for restart. Enter there changes a setting, on a desktop without a battery too
-- [ ] D-SEARCH-06 Result menu and drag. How: right-click an app result; drag an app result onto the dock. Expect: its menu; the app is pinned in the dock.
+- [x] D-SEARCH-06 Result menu and drag. How: right-click an app result; drag an app result onto the dock. Expect: its menu; the app is pinned in the dock. → PASS: right-click gives New Window, Pin to dock, App Details, Uninstall; dragged onto the dock, Calculator is pinned, with the recording glow off for the known drop bug. Favourites and glow put back. The image's favourites name `codium.desktop`, which a base image lacks: the write drops it.
 - [x] D-SEARCH-07 Sums. How: type `1284 * 0.18`, then `200 + 10%`, then `Enter`. Expect: 231.12; 220; Enter copies the answer; numbers in the session's language. → PASS (231.12, 220; Enter's copy not read back)
 - [x] D-SEARCH-08 Conversions. How: type `3.5 km in miles` and `21 °C in °F`. Expect: 2.1748 mi; 69.8 °F; no currencies. → PASS (2.1748 mi; the ° of 21 °C in °F has no key here, not typed)
 - [x] D-SEARCH-09 Sums off. How: `ame desktop search answers off`. Expect: no answer row. [changes setting: put back with `ame desktop search answers on`] → PASS
@@ -235,12 +235,12 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Shelf
 
-- [ ] D-SHELF-01 Edge mode. How: `ame desktop shelf edge`, drag a file from Files. Expect: a glow at the right edge; drop on it and the shelf opens there, a narrow column above the windows, on every workspace. [changes setting: put back with `ame desktop shelf off`]
+- [x] D-SHELF-01 Edge mode. How: `ame desktop shelf edge`, drag a file from Files. Expect: a glow at the right edge; drop on it and the shelf opens there, a narrow column above the windows, on every workspace. [changes setting: put back with `ame desktop shelf off`] → PASS: dropped at the right edge (recording glow off for the known bug), the shelf opens there, a narrow column above the windows, on every workspace. The edge's own glow not caught in a screenshot.
 - [ ] D-SHELF-02 Drop more, drag out. How: drop text and a picture on it, then drag the file into another app. Expect: items listed; the dragged item leaves once the app took it; with `Ctrl` held it stays; a file is copied, never moved.
-- [ ] D-SHELF-03 Keys and menu. How: focus an item, `Delete`; right-click an item; `Ctrl+Delete`. Expect: removes it; **Remove**, **Show in Files** (for a file), **Clear the shelf**; clears all; the shelf closes when empty.
-- [ ] D-SHELF-04 Missing file. How: shelve a file, delete it in Files. Expect: its item turns grey.
+- [x] D-SHELF-03 Keys and menu. How: focus an item, `Delete`; right-click an item; `Ctrl+Delete`. Expect: removes it; **Remove**, **Show in Files** (for a file), **Clear the shelf**; clears all; the shelf closes when empty. → PASS: right-click: **Remove**, **Show in Files**, **Clear the shelf**; `Delete` on a focused item removes it; `Ctrl+Delete` clears, and the shelf closes empty. A left click also opens that menu.
+- [x] D-SHELF-04 Missing file. How: shelve a file, delete it in Files. Expect: its item turns grey. → PASS: a scratch file deleted from its folder turns grey on the shelf within 2 s.
 - [ ] D-SHELF-05 Shake mode. How: `ame desktop shelf shake`, shake the pointer side to side while dragging. Expect: a card under the pointer to drop on. [changes setting: put back with `ame desktop shelf off`]
-- [ ] D-SHELF-06 Alt+Tab reaches it. How: `Alt+Tab` with the shelf open. Expect: the shelf is a window in the switcher.
+- [x] D-SHELF-06 Alt+Tab reaches it. How: `Alt+Tab` with the shelf open. Expect: the shelf is a window in the switcher. → PASS: **shelf**'s switcher lists the Shelf beside Files. Alt+Tab held showed the shelf's picture.
 - [ ] D-SHELF-07 Limits. How: drop a very large text (over 1 MB). Expect: it says it cannot take it.
 
 ## Emoji and text shortcuts

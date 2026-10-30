@@ -276,3 +276,25 @@
 2026-10-30 17:13:44	step	D-PRESENT-11	present on; Super+Alt+D; draw; Print; screenshot
 2026-10-30 17:14:03	step	D-PRESENT-11	capture the whole screen in the screenshot UI
 2026-10-30 17:14:23	end	D-PRESENT-11	pass the saved screenshot holds the ink; file removed, present off
+2026-10-30 17:14:25	start	D-DESKS-06	desks list, rename, forget
+2026-10-30 17:14:25	step	D-DESKS-06	ame desktop desks list
+2026-10-30 17:14:34	end	D-DESKS-06	skip no desk set up; the list says so; a card with the person comes first
+2026-10-30 17:14:34	start	D-SEARCH-06	result menu; drag a result onto the dock
+2026-10-30 17:14:34	step	D-SEARCH-06	Super+Space, type, right-click the first result
+2026-10-30 17:14:58	step	D-SEARCH-06	glow off for the drag; drag Calculator to the dock
+2026-10-30 17:15:27	end	D-SEARCH-06	pass its menu; dropped on the dock it is pinned, glow off for the known bug; favourites and glow put back
+2026-10-30 17:15:28	start	D-SHELF-01	edge mode: drag a scratch file from Files
+2026-10-30 17:15:28	step	D-SHELF-01	glow off, shelf edge, Files on workspace 3
+2026-10-30 17:15:39	step	D-SHELF-01	drag walk.txt to the right edge, screenshot held, let go
+2026-10-30 17:15:59	step	D-SHELF-01	glow while dragging; screenshot at the edge held
+2026-10-30 17:16:22	end	D-SHELF-01	pass a column at the right edge above the windows, on every workspace, with the file; the glow not caught in a screenshot
+2026-10-30 17:16:22	start	D-SHELF-03	shelf item's menu, keys
+2026-10-30 17:16:22	step	D-SHELF-03	right-click the item
+2026-10-30 17:16:35	step	D-SHELF-03	Alt+Tab, held, with the shelf open
+2026-10-30 17:16:51	step	D-SHELF-03	second file onto the shelf; delete it in the folder
+2026-10-30 17:17:24	step	D-SHELF-03	click the first item, Delete
+2026-10-30 17:17:59	end	D-SHELF-03	pass item's menu; Delete removes; Ctrl+Delete clears, the shelf closes when empty
+2026-10-30 17:17:59	start	D-SHELF-04	a shelved file deleted
+2026-10-30 17:17:59	end	D-SHELF-04	pass seen with two.txt: icon and name grey
+2026-10-30 17:17:59	start	D-SHELF-06	Alt+Tab with the shelf open
+2026-10-30 17:17:59	end	D-SHELF-06	pass the shelf is in the switcher
