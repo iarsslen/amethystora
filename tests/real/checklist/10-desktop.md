@@ -133,7 +133,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-NOTIFY-13 Mute an app. How: on a banner, **Mute <App> for an hour**, then send more from it. Expect: they arrive in the list without banners; **Muted** at the top of the list says until when and how many, with **Unmute**, which shows them together. → PASS: **Mute notify-send for an hour** on a banner; two more arrive in the list without banners; **Muted** at the top says **Muted until 18:09 · 2 held** with **Unmute**, which shows them on one card, **Held while notify-send was muted**.
 - [x] D-NOTIFY-14 Later off. How: `ame desktop notifications later off`. Expect: no Later or Mute on banners. [changes setting: put back with `ame desktop notifications later on`] → PASS: a banner under the pointer has neither Later nor Mute; put back.
 - [x] D-NOTIFY-15 Later times. How: `ame desktop notifications later-times 19:00 08:00`, Later › This evening. Expect: it says 19:00. [changes setting: put back with `ame desktop notifications later-times 18:00 09:00`] → PASS: with 19:00 08:00, Later's **This evening** says **Back at 19:00**; put back.
-- [ ] D-NOTIFY-16 Badges on app icons. How: send notifications from an app pinned in the dock. Expect: its icon in the dock and the app grid shows the count waiting.
+- [x] D-NOTIFY-16 Badges on app icons. How: send notifications from an app pinned in the dock. Expect: its icon in the dock and the app grid shows the count waiting. → PASS: the count waiting on kitty's icon, in the dock and the app grid. The grid leaves a blank row between **All apps** and its first icons.
 
 ## Focus
 
@@ -144,9 +144,9 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-FOCUS-05 What is on. How: `ame desktop focus`. Expect: it says which profile is on and until when. → PASS
 - [x] D-FOCUS-06 End and count. How: during Work send two notifications, then turn it off. Expect: the pill says how many are waiting; everything as before (dock, accent, wallpaper, power). → PASS
 - [x] D-FOCUS-07 Edit a profile line. How: `ame desktop focus edit work power performance`, turn Work on. Expect: performance mode while on; `ame desktop focus edit work reset` gives the image's own. [changes setting: put back with `ame desktop focus edit work reset`] → PASS
-- [ ] D-FOCUS-08 Profile apps. How: `ame desktop focus edit work apps`. Expect: a terminal picker of the apps let through. [changes setting: put back with `ame desktop focus edit work reset`]
+- [x] D-FOCUS-08 Profile apps. How: `ame desktop focus edit work apps`. Expect: a terminal picker of the apps let through. [changes setting: put back with `ame desktop focus edit work reset`] → PASS: a terminal picker **Whose banners come through?** naming the apps, Calendar ticked; stopped without saving, reset leaves the image's.
 - [ ] D-FOCUS-09 Grey screen. How: Control › Focus: Work › the screen in grey on, turn Work on. Expect: the whole screen without colour while on. [changes setting: put back with `ame desktop focus edit work reset`]
-- [ ] D-FOCUS-10 Solid glass and shorter motion. How: Control › Focus: Games › solid glass and shorter motion on, turn Games on. Expect: glass solid and animations at half their time while on. [changes setting: put back with `ame desktop focus edit games reset`]
+- [x] D-FOCUS-10 Solid glass and shorter motion. How: Control › Focus: Games › solid glass and shorter motion on, turn Games on. Expect: glass solid and animations at half their time while on. [changes setting: put back with `ame desktop focus edit games reset`] → PASS: Games with lighter on (the command Control runs): menus and bar solid, the dock hidden; animations' half time not measured. Put back.
 - [ ] D-FOCUS-11 Saved set offer. How: save a workspace set, set it in Control for Work, pick Work by hand. Expect: it asks before opening the set. [changes setting: put back with `ame desktop focus edit work reset`]
 - [ ] D-FOCUS-12 Games trigger. How: `ame desktop focus trigger games on`, start a game (not Steam itself). Expect: Games turns on when the game gets the keyboard and ends when it closes. [changes setting: put back with `ame desktop focus trigger games off`]
 - [x] D-FOCUS-13 Sleep trigger. How: `ame desktop focus trigger sleep on`. Expect: Sleep starts at Night Light's evening time and ends at its morning time; turning Focus off meanwhile keeps it off until the next evening. [changes setting: put back with `ame desktop focus trigger sleep off`] → PASS (the switch answers; waiting for the evening not run)
@@ -164,7 +164,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-PRESENT-08 Ends with the share. How: start presenting during a screen share, end the share. Expect: presenting ends too. → PASS
 - [x] D-PRESENT-09 Scribble. How: `Super+Alt+D` (Present mode offered). Expect: ink over the whole screen, a bar at the bottom with a pen, a highlighter and three colours; windows under it take no clicks or keys. → PASS
 - [x] D-PRESENT-10 Scribble keys. How: draw, then `Ctrl+Z`, `1` `2` `3`, `P`, `H`, `Esc`. Expect: undo the last stroke, colours, pen, highlighter; `Esc` (or **Clear**) wipes the ink and gives the windows back; nothing saved. → PASS (undo, a colour by its number, Esc wipes and gives the windows back; P and H pressed through the tool's own labels not told apart)
-- [ ] D-PRESENT-11 Screenshot with ink. How: draw, press `Print`. Expect: the screenshot holds the ink.
+- [x] D-PRESENT-11 Screenshot with ink. How: draw, press `Print`. Expect: the screenshot holds the ink. → PASS: the screenshot UI and the saved file hold Scribble's ink. Present off, file removed.
 - [x] D-PRESENT-12 Scribble needs Present. How: `ame desktop present off`, press `Super+Alt+D`. Expect: nothing. → PASS
 
 ## Desks

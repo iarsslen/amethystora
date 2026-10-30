@@ -257,3 +257,22 @@
 2026-10-30 17:10:05	step	D-NOTIFY-15	later-times 19:00 08:00; a banner; Later; This evening
 2026-10-30 17:11:38	step	D-NOTIFY-15	put back later-times
 2026-10-30 17:11:49	end	D-NOTIFY-15	pass Later says Back at 19:00; put back 18:00 09:00
+2026-10-30 17:11:56	start	D-NOTIFY-16	badges in the dock and the app grid
+2026-10-30 17:11:56	step	D-NOTIFY-16	the app grid: Super+A
+2026-10-30 17:12:13	end	D-NOTIFY-16	pass count on the kitty icon in the dock and the app grid
+2026-10-30 17:12:24	start	D-FOCUS-08	profile apps picker in a scratch terminal
+2026-10-30 17:12:24	step	D-FOCUS-08	scratch kitty with the picker on workspace 2, stop it
+2026-10-30 17:12:40	end	D-FOCUS-08	pass picker names the apps, the let-through ones ticked; left unchanged, reset
+2026-10-30 17:12:40	start	D-FOCUS-09	Work with the screen in grey
+2026-10-30 17:12:40	step	D-FOCUS-09	edit work grey on, focus work, screenshot
+2026-10-30 17:12:43	step	D-FOCUS-09	focus off, reset
+2026-10-30 17:12:54	end	D-FOCUS-09	skip screenshots keep the colours, by design; left for a person's eye; work reset
+2026-10-30 17:12:54	start	D-FOCUS-10	Games with solid glass and shorter motion
+2026-10-30 17:12:54	step	D-FOCUS-10	edit games lighter on, focus games, open the calendar, screenshot
+2026-10-30 17:12:59	step	D-FOCUS-10	focus off, reset
+2026-10-30 17:13:12	end	D-FOCUS-10	pass solid surfaces, dock away; motion's half time not measured; put back
+2026-10-30 17:13:22	start	D-PRESENT-11	screenshot holds Scribble's ink
+2026-10-30 17:13:22	step	D-PRESENT-11	Super+Alt+D, draw on the scratch editor, screenshot
+2026-10-30 17:13:44	step	D-PRESENT-11	present on; Super+Alt+D; draw; Print; screenshot
+2026-10-30 17:14:03	step	D-PRESENT-11	capture the whole screen in the screenshot UI
+2026-10-30 17:14:23	end	D-PRESENT-11	pass the saved screenshot holds the ink; file removed, present off
