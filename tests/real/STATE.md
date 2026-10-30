@@ -9,7 +9,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
   test is behind the freezes). After a hang, run `tests/real/ledger.sh hang` first: the test left open is the suspect, and
   `~/.local/state/amethystora/walk/{ledger,beats}.tsv` hold it, `tests/real/LEDGER.tsv` the pushed copy. Tracks do not run at once
   while this is open: at 15:32 the walker (RemoteDesktop) and the terminal track (`rpm-ostree status`, last at 15:31:14) both ran.
-- Track 1 (desktop walker), 16:10 EDT, one test at a time in the ledger: RemoteDesktop input, in `TRACKS.md`'s order, next D-TOPBAR-19. Pointer clicks land now (`NotifyPointerButton` with a pause between press and release). Left screen on an empty workspace, not 1.
+- Track 1 (desktop walker), 16:30 EDT, one test at a time in the ledger: RemoteDesktop input, in `TRACKS.md`'s order, next D-PILL-02. While an input session lives, a privacy dot joins the bar and moves what is left of it about 50 px. Pointer clicks land now (`NotifyPointerButton` with a pause between press and release). Left screen on an empty workspace, not 1.
 - Updated: 2026-10-30 15:08 EDT. Boot e04b5405, started 15:01:44, after the hard hang at 14:57. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
@@ -106,8 +106,9 @@ Needs an image past 587de45, or `/usr` overlay and a logout (the overlay is lost
 
 ## Open, not fixed
 
-- While the screen is shared or recorded, no drop in the shell lands: `modules/pill/glow.js` adds a full-screen non-reactive actor, and DND picks with `PickMode.ALL`, which sees it. Seen 16:06 to 16:09 on injected drags under the RemoteDesktop session, gone with `pill glow` off (D-TOPBAR-08, 09). Not fixed: a shell file needs a logout to test.
+- While the screen is shared or recorded, no drop in the shell lands: `modules/pill/glow.js` adds a full-screen non-reactive actor, and DND picks with `PickMode.ALL`, which sees it. Seen 16:06 to 16:09 on injected drags under the RemoteDesktop session, gone with `pill glow` off (D-TOPBAR-08, 09: the items passed only with the glow off). Not fixed: a shell file needs a logout to test.
 - 15:28:32: `run-user-1000-doc.mount` deactivated with `xdg-document-portal` still running, so every Flatpak launched after it died at `bwrap: Can't find source path /run/user/1000/doc/by-app/...` with no window. `systemctl --user restart xdg-document-portal` brought it back. Who or what unmounted it not found; two other sessions were running.
+- D-TOPBAR-24: no busy chip in 170 s of full load in a terminal under an app scope. D-TOPBAR-25's no chip therefore shows nothing, and it stays open.
 - D-GRID-02: a **No results** label stays over the app grid. Cause not found; not checked on a fresh login.
 - D-SEARCH-21: with Glance off, Space on a file row closes the box and opens nothing.
 - `meta_window_set_stack_position_no_sync: assertion` about once a minute in the shell's log. Unexplained.

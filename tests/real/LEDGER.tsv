@@ -37,3 +37,66 @@
 2026-10-30 16:10:21	step	D-TOPBAR-08	drag the button at place 5 to place 2
 2026-10-30 16:10:26	step	D-TOPBAR-08	setting: pill glow back on; one screenshot of the row
 2026-10-30 16:10:47	end	D-TOPBAR-08	pass with the glow off the workspace moved to the place dropped on, with its window and label
+2026-10-30 16:11:38	start	D-TOPBAR-19	a small test tray icon: right, double and middle click on it
+2026-10-30 16:11:38	step	D-TOPBAR-19	start the test tray icon for three minutes
+2026-10-30 16:11:41	step	D-TOPBAR-19	one screenshot of the bar's right end
+2026-10-30 16:11:46	step	D-TOPBAR-19	right click the tray icon, one screenshot of the menu
+2026-10-30 16:12:06	step	D-TOPBAR-19	middle click on the tray icon
+2026-10-30 16:12:08	step	D-TOPBAR-19	double click on the tray icon
+2026-10-30 16:12:10	step	D-TOPBAR-19	right click once more, one screenshot
+2026-10-30 16:12:29	step	D-TOPBAR-19	right click with the pointer nudged first, one screenshot held in the session
+2026-10-30 16:12:45	step	D-TOPBAR-19	seen: while the input session runs a privacy dot shifts the icon left; right click at its place then, one screenshot held
+2026-10-30 16:12:59	step	D-TOPBAR-19	click the menu's entry, then middle click, then double click, in one input session
+2026-10-30 16:13:07	step	D-TOPBAR-19	one screenshot for what is left open
+2026-10-30 16:13:20	step	D-TOPBAR-19	one input session: right click, click the entry, then middle click
+2026-10-30 16:13:43	end	D-TOPBAR-19	pass right click menu in the shell's look, entry clicked, double click Activate, middle click SecondaryActivate
+2026-10-30 16:13:47	start	D-TOPBAR-25	busy chip off, a scratch terminal keeps all processors busy for two and a quarter minutes, no chip
+2026-10-30 16:13:47	step	D-TOPBAR-25	ame desktop power busy off
+2026-10-30 16:13:47	step	D-TOPBAR-25	start a scratch kitty with 16 busy loops, it ends by itself after 300 s
+2026-10-30 16:16:02	step	D-TOPBAR-25	one screenshot of the bar after two minutes of load
+2026-10-30 16:16:09	step	D-TOPBAR-25	ame desktop power busy on, put back
+2026-10-30 16:16:10	end	D-TOPBAR-25	pass no chip after two minutes with it off, meter full; put back on
+2026-10-30 16:16:10	start	D-TOPBAR-24	the same load goes on, the busy chip should come within two minutes and a half
+2026-10-30 16:18:21	step	D-TOPBAR-24	one screenshot of the bar
+2026-10-30 16:18:41	end	D-TOPBAR-24	skip the load was not in an app's scope, so no app to name: my test was wrong; again below
+2026-10-30 16:19:14	start	D-TOPBAR-25	again: busy chip off, load in a scratch terminal started in its own app scope, as GNOME starts apps
+2026-10-30 16:19:14	step	D-TOPBAR-25	ame desktop power busy off
+2026-10-30 16:19:14	step	D-TOPBAR-25	start the scratch kitty in an app scope with 16 busy loops for 290 s
+2026-10-30 16:21:26	step	D-TOPBAR-25	one screenshot of the bar
+2026-10-30 16:21:27	step	D-TOPBAR-25	ame desktop power busy on, put back
+2026-10-30 16:21:30	end	D-TOPBAR-25	pass no chip after 130 s with it off; put back on
+2026-10-30 16:21:30	start	D-TOPBAR-24	same load, switch on: the chip should come about two minutes after
+2026-10-30 16:23:41	step	D-TOPBAR-24	one screenshot of the bar
+2026-10-30 16:24:06	step	D-TOPBAR-24	one more screenshot of the bar, just before the load ends
+2026-10-30 16:24:25	end	D-TOPBAR-24	fail no chip in 170 s with every processor full, in a scratch terminal under an app scope
+2026-10-30 16:24:47	start	D-QUICK-05	quick settings arranging mode by keyboard, then reset
+2026-10-30 16:24:47	step	D-QUICK-05	open quick settings with a click on the system menu
+2026-10-30 16:24:51	step	D-QUICK-05	one screenshot of quick settings
+2026-10-30 16:25:01	step	D-QUICK-05	hold the Night Light tile for arranging mode, without switching it
+2026-10-30 16:25:03	step	D-QUICK-05	one screenshot of arranging mode
+2026-10-30 16:25:10	step	D-QUICK-05	Tab to a tile, then Ctrl+Right to move it, read the order
+2026-10-30 16:25:11	step	D-QUICK-05	Delete hides the focused tile, read the hidden list
+2026-10-30 16:25:12	step	D-QUICK-05	one screenshot
+2026-10-30 16:25:20	step	D-QUICK-05	Up to a tile, Ctrl+Right moves it, read the order
+2026-10-30 16:25:30	step	D-QUICK-05	Shift+Tab to a tile, one screenshot, then Ctrl+Left and read the order
+2026-10-30 16:25:40	step	D-QUICK-05	Shift+Tab once more, then Ctrl+Left and read the order
+2026-10-30 16:25:53	step	D-QUICK-05	the arrow key left the menu for the clipboard menu; Escape closes it
+2026-10-30 16:25:53	step	D-QUICK-05	open quick settings, Tab to the first tile, Menu key, Ctrl+Right, read the order
+2026-10-30 16:26:05	step	D-QUICK-05	Delete hides it, one screenshot
+2026-10-30 16:26:14	step	D-QUICK-05	Tab six times to the hidden tile, one screenshot before Enter
+2026-10-30 16:26:22	step	D-QUICK-05	Shift+Tab back three times, one screenshot before Enter
+2026-10-30 16:26:39	step	D-QUICK-05	Up once, one screenshot, then Enter only if the hidden tile has the focus
+2026-10-30 16:26:48	step	D-QUICK-05	Escape ends arranging, one screenshot
+2026-10-30 16:27:10	step	D-QUICK-05	close the menu, end the input session, reset the tiles
+2026-10-30 16:27:42	step	D-QUICK-05	note: the input session's own time limit had run out, that wait was my helper, not the desktop
+2026-10-30 16:27:51	step	D-QUICK-05	one screenshot, then Escape if arranging is still up
+2026-10-30 16:28:09	step	D-QUICK-05	Escape closes quick settings
+2026-10-30 16:28:11	end	D-QUICK-05	fail Ctrl+arrow, Delete and Escape work; the hidden tile was not reached by Tab or Up, so Enter on it is unseen; put back by reset
+2026-10-30 16:28:15	start	D-QUICK-16	screenshot, settings and power buttons at the foot of quick settings; lock left out
+2026-10-30 16:28:15	step	D-QUICK-16	open quick settings, click Screenshot, one screenshot
+2026-10-30 16:28:26	step	D-QUICK-16	Escape closes the screenshot bar; open quick settings; click Settings
+2026-10-30 16:28:31	step	D-QUICK-16	one screenshot
+2026-10-30 16:28:41	step	D-QUICK-16	close the Settings window I opened, guarded
+2026-10-30 16:28:42	step	D-QUICK-16	open quick settings, click Power, one screenshot
+2026-10-30 16:28:57	step	D-QUICK-16	Escape closes the power submenu, Escape again closes quick settings
+2026-10-30 16:29:00	end	D-QUICK-16	skip screenshot bar, settings and power submenu each came up; lock not pressed, it blanks the screen and needs the password; left open
