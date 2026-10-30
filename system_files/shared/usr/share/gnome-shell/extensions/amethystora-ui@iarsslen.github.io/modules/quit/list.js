@@ -62,11 +62,12 @@ export class ForceQuitList {
             closed?.();
             return;
         }
-        // Each window is asked whether it answers; one that does not is marked when Mutter gives up on it
-        const now = global.display.get_current_time_roundtrip();
+        // Each window is asked whether it answers; one that does not is marked when Mutter gives up on it. Each ping has a
+        // time of its own: Mutter takes a pong for every ping of that time, so one window answering would answer for all
+        let now = global.display.get_current_time_roundtrip();
         for (const app of Shell.AppSystem.get_default().get_running()) {
             for (const window of app.get_windows())
-                window.check_alive(now);
+                window.check_alive(now++);
         }
         Shell.AppSystem.get_default().connectObject('app-state-changed', () => this._fill(), this);
         // The keyboard stays here while the list is open: GNOME's own not-responding question takes the key focus into
@@ -341,6 +342,8 @@ export class ForceQuitList {
         this._buildList();
         this._sorted = false;
         this._read(FIRST);
+        // The question's button had the keyboard and is gone with it: back to the list, where Escape is Cancel again
+        this._focusTarget()?.grab_key_focus();
     }
 
     // Each process of the app that has a window, once: as GNOME's own Force quit ends one
