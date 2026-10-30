@@ -325,7 +325,8 @@ pub fn text(value: &Value) -> String {
         Value::Array(list) => {
             let integers: Option<Vec<u8>> = list.iter().map(|v| v.as_i64().map(|n| n as u8)).collect();
             match integers {
-                Some(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+                // A nul stays out: a GTK label would abort the window on it
+                Some(bytes) => String::from_utf8_lossy(&bytes).replace('\0', "\u{fffd}"),
                 None => list.iter().map(text).collect::<Vec<_>>().join("\n"),
             }
         }
@@ -1363,6 +1364,10 @@ mod tests {
         assert_eq!(entry.priority, 6);
         assert_eq!(entry.source, "a\nb");
         assert_eq!(entry.fields()["X"], "");
+        // What a crash keeps of its process's memory has nuls in it, which never reach a label
+        let auxv = journal.entry_of(br#"{"__CURSOR":"c","COREDUMP_PROC_AUXV":[33,0,0,104],"MESSAGE":[97,0,98]}"#).unwrap();
+        assert_eq!(auxv.fields()["COREDUMP_PROC_AUXV"], "!\u{fffd}\u{fffd}h");
+        assert_eq!(auxv.message, "a\u{fffd}b");
         let kernel = journal.entry_of(br#"{"__CURSOR":"c","_TRANSPORT":"kernel","MESSAGE":"usb"}"#).unwrap();
         assert_eq!(kernel.source, "kernel");
         assert!(kernel.from.is_none());
