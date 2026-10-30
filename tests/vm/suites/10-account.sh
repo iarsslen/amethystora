@@ -29,6 +29,16 @@ fi
 printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=%s\n' "${TEST_USER}" >/etc/gdm/custom.conf
 install -d -o "${TEST_USER}" -g "${TEST_USER}" "/var/home/${TEST_USER}/.config"
 install -o "${TEST_USER}" -g "${TEST_USER}" /dev/null "/var/home/${TEST_USER}/.config/gnome-initial-setup-done"
+# The lab renders in software, where GNOME turns animations off, and code behind them would never run (a reveal that threw
+# froze real machines' screens, and no suite saw it): the account's shell has them forced on, as a real GPU has them. A
+# drop-in of the account's own, never in the image. A suite that wants them off turns the setting off, as a person would
+start="$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/user/org.gnome.Shell@.service | head -n 1)"
+[[ -n "${start}" ]] || not_ok "GNOME Shell's user unit has no ExecStart to force animations with"
+dropin="/var/home/${TEST_USER}/.config/systemd/user/org.gnome.Shell@user.service.d"
+install -d -o "${TEST_USER}" -g "${TEST_USER}" "/var/home/${TEST_USER}/.config/systemd" \
+    "/var/home/${TEST_USER}/.config/systemd/user" "${dropin}"
+printf '[Service]\nExecStart=\nExecStart=%s --force-animations\n' "${start}" >"${dropin}/vmlab-animations.conf"
+chown "${TEST_USER}:" "${dropin}/vmlab-animations.conf"
 systemctl restart gdm
 
 if wait_for 240 has_session; then

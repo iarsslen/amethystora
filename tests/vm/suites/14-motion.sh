@@ -42,7 +42,7 @@ two_files() { [[ "$(ev "global.get_window_actors().filter(a => a.meta_window.get
 settled() { [[ "$(ev "${V}.settled()")" == true ]]; }
 # Put back whatever the suite changed, however it ends
 cleanup() {
-    ev "global.force_animations = false; delete globalThis.vmlabMotion; 1" >/dev/null 2>&1
+    ev "global.force_animations = true; delete globalThis.vmlabMotion; 1" >/dev/null 2>&1
     gs reset "${MOTION}" minimize
     gs reset "${MOTION}" workspace-switch
     gs reset "${WORKSPACES}" auto-names
@@ -179,7 +179,7 @@ same "7 classic: no translation" "$(ev "${V}.tr(1)")" "0,0"
 in_session "ame desktop layout tiling" >/dev/null 2>&1
 sleep 1
 
-ev "global.force_animations = false; 1" >/dev/null
+ev "global.force_animations = true; 1" >/dev/null
 sleep 1
 ev "${V}.record()" >/dev/null
 minimize 1

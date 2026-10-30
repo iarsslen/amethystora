@@ -520,7 +520,7 @@ ev "global._vmlabForced = !imports.gi.St.Settings.get().enable_animations; globa
     if (global._vmlabForced) imports.gi.St.Settings.get().uninhibit_animations();
     global._vmlabSlow ??= imports.gi.St.Settings.get().slow_down_factor; imports.gi.St.Settings.get().slow_down_factor = 4; 1" >/dev/null
 unforce() {
-    ev "global.force_animations = false; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations();
+    ev "global.force_animations = true; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations();
         global._vmlabForced = false; if (global._vmlabSlow !== undefined) imports.gi.St.Settings.get().slow_down_factor = global._vmlabSlow;
         delete global._vmlabSlow; 1" >/dev/null 2>&1
 }

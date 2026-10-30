@@ -356,7 +356,7 @@ ev "(() => { const s = ${S}; const old = s._card; globalThis.vmlabSlid = false; 
     return !vmlabSlid && ++n < 500; }); return 'watching'; })()" >/dev/null
 capture 400 300 500 300 normal 0.5
 same "12 the thumbnail slides in from below" "$(ev "String(globalThis.vmlabSlid)")" true
-ev "global.force_animations = false; 'back'" >/dev/null
+ev "global.force_animations = true; 'back'" >/dev/null
 sleep 1
 same "12 the thumbnail: 210 px, 16 px from the corner, a 110 px picture, its buttons" \
     "$(card | jq -c '[.width, .right, .bottom, .picture, (.buttons | map(select(. != "Edit")))]')" \

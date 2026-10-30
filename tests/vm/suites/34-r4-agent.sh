@@ -104,7 +104,7 @@ sleep 8
 ev "Main.overview.hide(); 'hidden'" >/dev/null
 since="$(date '+%Y-%m-%d %H:%M:%S')"
 cleanup() {
-    ev "global.force_animations = false; 'reset'" >/dev/null 2>&1
+    ev "global.force_animations = true; 'reset'" >/dev/null 2>&1
     user_bus systemctl --user stop vmlab-mcp-a vmlab-mcp-b vmlab-mcp-c vmlab-mcp-d vmlab-mcp-e vmlab-notes vmlab-other >/dev/null 2>&1
     tester "amethystora-agent stop; amethystora-agent off" >/dev/null 2>&1
     for key in ask-selection pill; do gs reset "${AGENT_UI}" "${key}"; done
@@ -439,7 +439,7 @@ same "15 ten disables and enables leave nothing behind" "$(cycles)" '{"same":tru
 # they are taken away (cleanup puts it back)
 ev "global.force_animations = true; 'on'" >/dev/null
 same "15 ... and so with animations" "$(cycles)" '{"same":true,"original":true,"keys":true}'
-ev "global.force_animations = false; 'off'" >/dev/null
+ev "global.force_animations = true; 'off'" >/dev/null
 user_bus systemctl --user stop vmlab-mcp-e vmlab-notes >/dev/null 2>&1
 check "15 no JS ERROR since the suite began" test -z "$(journalctl --since "${since}" _COMM=gnome-shell | grep 'JS ERROR')"
 

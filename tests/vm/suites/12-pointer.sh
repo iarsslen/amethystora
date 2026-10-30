@@ -241,7 +241,7 @@ max="$(pstat maxScale)"
 if awk -v m="${max}" 'BEGIN { exit !(m > 1.7 && m < 1.8) }'; then ok "V12 the pointer grew a little (largest ${max})"; else not_ok "V12 maxScale" "${max}"; fi
 sleep 3
 same "V12 the rings are gone and the pointer is back" "$(ev "${P}.stats.rings + ' ' + ${T}.get_pointer_visible()")" "0 true"
-ev "global.force_animations = false; 1" >/dev/null
+ev "global.force_animations = true; 1" >/dev/null
 
 # --- V13: off costs nothing --------------------------------------------------------------------------------------------
 in_session "ame desktop pointer-shake off" >/dev/null 2>&1

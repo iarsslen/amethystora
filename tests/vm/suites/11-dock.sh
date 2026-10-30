@@ -134,7 +134,7 @@ ev "Main.overview.hide(); 1" >/dev/null
 # turns them on for its animated checks, and puts them back however it ends (plans/beyond/IMPLEMENTERS.md)
 ev "global._vmlabForced = !imports.gi.St.Settings.get().enable_animations; global.force_animations = true; if (global._vmlabForced) imports.gi.St.Settings.get().uninhibit_animations(); 1" >/dev/null
 restore_animations() {
-    ev "global.force_animations = false; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations(); global._vmlabForced = false; 1" >/dev/null 2>&1
+    ev "global.force_animations = true; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations(); global._vmlabForced = false; 1" >/dev/null 2>&1
 }
 trap restore_animations EXIT
 sleep 1

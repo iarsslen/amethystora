@@ -199,7 +199,7 @@ for key in "${KEPT[@]}"; do
 done
 LAYOUT_WAS="$([[ "$(gs get org.gnome.shell.extensions.amethystora-ui.tiling enabled)" == false ]] && echo classic || echo tiling)"
 cleanup() {
-    ev "global.force_animations = false; 1" >/dev/null 2>&1
+    ev "global.force_animations = true; 1" >/dev/null 2>&1
     close_all
     local key
     for key in "${KEPT[@]}"; do
@@ -573,7 +573,7 @@ rise="$(ev "JSON.stringify(globalThis.vmlab31.log)")"
 echo "# the rise sampled: ${rise}"
 check "15 with Reduce motion it only fades in" python3 -c "import json,sys; l=json.loads(sys.argv[1]);
 first=[x for x in l if x[0]==l[0][0]][0]; sys.exit(0 if first[1] == 1 and 0 < first[3] < 255 else 1)" "${rise}"
-ev "global.window_manager.disconnectObject(globalThis); delete globalThis.vmlab31; global.force_animations = false; 1" >/dev/null
+ev "global.window_manager.disconnectObject(globalThis); delete globalThis.vmlab31; global.force_animations = true; 1" >/dev/null
 gs reset org.gnome.desktop.a11y.interface reduced-motion
 
 # --- 16 Limits -------------------------------------------------------------------------------------------------------

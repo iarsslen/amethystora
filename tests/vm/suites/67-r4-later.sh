@@ -77,7 +77,7 @@ IDLE_BEFORE="$(gs get org.gnome.desktop.session idle-delay)"
 gs set org.gnome.desktop.session idle-delay 0
 install -d -m 0755 "${WORK}"
 restore_animations() {
-    ev "global.force_animations = false; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations(); global._vmlabForced = false; 1" >/dev/null 2>&1
+    ev "global.force_animations = true; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations(); global._vmlabForced = false; 1" >/dev/null 2>&1
 }
 cleanup() {
     restore_animations

@@ -117,7 +117,7 @@ ev "Main.overview.hide(); 'hidden'" >/dev/null
 # The lab renders in software, where GNOME turns animations off: the animated paths are what is tested here
 ev "global.force_animations = true; 'forced'" >/dev/null
 # Put back however the suite ends
-restore_animations() { ev "global.force_animations = false; 'unforced'" >/dev/null 2>&1; }
+restore_animations() { ev "global.force_animations = true; 'unforced'" >/dev/null 2>&1; }
 trap restore_animations EXIT
 was_tiling="$(gs get org.gnome.shell.extensions.amethystora-ui.tiling enabled)"
 classic
@@ -867,7 +867,7 @@ check "the switcher's selection stays under 1 ms (${switcher_us} µs)" test "${s
 
 # Back as it was
 [[ "${was_tiling}" == true ]] && tiling
-ev "global.force_animations = false; 'unforced'" >/dev/null
+ev "global.force_animations = true; 'unforced'" >/dev/null
 user_systemctl stop "vmlab-bold-$$" "vmlab-manual-$$" 2>/dev/null
 ev "${WIN}.filter(w => w.get_wm_class() === 'org.gnome.Nautilus').forEach(w => w.delete(0)); 'x'" >/dev/null
 

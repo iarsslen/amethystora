@@ -20,7 +20,27 @@ not_ok() {
     FAILED=1
 }
 skip() { echo "skip - $*"; }
-finish() { exit "${FAILED}"; }
+# Whatever else a suite checks, it ends here: while it ran, nothing of ours threw in the shell, and no stylesheet left out
+# a colour the shell asked for. Both can be invisible on the screen, and no suite's own check has to think of them. A suite
+# that makes the shell fail on purpose says SHELL_FAULTS_EXPECTED=1 first
+SUITE_BEGAN="$(date '+%Y-%m-%d %H:%M:%S')"
+shell_faults() {
+    journalctl -b --since "${SUITE_BEGAN}" _COMM=gnome-shell --no-pager -o cat 2>/dev/null |
+        awk '/JS ERROR/ { block = $0; next } block && /@(resource|file):/// { block = block "
+" $0; next }
+            block { if (block ~ /amethystora-/) print block; block = "" }
+            /Did not find color property/ { print }
+            /Amethystora UI: .*(failed|threw|did not (start|stop cleanly))/ { print }
+            END { if (block ~ /amethystora-/) print block }' | sort | uniq -c | sort -rn | head -n 15
+}
+finish() {
+    local faults
+    if [[ -z "${SHELL_FAULTS_EXPECTED:-}" ]]; then
+        faults="$(shell_faults)"
+        [[ -z "${faults}" ]] || not_ok "the shell logged faults of ours while this suite ran" "${faults}"
+    fi
+    exit "${FAILED}"
+}
 reboot_and_continue() { exit 100; }
 # The next phase in this same boot, for what outlasts one phase's 30 minutes
 continue_phase() { exit 101; }

@@ -192,7 +192,7 @@ ev "Main.overview.hide(); 'hidden'" >/dev/null
 wait_for 10 is "!Main.overview.visible"
 ev "${UNREDIRECT}" >/dev/null
 cleanup() {
-    ev "global.force_animations = false; const u = globalThis.vmlabUnredirect; if (u) { global.compositor.disable_unredirect = u.d; global.compositor.enable_unredirect = u.e; delete globalThis.vmlabUnredirect; } 'restored'" >/dev/null 2>&1
+    ev "global.force_animations = true; const u = globalThis.vmlabUnredirect; if (u) { global.compositor.disable_unredirect = u.d; global.compositor.enable_unredirect = u.e; delete globalThis.vmlabUnredirect; } 'restored'" >/dev/null 2>&1
     for schema in "${ACCESS}" "${TOUCH}"; do
         for key in $(in_session "gsettings list-keys ${schema}" 2>/dev/null); do gs reset "${schema}" "${key}"; done
     done
@@ -542,7 +542,7 @@ keys super+ctrl+p
 wait_for 10 is "${T}.state().ring.open"
 ev "${T}.ring.runForTest('area'); 'run'" >/dev/null
 check "13 Area: the screenshot UI on a selection" wait_for 10 is "Main.screenshotUI.visible && Main.screenshotUI._selectionButton.checked"
-ev "Main.screenshotUI.close(); global.force_animations = false; 'closed'" >/dev/null
+ev "Main.screenshotUI.close(); global.force_animations = true; 'closed'" >/dev/null
 in_session "ame desktop touch pen-ring strip" </dev/null >/dev/null
 keys super+ctrl+p
 check "13 the strip at the right edge" wait_for 10 is "${T}.state().ring.variant === 'strip'"
