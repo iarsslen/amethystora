@@ -5,7 +5,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 
 ## Now
 
-- Updated: 2026-10-30 14:50 EDT. Boot e68f5f3b, started 14:42:41, after a third hard hang in this log. Image
+- Updated: 2026-10-30 15:08 EDT. Boot e04b5405, started 15:01:44, after the hard hang at 14:57. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.
 - The first 40 items of `10-desktop.md` from D-GRID-05 are walked (last marks fa85ddd, 14:49). Nothing is walking now. Next:
@@ -40,6 +40,15 @@ Inferred:
   Not GNOME Shell, and not a daemon. DisplayLink's service is not required for it, since it was stopped; its driver was loaded.
 - The KVM, by the maintainer: switched before the freezes at 09:45, 10:21, 12:13 and 14:37, and NOT at 13:05, when it was
   already on this machine and nobody changed it. So a hotplug is a likely trigger, and not a necessary one.
+- 14:57, the first with its trigger in the log: the maintainer unplugged the Lenovo dock. Seen: 14:57:34.19 USB disconnects,
+  14:57:34.20 evdi `Disconnected from Task ... DisplayLinkMana` and `Removing i2c adapter`, 14:57:34.73 displaylink.service
+  stopped, 14:57:37.60 GNOME Shell `Spurious clutter_actor_allocate` for the dock, 14:57:37.64 evdi `Closed by (sd-close)`,
+  then nothing. Forced restart, next boot 15:01:44. No oops, no core dump. Sync was 1 s, so this tail is firm.
+- Not every unplug or teardown hangs on 7.2.13: the same evdi teardown was survived at 09:12:47, 09:58:21, 10:59:00 and
+  14:06:27 (the last by stopping the service), and the 14:25 unplug with the service stopped logged nothing of evdi. The last
+  90 s of the other five hangs have no USB disconnect and no evdi teardown. Mid-session teardowns on 7.2.10 and 7.2.11 were
+  survived too, so this alone does not separate the kernels.
+- Inferred: GNOME Shell's change of the screens, about 3 s after the unplug, comes right before the end. Not shown.
 - Leading idea: kernel 7.2.13, or something else in the image of 2026-10-30. Seen: all 19 boots from 2026-10-15 to 10-27
   (kernels 7.2.5 to 7.2.11) ended with a clean shutdown, several through MST link drops, `Failed to get ACT` and page flip
   failures (boots of 10-23, 10-26, 10-27). Of the boots on 7.2.13, one ended clean (the first, 5 minutes) and five hung.
