@@ -465,6 +465,8 @@ the look when you change one.
   icons, Markdown (`markdown.rs`, raw HTML shown as text), translations and running programs
   (`process.rs`), always as an argument vector, never through a shell. Each app's stylesheet is beside
   its code; the desktop's own `gtk.css` is kept out of the windows.
+- A label with links in its markup goes through `ui::link_accessibles` (`Rich` and `ui::markup` call it). If it does not, GTK 4.22
+  registers the label twice with the accessibility bus, and the app aborts under a screen reader after a page change.
 - The same program is the Phone (`apps/phone`, see The phone link) and the Shelf (`apps/shelf`, `/usr/bin/amethystora-shelf`,
   see Amethystora UI's `shelf`), which `13-apps.sh` installs like the rest. An app may read what its launch hands it on
   standard input (`App::command_line`), which the shelf's first drop uses: a drop never travels on a command line.
@@ -615,7 +617,11 @@ rule, so the kernel loads only `-a never,task`; the watcher then reads that key 
 (`sensor-KEY` checkpoint) and auditd's for the rest. A kernel the sensor cannot load on, or `ame security
 audit-locked`, falls back to the audit rules unchanged. Nobody logs in before it is watching (`Type=notify`,
 before `systemd-user-sessions.service`, 30 s at most), and its path walk and `put_program` are BPF global
-functions, which the verifier checks once: inline, they made its load take 14 s. A new audit key has to be
+functions, which the verifier checks once: inline, they made its load take 14 s. An `fexit` program's
+arguments must be the running kernel's (its BTF), the result last. Since 6.19, `vfs_mkdir`, `vfs_rmdir`, `vfs_mknod` and
+`vfs_symlink` take a `struct delegated_inode *` before their result. A program one argument short reads that pointer as
+the result, which recorded every such write as failed, and the watcher keeps failures quiet. `tests/vm/suites/32-sensor-parity.sh`
+makes and removes a folder and a symlink to hold this. A new audit key has to be
 added to the watcher, to `amethystora-security-realtime`, to `amethystora-security-config` and to the sensor
 (`src/bpf/sensor.h`'s keys and `src/keys.rs`); `20-tests.sh` fails otherwise, and checks
 `amethystora-sensor --keys` against the watcher's. The app's **Containers** page is what
@@ -1130,13 +1136,19 @@ every module that moves something, the glass after the dock and the panel's modu
 `20-tests.sh` checks it with greps of the lines `    ['name', Class],` (four spaces, one line each: write a new one
 exactly so), each holding only which of a few modules comes first, so a module goes anywhere its own checks allow. Round
 4's sit between `bezel` and `focus` in the order `captions`, `access`, `touch`, `present`, `deskwidgets`, `shelf`,
-`desks`, `agent`, `quit`, `privacy`, and `power` between `today` and `dock`.
+`desks`, `agent`, `quit`, `privacy`, and `power` between `today` and `dock`. `firstlook` comes right after `hints`.
 
 **What keeps the shell up.** A screen lock disables the extension and the unlock enables it again: what must outlive a
 lock (Later's and Mute's notifications, pinned captures, walk-away lock's count) is kept at module scope, outside the
 class. Every `Gio.Settings` a module makes is kept and `run_dispose()`d on the main thread when it stops: one left to the
 collector deadlocked GNOME Shell for good (GJS sweeping it while dconf's worker dispatched a change), and
 `build_files/shared/test-settings-disposed.mjs`, run by `20-tests.sh`, refuses one a file makes and never disposes.
+GNOME turns an extension on and off asynchronously, so an enable can come before the last disable has finished:
+`enable()` stops modules that are still running first, a second `disable()` must not throw, and a deferred callback
+(a later, an idle, an async search) checks that what it touches still exists. A shell entry that takes the keyboard
+(the emoji picker, the search box) takes the window's input method with it. On close, call
+`giveBackTextInput()` (`modules/emoji/paste.js`), or the window types without IBus until it is focused again. Mutter takes one pong for every
+ping with the same timestamp, so give each window you ping a timestamp of its own (the force-quit list).
 `20-tests.sh` also runs `node --check` on every file of our extensions, since one syntax error stops every module. A layer
 put in the window group is lowered by Mutter's restack: put it back on `restacked`. A whole-screen effect is a plain
 `Clutter.Effect` that copies each screen as it paints, as the colour filter is: an `OffscreenEffect` keeps its texture
@@ -1273,6 +1285,13 @@ The modules, and what each replaced:
   (`24-files-menu.sh` version 2): `/usr/libexec/amethystora-clean-copy -- PATH...` has `mat2` clean a copy in a private
   folder and moves it beside the original as `NAME (clean).EXT` with `mv -n`; paths come from argv only, never
   `NAUTILUS_SCRIPT_*`, and a PDF is cleaned in mat2's light mode, which keeps its text (`mat2`, `perl-Image-ExifTool`).
+- `emoji` (`Super+.`): `[org.freedesktop.ibus.panel.emoji]` `hotkey` is empty in `zz1-amethystora-modifications`,
+  since IBus reads a text field's keys before Mutter's bindings and would take `Super+.` and `Super+;` for its own panel.
+- `firstlook`: Pick a look (`amethystora-control welcome`) is started from a unit by `user-setup.hooks.d/25-first-look.sh`, so
+  it has no activation token and opens behind, under the overview and GNOME's welcome dialog of a first login. The
+  module activates it once the person is free: at once, or when GNOME's dialog closes. It never does over a window the
+  person chose, an app launched from the overview, or the Tour. It is armed only where the hook opens the page (a home
+  under a day old with no `first-look.json`), and it knows the page by the hook's command line, which `20-tests.sh` holds.
 
 ### The phone link
 
@@ -1297,7 +1316,10 @@ in `plans/amethystora-connect/` are the protocol, the plugins and the desktop si
 - **Off costs nothing and it is home only.** `ame desktop phone on|off` enables or disables the user unit (Control's
   **Phone pairing**); the program listens only while it runs, announces itself only on interfaces in the `amethystora-home`
   zone (it asks firewalld, read-only, and counts "cannot ask" as not home), and firewalld's `kdeconnect` service (1714 to
-  1764) is open in that zone alone. `allow.d/listeners` names its ports for the watcher. Nothing runs as root.
+  1764) is open in that zone alone. `allow.d/listeners` names its ports for the watcher. Nothing runs as root. The
+  unit has no setting that needs a namespace (`ProtectSystem=`, `ReadWritePaths=`, `Private*=`, `CapabilityBoundingSet=`
+  and the like; `20-tests.sh` refuses them): a user's manager makes one only as a user namespace of the program's own,
+  from which `/proc/PID/exe` of GNOME Shell and the Phone app is unreadable, and the program then refuses both as strangers.
 - **What it holds and shows.** Its certificate, key and the paired phones are in `~/.config/amethystora/connect` (0700, files
   0600); the only way a pairing is ever removed is Unpair. A pairing is never accepted without the person, with the phone's
   name and the key in front of them. Text from a phone is shown as text, never markup; a file goes to `~/Downloads/Phone/<name>`
