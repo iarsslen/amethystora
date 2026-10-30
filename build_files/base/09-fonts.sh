@@ -10,7 +10,7 @@ set -eoux pipefail
 # /usr/share/licenses/google-fonts/<family>. The ones Fedora packages are in 04-packages.sh; Fira Code's package ships
 # no licence file, so its OFL.txt is pinned here without the font. A new commit is pinned by hand, with every sum
 # again.
-GOOGLE_FONTS_COMMIT="e7db6ca603fd4862010383ff17ffd6cc4ffac1c0"
+GOOGLE_FONTS_COMMIT="6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec"
 GOOGLE_FONTS_URL="https://raw.githubusercontent.com/google/fonts/${GOOGLE_FONTS_COMMIT}/ofl"
 
 # folder/file in the repository's ofl/, and its SHA-256; a folder's OFL.txt is its licence

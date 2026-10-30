@@ -295,7 +295,7 @@ dnf -y install --enablerepo='tailscale-stable' tailscale
 # /etc/falco/config.d/60-amethystora.yaml, and its rules follower, which would download rules, is masked
 # (17-cleanup.sh). Apache-2.0; its eBPF probe is MIT or GPL-2.0-only, at the user's choice. The package leaves out
 # the licences of the libraries compiled into usr/bin/falco, which ship in usr/share/licenses/falco/bundled at the
-# versions Falco 0.45.1 and its libs 0.26.1 pin: look at them again when Falco moves.
+# versions Falco 0.45.2 and its libs 0.26.1 pin: look at them again when Falco moves.
 cat >/etc/yum.repos.d/falcosecurity.repo <<'EOF'
 [falcosecurity]
 name=falcosecurity
@@ -304,28 +304,11 @@ enabled=0
 gpgcheck=1
 repo_gpgcheck=1
 gpgkey=https://falco.org/repo/falcosecurity-packages.asc
-
-[falcosecurity-dev]
-name=falcosecurity release candidates
-baseurl=https://download.falco.org/packages/rpm-dev
-enabled=0
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://falco.org/repo/falcosecurity-packages.asc
 EOF
-# falcosecurity's package signing key, as served on 2026-10-10, which expires on 2028-12-10, for both
+# falcosecurity's package signing key, as served on 2026-10-10, which expires on 2028-12-10
 pin_repo_key /etc/yum.repos.d/falcosecurity.repo 478B2FBBC75F4237B731DA4365106822B35B1B1F
-# Falco 0.45.0's probe does not load into Fedora 44's kernel (falco#4017), and 0.45.1 fixes it. Until 0.45.1 is
-# in the stable repository, its release candidate, by the maintainer's choice of 2026-10-11, from falcosecurity's
-# repository of them, signed with the same key; the first build after 0.45.1's release goes back to stable.
-FALCO_MINIMUM=0.45.1
-FALCO_CANDIDATE=falco-0.45.1_rc1
-FALCO_STABLE="$(dnf repoquery -q --repo=falcosecurity --latest-limit=1 --queryformat '%{version}\n' falco | tail -n1)"
-if [[ -n "${FALCO_STABLE}" && "$(printf '%s\n' "${FALCO_MINIMUM}" "${FALCO_STABLE}" | sort -V | head -n1)" == "${FALCO_MINIMUM}" ]]; then
-    FALCO_FRONTEND=noninteractive FALCO_DRIVER_CHOICE=none dnf -y install --enablerepo=falcosecurity falco
-else
-    FALCO_FRONTEND=noninteractive FALCO_DRIVER_CHOICE=none dnf -y install --enablerepo=falcosecurity-dev "${FALCO_CANDIDATE}"
-fi
+# Falco 0.45.0's probe does not load into Fedora 44's kernel (falco#4017); 0.45.1 and later do (20-tests.sh)
+FALCO_FRONTEND=noninteractive FALCO_DRIVER_CHOICE=none dnf -y install --enablerepo=falcosecurity falco
 
 # The AI agents amethystora-agent offers are deliberately not installed here. They release far more
 # often than the image, so it installs them into each user's home with their makers' own installers,

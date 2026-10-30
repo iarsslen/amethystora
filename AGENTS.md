@@ -673,8 +673,7 @@ lines, the home generator writes for paths that exist, and the watcher reads fro
 `audit_records`), `BPF_PROGRAMS`, `CHAINS`,
 `DNS_NAMES` (`amethystora-dns-names.service`, resolved's monitor), `BEHAVIOUR` (Falco, from falcosecurity's
 pinned repository, run only by `amethystora-behaviour.service`; 0.45.0's probe does not load into Fedora 44's
-kernel, so the build installs 0.45.1's release candidate from falcosecurity's `rpm-dev` until stable has
-0.45.1, and goes back by itself; `20-tests.sh` fails below 0.45.1), the `YARA_*` sources (`amethystora-yara.service` as clamupdate, which splits and test-loads every
+kernel, so `20-tests.sh` fails below 0.45.1), the `YARA_*` sources (`amethystora-yara.service` as clamupdate, which splits and test-loads every
 set, since one rule ClamAV cannot load can stop its whole database) and `NETWORK_FEEDS`/`NETWORK_HUNTING`
 (`amethystora-ips due`). What only an account can see is read as that account by
 `/usr/libexec/amethystora-security-reader` (`APP_PERMISSIONS`, `DEV_HOOKS`, `AGENT_CONFIG`), run with
