@@ -135,6 +135,10 @@ fn boot_label(boot: &Boot) -> String {
     let minutes = |millis: i64| i18n::date(seconds(millis), DateStyle::Time24);
     let day = short_day(first);
     match boot.last {
+        // A boot that ran past midnight says the day it ended, or its end reads as the same day's
+        Some(last) if short_day(last) != day => {
+            t!("{day}, {start} – {endDay}, {end}", day = &day, start = minutes(first), endDay = short_day(last), end = minutes(last))
+        }
         Some(last) => t!("{day}, {start}–{end}", day = &day, start = minutes(first), end = minutes(last)),
         None => t!("{day}, {time}", day = &day, time = minutes(first)),
     }
@@ -1822,4 +1826,20 @@ fn wrap_name(button: &NavButton) {
     button.label.set_wrap_mode(pango::WrapMode::WordChar);
     button.label.set_natural_wrap_mode(gtk::NaturalWrapMode::None);
     list::unhyphenated(&button.label);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_boot_over_several_days_says_the_day_it_ended() {
+        let boot = |first: i64, last: i64| Boot { index: -2, id: String::new(), first: Some(first), last: Some(last) };
+        let start = 1_793_000_000_000;
+        let (day, later) = (short_day(start), short_day(start + 3 * 86_400_000));
+        assert_ne!(day, later);
+        let long = boot_label(&boot(start, start + 3 * 86_400_000));
+        assert!(long.contains(&day) && long.contains(&later), "{long}");
+        assert!(!boot_label(&boot(start, start + 1000)).contains(&later));
+    }
 }

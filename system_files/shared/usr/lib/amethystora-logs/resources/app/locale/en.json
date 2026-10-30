@@ -144,6 +144,7 @@
   "{count, plural, one {# new entry} other {# new entries}}": "{count, plural, one {# new entry} other {# new entries}}",
   "{count, plural, one {The newest # entry} other {The newest # entries}}": "{count, plural, one {The newest # entry} other {The newest # entries}}",
   "{count}+": "{count}+",
+  "{day}, {start} – {endDay}, {end}": "{day}, {start} – {endDay}, {end}",
   "{day}, {start}–{end}": "{day}, {start}–{end}",
   "{day}, {time}": "{day}, {time}",
   "{name}, process {pid}": "{name}, process {pid}",
