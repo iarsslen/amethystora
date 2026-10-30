@@ -481,3 +481,24 @@
 2026-10-30 17:54:42	start	D-TILE-13	centre
 2026-10-30 17:54:42	step	D-TILE-13	Super+C; frame
 2026-10-30 17:54:45	end	D-TILE-13	pass window centred
+2026-10-30 17:54:56	start	D-TILE-14	focus mode
+2026-10-30 17:54:57	step	D-TILE-14	Super+Shift+C, then Super+Left and Super+Right, frames; three times round
+2026-10-30 17:55:28	end	D-TILE-14	pass centre, edge, into view in turn, icon changes each; back to the default after three
+2026-10-30 17:55:30	start	D-TILE-15	open position
+2026-10-30 17:55:30	step	D-TILE-15	Super+Left to Files; Super+Shift+W, read the key, Ctrl+N in Files, frame; three times
+2026-10-30 17:55:54	end	D-TILE-15	pass below, right, left in turn, new window follows, icon follows; key back at Left as found
+2026-10-30 17:55:56	start	D-TILE-16	new window with Super+N
+2026-10-30 17:55:56	step	D-TILE-16	close one Files with Super+W; Super+N in Files; frame
+2026-10-30 17:56:11	end	D-TILE-16	pass a new Files window
+2026-10-30 17:56:14	start	D-TILE-17	carry a window
+2026-10-30 17:56:14	step	D-TILE-17	hold Super, T; Right, Right, frame; Page Down, frame; Page Up, frame; let go, frame
+2026-10-30 17:56:41	end	D-TILE-17	pass window taken with a hint, travelled right along the strip, through workspace cards and back, dropped on letting go, one place right
+2026-10-30 17:56:43	start	D-TILE-18	float
+2026-10-30 17:56:43	step	D-TILE-18	Super+Ctrl+Escape, frame, again, frame; Alt+Space for the window menu, frame
+2026-10-30 17:56:56	step	D-TILE-18	click Float above the strip in the open menu; frame; Alt+Space; frame
+2026-10-30 17:57:11	step	D-TILE-18	click Float above the strip again; frame
+2026-10-30 17:57:14	end	D-TILE-18	pass floats above the strip by key and by the menu; again back in the strip
+2026-10-30 17:57:17	start	D-TILE-19	hide floating windows
+2026-10-30 17:57:17	step	D-TILE-19	Super+Ctrl+Escape; Super+Alt+Escape, frame; again, frame; float off
+2026-10-30 17:57:43	step	D-TILE-19	Super+Ctrl+Escape takes the float off; frame
+2026-10-30 17:57:45	end	D-TILE-19	pass floated window hides on Super+Alt+Escape, returns on it
