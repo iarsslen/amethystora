@@ -486,10 +486,8 @@ impl Manual {
             if target.as_ref().is_some_and(|target| target.width() == 0) {
                 return glib::ControlFlow::Continue;
             }
-            let main = this.main.clone();
-            let child = main.child();
-            let y = match (&target, child) {
-                (Some(target), Some(child)) => target.compute_point(&child, &amethystora_ui::graphene::Point::new(0.0, 0.0)).map(|p| (p.y() as f64 - 24.0).max(0.0)),
+            let y = match (&target, content_of(&this.main)) {
+                (Some(target), Some(content)) => target.compute_point(&content, &amethystora_ui::graphene::Point::new(0.0, 0.0)).map(|p| (p.y() as f64 - 24.0).max(0.0)),
                 _ => Some(0.0),
             };
             if let Some(y) = y {
@@ -720,10 +718,16 @@ fn snippet(text: &str, word: &str) -> String {
     }
 }
 
+/// What a scroller scrolls, which a place in it is measured against: not its child, the viewport, which stays put
+/// while what is in it moves, so that a place measured against the viewport already has the scroll taken off
+fn content_of(scroller: &gtk::ScrolledWindow) -> Option<gtk::Widget> {
+    scroller.child().and_downcast::<gtk::Viewport>().and_then(|viewport| viewport.child())
+}
+
 /// Scrolls a list as little as it takes to show one of its rows (scrollIntoView with block: nearest)
 fn scroll_into_view(scroller: &gtk::ScrolledWindow, row: &impl IsA<gtk::Widget>) {
-    let Some(child) = scroller.child() else { return };
-    let Some(point) = row.compute_point(&child, &amethystora_ui::graphene::Point::new(0.0, 0.0)) else { return };
+    let Some(content) = content_of(scroller) else { return };
+    let Some(point) = row.compute_point(&content, &amethystora_ui::graphene::Point::new(0.0, 0.0)) else { return };
     let adjustment = scroller.vadjustment();
     let (top, bottom) = (point.y() as f64, point.y() as f64 + row.height() as f64);
     if top < adjustment.value() {
