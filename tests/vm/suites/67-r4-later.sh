@@ -185,6 +185,8 @@ else
         "$(journalctl -b _SYSTEMD_USER_UNIT=${UNIT} --no-pager -o cat | tail -n 20)"
 fi
 same "A3 its type" "$(prop Type)" laptop
+# A file is never overwritten: a run before this one would leave its own report.pdf for the check to read
+rm -rf "${HOME_DIR}/Downloads/Phone/Lab laptop"
 head -c 70000 /dev/urandom >"${WORK}/report.pdf"
 printf 'share %s\n' "${WORK}/report.pdf" >>"${PEER}/commands"
 landed() { test -f "${HOME_DIR}/Downloads/Phone/Lab laptop/report.pdf"; }
@@ -325,8 +327,14 @@ running() { [[ "$(helper_pid)" =~ ^[0-9]+$ ]]; }
 check "B5 the program runs" wait_for 10 running
 PID="$(helper_pid)"
 cpu() { [[ "$1" =~ ^[0-9]+$ ]] && awk '{ print $14 + $15 }' "/proc/$1/stat" 2>/dev/null; }
-sleep 5
+# Loading the model, paused from the start, takes a few seconds of CPU: measure once it has settled (no tick in 3 s)
 before="$(cpu "${PID}")"
+for _ in {1..20}; do
+    sleep 3
+    settled="$(cpu "${PID}")"
+    [[ "${settled}" == "${before}" ]] && break
+    before="${settled}"
+done
 sleep 30
 # A paused pipeline still wakes for a bus message now and then: a few ticks (10 ms each) in 30 s, never a stream
 now="$(cpu "${PID}")"
