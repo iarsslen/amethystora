@@ -72,6 +72,7 @@
   -barlevel-height: 5px;
   -barlevel-background-color: rgba(128, 128, 128, 0.2);
   -barlevel-active-background-color: -st-accent-color;
+  -barlevel-overdrive-color: -st-accent-color;
 }
 
 .amethystora-meters-history {
