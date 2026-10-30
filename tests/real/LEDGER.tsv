@@ -606,3 +606,12 @@
 2026-10-30 18:14:13	start	D-TILESET-17	overview close animation
 2026-10-30 18:14:13	step	D-TILESET-17	each of 0, 1, 2 by gsettings: Super, Escape with a frame right after; reset
 2026-10-30 18:14:35	end	D-TILESET-17	pass fading seen in a frame; at once and gliding not told apart since no scroll was needed; reset
+2026-10-30 18:14:38	start	D-TILESET-18	Alt+Tab preview size
+2026-10-30 18:14:38	step	D-TILESET-18	hold Alt, Tab, frame, let go; size 0.3, same; reset
+2026-10-30 18:14:56	end	D-TILESET-18	pass previews larger at 0.3, reset
+2026-10-30 18:14:57	start	D-TILESET-20	top bar per workspace
+2026-10-30 18:14:57	step	D-TILESET-20	key off by gsettings, frame; Super+Ctrl+B, frame; Super+3, frame; Super+2; Super+Ctrl+B, reset, frame
+2026-10-30 18:15:27	end	D-TILESET-20	pass off hides the bar, Super+Ctrl+B shows it on this workspace, workspace 3 stays hidden; reset, bar back
+2026-10-30 18:15:27	start	cleanup	close my Files and the settings window
+2026-10-30 18:15:27	step	cleanup	Files with Super+W under the guard; settings window from the dock then Super+W
+2026-10-30 18:15:37	end	cleanup	pass windows closed; the scratch editor stays
