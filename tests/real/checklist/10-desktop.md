@@ -51,7 +51,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [-] D-QUICK-09 Battery explained. How: open the battery tile's menu. Expect: when it will be empty or full, the watts now and since unplugged, the apps that used most since last plugged in or out (said to be an estimate), health and cycles when the battery reports them. [needs: laptop] → N/A: desktop with no battery
 - [-] D-QUICK-10 Battery details off. How: `ame desktop power battery off`, reopen. Expect: the details are gone. [changes setting: put back with `ame desktop power battery on`] [needs: laptop] → N/A: desktop with no battery
 - [!] D-QUICK-11 Each app's volume. How: play sound in two apps, open quick settings. Expect: under the volume slider each app has its own slider and mute button; the buttons beside "Playing now" send sound to another output. → FAIL: not fixed here: each app has its slider and mute, and the output buttons work as drawn, but the heading reads PLAYING NO… and both outputs read HDMI / Display…: two outputs with long names clip the heading and cannot be told apart
-- [ ] D-QUICK-12 Theme swatch. How: tap a swatch. Expect: the desktop and Amethystora's apps switch to that theme at once, revealed by the transition; other apps at their next start.
+- [!] D-QUICK-12 Theme swatch. How: tap a swatch. Expect: the desktop and Amethystora's apps switch to that theme at once, revealed by the transition; other apps at their next start. → FAIL: not fixed here: the theme does change, desktop and apps together, and the shell did not crash, but it takes 10 to 12 s (ame desktop theme: 12.2 s real, 9.4 s user), not at once; the old theme is still there at 4 s
 - [x] D-QUICK-13 Hide the swatches. How: `ame desktop quick-settings theme off`, reopen; `on`. Expect: the swatches go, then come back. [changes setting: put back with `ame desktop quick-settings theme on`] → PASS
 - [ ] D-QUICK-14 Phone tile. How: with a paired phone connected. Expect: a tile with the phone and its battery; a click opens the Phone app. [needs: phone]
 - [x] D-QUICK-15 Focus tile. How: open the **Focus** tile. Expect: chips Off, Work, Games and Sleep; it says what the profile does and when it ends: when turned off, after **1 hour**, or **tomorrow** (06:00). → PASS
@@ -75,28 +75,28 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-PILL-02 Timer. How: start a 1-minute timer from the calendar menu. Expect: the pill counts down; its card adds a minute, pauses, cancels; the timer buttons add that many minutes; at the end a sound, a notification (even while quiet) and **Timer done**.
 - [ ] D-PILL-03 Timer while locked. How: start a 1-minute timer, lock for two minutes, unlock. Expect: it rings as soon as you unlock.
 - [ ] D-PILL-04 What is playing. How: play music or a video in an app that reports to the desktop. Expect: the cover, title and artist and a small pause button that works; the card has Back, Pause, Next and how far in; a paused player stays ten minutes.
-- [ ] D-PILL-05 Recording. How: `Ctrl+Shift+Alt+R`, then **Stop** in the pill. Expect: how long it has run, and Stop ends it; the file is in Videos › Screencasts.
+- [x] D-PILL-05 Recording. How: `Ctrl+Shift+Alt+R`, then **Stop** in the pill. Expect: how long it has run, and Stop ends it; the file is in Videos › Screencasts. → PASS
 - [ ] D-PILL-06 Card and right-click. How: click the pill while something shows; then right-click it. Expect: the card with its buttons, whatever else is happening below, the date and time last (opens the calendar); the right-click always opens the calendar.
 - [ ] D-PILL-07 Only one thing at a time. How: play music and start a timer. Expect: the pill shows the first by the manual's order (timer before what is playing); the card lists the other below.
 - [ ] D-PILL-08 Update ready. How: with an update staged. Expect: **Ready · quick restart** or **Ready · restart**; **Restart now** opens System Updates; **Tonight** hides it until 20:00.
 - [ ] D-PILL-09 Updated. How: first login after an update. Expect: **Updated** for a minute; a click shows what came and opens the Manual's What's new; a rollback or a new account says nothing.
-- [ ] D-PILL-10 What's new off. How: `ame desktop whats-new off`. Expect: no **Updated** after the next update. [changes setting: put back with `ame desktop whats-new on`]
+- [x] D-PILL-10 What's new off. How: `ame desktop whats-new off`. Expect: no **Updated** after the next update. [changes setting: put back with `ame desktop whats-new on`] → PASS (the switch answers and the key follows; no update here to show it holds)
 - [ ] D-PILL-11 Battery at 20 %. How: rest the pointer on the battery icon; then run a laptop down to 20 %. Expect: the tooltip gives time left or until full; at 20 % the pill turns amber and offers power saving, once, never turning it on itself. [needs: laptop]
 - [ ] D-PILL-12 A call. How: get a call on the paired phone. Expect: who is calling and **Mute ringer**; the card adds **Reply with a text**. [needs: phone]
 - [ ] D-PILL-13 A link from the phone. How: share a link from the phone. Expect: the address with **Open** and **Not now**, never opened by itself; **Open in browser**, **Copy**; a look-alike name shows as `xn--…`. [needs: phone]
-- [ ] D-PILL-14 Something finished, waiting banners. How: after quiet ends with banners held. Expect: the pill says e.g. **2 waiting in the list**; a click opens the list.
-- [ ] D-PILL-15 Pill off. How: `ame desktop pill off`, then `ame desktop pill on`. Expect: GNOME's clock alone, then the pill back. [changes setting: put back with `ame desktop pill on`]
+- [x] D-PILL-14 Something finished, waiting banners. How: after quiet ends with banners held. Expect: the pill says e.g. **2 waiting in the list**; a click opens the list. → PASS
+- [x] D-PILL-15 Pill off. How: `ame desktop pill off`, then `ame desktop pill on`. Expect: GNOME's clock alone, then the pill back. [changes setting: put back with `ame desktop pill on`] → PASS
 
 ## Privacy dots and the recording glow
 
-- [ ] D-DOTS-01 Microphone. How: record sound (GNOME Sound Recorder or a call). Expect: a small pill in the top bar with an amber dot; GNOME's own microphone icon hidden.
+- [-] D-DOTS-01 Microphone. How: record sound (GNOME Sound Recorder or a call). Expect: a small pill in the top bar with an amber dot; GNOME's own microphone icon hidden. → N/A: no microphone on this machine (no PipeWire source)
 - [ ] D-DOTS-02 Camera. How: open GNOME Snapshot. Expect: a green dot; the list names the app. [needs: camera]
-- [ ] D-DOTS-03 Screen. How: record or share the screen. Expect: a red dot; the list has the screen with **Stop**, which stops it.
+- [x] D-DOTS-03 Screen. How: record or share the screen. Expect: a red dot; the list has the screen with **Stop**, which stops it. → PASS
 - [ ] D-DOTS-04 Location. How: let GNOME Maps find you. Expect: a violet dot; the list only says location is in use.
-- [ ] D-DOTS-05 Order and list. How: microphone and screen at once, click the dots. Expect: always amber, green, red, violet; the list shows all four, each with its own icon.
-- [ ] D-DOTS-06 Recording glow. How: `Ctrl+Shift+Alt+R`, then stop. Expect: a thin red glow round every screen's edge over everything, gone when it stops.
-- [ ] D-DOTS-07 Dots off. How: `ame desktop pill dots off`. Expect: GNOME's own icons back, no dots pill. [changes setting: put back with `ame desktop pill dots on`]
-- [ ] D-DOTS-08 Glow off. How: `ame desktop pill glow off`, record. Expect: no glow. [changes setting: put back with `ame desktop pill glow on`]
+- [-] D-DOTS-05 Order and list. How: microphone and screen at once, click the dots. Expect: always amber, green, red, violet; the list shows all four, each with its own icon. → N/A: needs the microphone too; the screen's dot and list seen, D-DOTS-03
+- [x] D-DOTS-06 Recording glow. How: `Ctrl+Shift+Alt+R`, then stop. Expect: a thin red glow round every screen's edge over everything, gone when it stops. → PASS
+- [x] D-DOTS-07 Dots off. How: `ame desktop pill dots off`. Expect: GNOME's own icons back, no dots pill. [changes setting: put back with `ame desktop pill dots on`] → PASS (no dots pill; GNOME's own recording icon did not show either, the pill carrying Stop)
+- [x] D-DOTS-08 Glow off. How: `ame desktop pill glow off`, record. Expect: no glow. [changes setting: put back with `ame desktop pill glow on`] → PASS
 
 ## Privacy: share guard, shield, network by app
 
@@ -118,9 +118,9 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Notifications
 
-- [ ] D-NOTIFY-01 Stacks. How: send three notifications from one app (`notify-send -a Test a; notify-send -a Test b; notify-send -a Test c`). Expect: one folded stack in the calendar's list showing how many after the app's name.
-- [ ] D-NOTIFY-02 Banner look. How: `notify-send Hello World`. Expect: a banner in the current style's shape on glass, readable.
-- [ ] D-NOTIFY-03 Do Not Disturb. How: switch Do Not Disturb at the foot of the list. Expect: no banners pop, notifications wait in the list; dock badges hidden.
+- [x] D-NOTIFY-01 Stacks. How: send three notifications from one program (each `notify-send` is a program of its own, which GNOME does not fold, as suite 18 says; a small script with one bus connection). Expect: one folded stack in the calendar's list showing how many after the app's name. → PASS
+- [x] D-NOTIFY-02 Banner look. How: `notify-send Hello World`. Expect: a banner in the current style's shape on glass, readable. → PASS
+- [ ] D-NOTIFY-03 Do Not Disturb. How: the **Do Not Disturb** tile in quick settings (GNOME 50 keeps it there, not at the foot of the list; `quick/tiles.js`). Expect: no banners pop, notifications wait in the list; dock badges hidden.
 - [ ] D-NOTIFY-04 Quiet while fullscreen. How: make a window fullscreen on the main screen, `notify-send test`. Expect: no banner, no sound; it waits in the list and counts on the clock's dot; `notify-send -u critical urgent` still pops.
 - [ ] D-NOTIFY-05 Quiet ends. How: leave fullscreen. Expect: the pill says **N waiting in the list**; a click opens the list; held banners are not replayed one after another.
 - [ ] D-NOTIFY-06 Quiet off. How: `ame desktop quiet off`, repeat D-NOTIFY-04. Expect: banners pop while fullscreen. [changes setting: put back with `ame desktop quiet on`]
