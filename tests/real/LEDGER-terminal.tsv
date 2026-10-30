@@ -32,3 +32,23 @@
 2026-10-30 18:33:29	end	S-END-01	pass read only
 2026-10-30 18:33:56	start	S-REPORT-events	what the doctor's security finding names, read only
 2026-10-30 18:33:56	end	S-REPORT-events	pass read only
+2026-10-30 19:45:28	start	Y-TOP-08	soft-reboot status, read only
+2026-10-30 19:45:28	end	Y-TOP-08	pass read only
+2026-10-30 19:45:28	start	S-SWITCH-19	explanation and question, answered no, read back
+2026-10-30 19:45:35	end	S-SWITCH-19	pass read only
+2026-10-30 19:45:50	start	S-SWITCH-20	question yes, empty key, read back
+2026-10-30 19:45:58	end	S-SWITCH-20	pass read only
+2026-10-30 19:45:58	start	S-SWITCH-21	question answered no, read back
+2026-10-30 19:46:04	end	S-SWITCH-21	pass read only
+2026-10-30 19:46:04	start	S-BROWSER-05	question answered no, report read
+2026-10-30 19:46:18	end	S-BROWSER-05	pass read only
+2026-10-30 19:46:41	start	Y-APP-12	gaming menu, Cancel
+2026-10-30 19:46:43	end	Y-APP-12	pass read only
+2026-10-30 19:46:43	start	Y-APP-24	adapter menu, Cancel
+2026-10-30 19:46:45	end	Y-APP-24	pass read only
+2026-10-30 19:46:45	start	Y-UPD-09	rebase menus with image and stream given, cancel at the stream
+2026-10-30 19:46:48	end	Y-UPD-09	pass read only
+2026-10-30 19:47:22	start	Y-SYS-11	developer mode question answered no
+2026-10-30 19:47:28	end	Y-SYS-11	pass read only
+2026-10-30 19:47:28	start	S-STRICT-19	image name read: dx only
+2026-10-30 19:47:28	end	S-STRICT-19	pass absent
