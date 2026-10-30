@@ -975,3 +975,28 @@
 2026-10-30 19:46:15	end	D-KEYS-15	fail read by gsettings: Super+F1 on GNOME's help and the Manual; ruler and read aloud keys clear; tiling's wrapped keys by design
 2026-10-30 19:46:30	start	D-KEYS-16	Control's zoom and reload: another track holds Control
 2026-10-30 19:46:30	end	D-KEYS-16	skip Control's window is the Control track's; focus moves between tracks
+2026-10-30 19:46:45	start	D-OTHER-01	ame desktop breaks eyesight, read the setting, off; the 20 minutes not waited
+2026-10-30 19:46:45	step	D-OTHER-01	breaks eyesight
+2026-10-30 19:46:45	end	D-OTHER-01	pass setting on and off read; the reminder itself not waited for
+2026-10-30 19:46:47	start	D-OTHER-02	ame desktop breaks movement, read the setting, off
+2026-10-30 19:46:47	step	D-OTHER-02	breaks movement
+2026-10-30 19:46:48	end	D-OTHER-02	pass setting on and off read; reminder not waited for
+2026-10-30 19:46:50	start	D-OTHER-03	add a test shortcut, list, remove, list
+2026-10-30 19:46:50	step	D-OTHER-03	text-shortcut add ;sig; list; remove; list
+2026-10-30 19:46:59	end	D-OTHER-03	pass saved, listed, removed, list empty; my file removed
+2026-10-30 19:47:01	start	D-OTHER-04	Night Light in quick settings, on and back
+2026-10-30 19:47:01	step	D-OTHER-04	Super+S, frame
+2026-10-30 19:47:19	step	D-OTHER-04	click Night Light; read the temperature; frame
+2026-10-30 19:47:23	step	D-OTHER-04	click Night Light again; read; Escape
+2026-10-30 19:47:37	step	D-OTHER-04	one session: Super+S, click Night Light, read, click again, Escape
+2026-10-30 19:48:04	step	D-OTHER-04	by keys: Super+S, Down, Down, frame only
+2026-10-30 19:48:15	step	D-OTHER-04	Space on Night Light, read; Space again, read; Escape
+2026-10-30 19:48:39	end	D-OTHER-04	pass Night Light on and back by keys; temperature 2700 and 6500 read; frames can't show the warmth
+2026-10-30 19:48:42	start	D-OTHER-05	Files on a scratch folder: Space, arrows, Space, on a picture, PDF, video, text
+2026-10-30 19:48:42	step	D-OTHER-05	workspace 5; Files with the picture selected; frame
+2026-10-30 19:49:04	step	D-OTHER-05	Right, frame; Right to PDF; to text; to video; frames
+2026-10-30 19:49:30	step	D-OTHER-05	Down, read the title; Space closes
+2026-10-30 19:49:47	step	D-OTHER-05	the PDF, the text and the video, each Space, frame, Space
+2026-10-30 19:50:24	step	D-OTHER-05	the picture again, Space, Right, Left, title each, Space
+2026-10-30 19:50:59	step	D-OTHER-05	close my Files window; is the previewer still running
+2026-10-30 19:51:19	end	D-OTHER-05	fail PDF, text, video, picture shown; Space closes; arrows partly; focus leaves Files on close
