@@ -38,8 +38,17 @@ Seen:
 Inferred:
 - The kernel itself stopped: SysRq is handled in the kernel, and a powerless keyboard suggests the USB controller went too.
   Not GNOME Shell, and not a daemon. DisplayLink's service is not required for it, since it was stopped; its driver was loaded.
-- Leading idea: a display hotplug hangs the machine (a KVM switch or a dock replug drops and re-trains the link). The
-  maintainer says the KVM was switched before each of the freezes (told 2026-10-30). Not reproduced on purpose yet. Earlier amdgpu display warnings are in the same area (10:18 DSC, 12:13 ACT, 14:08 REG_WAIT).
+- The KVM, by the maintainer: switched before the freezes at 09:45, 10:21, 12:13 and 14:37, and NOT at 13:05, when it was
+  already on this machine and nobody changed it. So a hotplug is a likely trigger, and not a necessary one.
+- Leading idea: kernel 7.2.13, or something else in the image of 2026-10-30. Seen: all 19 boots from 2026-10-15 to 10-27
+  (kernels 7.2.5 to 7.2.11) ended with a clean shutdown, several through MST link drops, `Failed to get ACT` and page flip
+  failures (boots of 10-23, 10-26, 10-27). Of the boots on 7.2.13, one ended clean (the first, 5 minutes) and five hung.
+  The update's package list has the kernel and its `kmod-evdi` (1.15.1 both sides), and no Mesa, firmware or mutter. The
+  `dcn31_hubbub.c:151` warning is not new: it was on 7.2.10 too, in a boot that ended clean. Usage also changed today (the
+  walk), so this is a correlation.
+- Next test, the maintainer's decision: `sudo rpm-ostree rollback` and a restart (image of 10-27, kernel 7.2.11), then the
+  same use with KVM switches, for longer than today's longest boot (110 minutes). The walk waits meanwhile: that image has
+  none of the last days' work. Earlier amdgpu display warnings are in the same area (10:18 DSC, 12:13 ACT, 14:08 REG_WAIT).
 - The whole machine rather than GNOME Shell, since the console switch failed.
 - The journal then synced only every 5 minutes, so up to 5 minutes before each end may be missing: the last lines
   (a graphical program starting, in three of the four) are not firm evidence.
