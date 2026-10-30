@@ -167,8 +167,9 @@ fn regex(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
 // GNOME and Flatpak start every app in a unit of its own: app-gnome-org.gnome.Nautilus-4242.scope,
 // app-flatpak-com.brave.Browser-1234.scope, and app-org.gnome.Evolution\x2dalarm\x2dnotify@autostart.service
 // for what starts at login. One app has one such unit for each time it was started, and the pattern
-// that matches all of them is what its logs are read by. journalctl matches the patterns with fnmatch,
-// to which a backslash is an escape, so the one in \x2d is doubled.
+// that matches all of them is what its logs are read by. journalctl matches the patterns against the
+// journal's own unit names with FNM_NOESCAPE, so the backslash in \x2d stays one: doubled, it finds no
+// unit and journalctl fails with "No data available".
 fn app_unit() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
     regex(&CELL, r"^app-(?:([a-z]+)-)?(.+?)(?:-[0-9]+\.scope|@[^/]*\.service)$")
@@ -179,7 +180,7 @@ pub fn app_of(unit: &str) -> Option<(String, String)> {
     let captures = app_unit().captures(unit)?;
     let launcher = captures.get(1).map(|m| m.as_str());
     let escaped = captures.get(2)?.as_str();
-    let prefix = format!("app-{}{}", launcher.map(|l| format!("{l}-")).unwrap_or_default(), escaped.replace('\\', "\\\\"));
+    let prefix = format!("app-{}{}", launcher.map(|l| format!("{l}-")).unwrap_or_default(), escaped);
     let pattern = if unit.ends_with(".scope") { format!("{prefix}-*.scope") } else { format!("{prefix}@*.service") };
     let id = unescape(escaped);
     let id = id.strip_suffix(".desktop").map(str::to_string).unwrap_or(id);
@@ -1222,7 +1223,7 @@ mod tests {
         assert_eq!(app_of("app-flatpak-com.brave.Browser-1234.scope"), Some(("com.brave.Browser".into(), "app-flatpak-com.brave.Browser-*.scope".into())));
         assert_eq!(
             app_of("app-org.gnome.Evolution\\x2dalarm\\x2dnotify@autostart.service"),
-            Some(("org.gnome.Evolution-alarm-notify".into(), "app-org.gnome.Evolution\\\\x2dalarm\\\\x2dnotify@*.service".into()))
+            Some(("org.gnome.Evolution-alarm-notify".into(), "app-org.gnome.Evolution\\x2dalarm\\x2dnotify@*.service".into()))
         );
         assert_eq!(app_of("app-gnome-firefox.desktop-77.scope").map(|a| a.0), Some("firefox".into()));
         assert_eq!(app_of("pipewire.service"), None);
