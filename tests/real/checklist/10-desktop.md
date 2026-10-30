@@ -189,28 +189,28 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Search (Super+Space)
 
-- [ ] D-SEARCH-01 Open and close. How: `Super+Space`; then `Escape`, `Super+Space` again, and a click elsewhere. Expect: a box near the top of the screen over the windows (no overview); each of the three closes it.
-- [ ] D-SEARCH-02 Enter opens the first. How: type `calc`, `Enter`. Expect: Calculator opens.
-- [ ] D-SEARCH-03 Numbered results. How: type `files`, look at Amethystora's rows, press `Ctrl+2`. Expect: each Amethystora row shows its number at its end; `Ctrl+2` opens the second.
-- [ ] D-SEARCH-04 Typos forgiven. How: type `calxu`, then `mc`. Expect: Calculator; Mission Center.
-- [ ] D-SEARCH-05 Actions. How: type `power off` and `restart`. Expect: GNOME's Power Off and Restart actions are found (do not press Enter).
+- [x] D-SEARCH-01 Open and close. How: `Super+Space`; then `Escape`, `Super+Space` again, and a click elsewhere. Expect: a box near the top of the screen over the windows (no overview); each of the three closes it. → PASS
+- [x] D-SEARCH-02 Enter opens the first. How: type `calc`, `Enter`. Expect: Calculator opens. → PASS
+- [x] D-SEARCH-03 Numbered results. How: type `files`, look at Amethystora's rows, press `Ctrl+2`. Expect: each Amethystora row shows its number at its end; `Ctrl+2` opens the second. → PASS
+- [x] D-SEARCH-04 Typos forgiven. How: type `calxu`, then `mc`. Expect: Calculator; Mission Center. → PASS
+- [!] D-SEARCH-05 Actions. How: type `power off` and `restart`. Expect: GNOME's Power Off and Restart actions are found (do not press Enter). → FAIL: not fixed here: GNOME's Power Off is found, but the first row, which Enter takes, is a Control setting that only matches the word: Battery details: Off for power off, Clipboard history: Until a restart for restart. Enter there changes a setting, on a desktop without a battery too
 - [ ] D-SEARCH-06 Result menu and drag. How: right-click an app result; drag an app result onto the dock. Expect: its menu; the app is pinned in the dock.
-- [ ] D-SEARCH-07 Sums. How: type `1284 * 0.18`, then `200 + 10%`, then `Enter`. Expect: 231.12; 220; Enter copies the answer; numbers in the session's language.
-- [ ] D-SEARCH-08 Conversions. How: type `3.5 km in miles` and `21 °C in °F`. Expect: 2.1748 mi; 69.8 °F; no currencies.
-- [ ] D-SEARCH-09 Sums off. How: `ame desktop search answers off`. Expect: no answer row. [changes setting: put back with `ame desktop search answers on`]
-- [ ] D-SEARCH-10 Control's settings. How: type `phone pairing`. Expect: a row like *Phone pairing: On*; `Enter` changes it at once (or opens a terminal if it asks); *Control › …* opens Control there. [changes setting: put back with the same row]
-- [ ] D-SEARCH-11 Settings off. How: `ame desktop search settings off`. Expect: no Control rows. [changes setting: put back with `ame desktop search settings on`]
-- [ ] D-SEARCH-12 Open windows. How: with a window on another workspace, type part of its title, `Enter`. Expect: switches to it on its workspace.
-- [ ] D-SEARCH-13 Windows off. How: `ame desktop search windows off`. Expect: no window rows. [changes setting: put back with `ame desktop search windows on`]
-- [ ] D-SEARCH-14 The manual. How: type `rolling back an update`. Expect: manual pages that answer it; Enter opens the Manual there.
-- [ ] D-SEARCH-15 Manual off. How: `ame desktop search manual off`. Expect: no manual rows. [changes setting: put back with `ame desktop search manual on`]
-- [ ] D-SEARCH-16 Clipboard history. How: copy something, type `clip:`, then `clip: ssh`. Expect: the history only after `clip:`, narrowed by the words; `Enter` pastes the item where you were typing.
-- [ ] D-SEARCH-17 Clipboard off. How: `ame desktop search clipboard off`, type `clip:`. Expect: no clipboard rows. [changes setting: put back with `ame desktop search clipboard on`]
+- [x] D-SEARCH-07 Sums. How: type `1284 * 0.18`, then `200 + 10%`, then `Enter`. Expect: 231.12; 220; Enter copies the answer; numbers in the session's language. → PASS (231.12, 220; Enter's copy not read back)
+- [x] D-SEARCH-08 Conversions. How: type `3.5 km in miles` and `21 °C in °F`. Expect: 2.1748 mi; 69.8 °F; no currencies. → PASS (2.1748 mi; the ° of 21 °C in °F has no key here, not typed)
+- [x] D-SEARCH-09 Sums off. How: `ame desktop search answers off`. Expect: no answer row. [changes setting: put back with `ame desktop search answers on`] → PASS
+- [x] D-SEARCH-10 Control's settings. How: type `phone pairing`. Expect: a row like *Phone pairing: On*; `Enter` changes it at once (or opens a terminal if it asks); *Control › …* opens Control there. [changes setting: put back with the same row] → PASS
+- [x] D-SEARCH-11 Settings off. How: `ame desktop search settings off`. Expect: no Control rows. [changes setting: put back with `ame desktop search settings on`] → PASS
+- [x] D-SEARCH-12 Open windows. How: with a window on another workspace, type part of its title, `Enter`. Expect: switches to it on its workspace. → PASS
+- [x] D-SEARCH-13 Windows off. How: `ame desktop search windows off`. Expect: no window rows. [changes setting: put back with `ame desktop search windows on`] → PASS
+- [x] D-SEARCH-14 The manual. How: type `rolling back an update`. Expect: manual pages that answer it; Enter opens the Manual there. → PASS
+- [x] D-SEARCH-15 Manual off. How: `ame desktop search manual off`. Expect: no manual rows. [changes setting: put back with `ame desktop search manual on`] → PASS
+- [x] D-SEARCH-16 Clipboard history. How: copy something, type `clip:`, then `clip: ssh`. Expect: the history only after `clip:`, narrowed by the words; `Enter` pastes the item where you were typing. → PASS
+- [x] D-SEARCH-17 Clipboard off. How: `ame desktop search clipboard off`, type `clip:`. Expect: no clipboard rows. [changes setting: put back with `ame desktop search clipboard on`] → PASS
 - [ ] D-SEARCH-18 Ask the agent row. How: with `ame agent toggle on`, type a question. Expect: the last row *Ask the agent: …*; Enter opens the agent in a terminal with it as the first question; nothing starts before Enter. With the features off, no such row.
-- [ ] D-SEARCH-19 Agent row off. How: `ame desktop search agent off`. Expect: no agent row. [changes setting: put back with `ame desktop search agent on`]
+- [x] D-SEARCH-19 Agent row off. How: `ame desktop search agent off`. Expect: no agent row. [changes setting: put back with `ame desktop search agent on`] → PASS
 - [ ] D-SEARCH-20 Glance. How: type a file name Files finds, `↓` to it, `Space`; `↑`/`↓`; `Space` again. Expect: the file shown without opening it, the arrows go to the other files, the second Space closes it and the search is still there.
 - [ ] D-SEARCH-21 Glance off. How: `ame desktop search glance off`. Expect: `Space` types a space. [changes setting: put back with `ame desktop search glance on`]
-- [ ] D-SEARCH-22 Each switch listed. How: `ame desktop search`. Expect: all seven (answers, settings, manual, windows, clipboard, agent, glance) and whether each is on.
+- [x] D-SEARCH-22 Each switch listed. How: `ame desktop search`. Expect: all seven (answers, settings, manual, windows, clipboard, agent, glance) and whether each is on. → PASS
 - [ ] D-SEARCH-23 Typing into an app afterwards. How: open search from a text field, `Escape`, type. Expect: the field still takes text with the input method (no lost IBus).
 
 ## Overview and app grid
