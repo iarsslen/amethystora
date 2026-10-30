@@ -5,6 +5,10 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
 
 ## Now
 
+- **Kernel panic, 2026-10-30 about 19:29, on 7.2.13, no dock attached:** "Fatal exception in interrupt" on the drm_panic screen. A photo of the QR
+  decodes locally (`zxing-cpp`; never open its link), but it ends at the journal's last kernel line, 14 minutes earlier: no Oops, RIP or trace, so the
+  cause is unknown. Nothing implicates amdgpu or a test. It weakens dock and evdi as the only cause, and doesn't show the silent hangs are the same fault.
+  Next, each the maintainer's to decide: `efi_pstore.pstore_disable=0` as a kernel argument, a full memtest86+ pass, a BIOS newer than 1.06, kdump if pstore comes back empty too.
 - **Every live test goes through `tests/real/ledger.sh`, one at a time** (the maintainer's request of 2026-10-30, who suspects a
   test is behind the freezes). After a hang, run `tests/real/ledger.sh hang` first: the test left open is the suspect, and
   `~/.local/state/amethystora/walk/{ledger,beats}.tsv` hold it, `tests/real/LEDGER.tsv` the pushed copy. The maintainer asked to speed up on 2026-10-30, so the terminal track runs beside
