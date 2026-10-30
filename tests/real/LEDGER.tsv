@@ -680,3 +680,24 @@
 2026-10-30 18:26:29	end	D-CLASSIC-07	skip this part runs only in the classic layout: for the maintainer
 2026-10-30 18:26:29	start	D-CLASSIC-10	classic
 2026-10-30 18:26:29	end	D-CLASSIC-10	skip this part runs only in the classic layout: for the maintainer
+2026-10-30 18:26:54	start	D-CLASSIC-08	classic
+2026-10-30 18:26:54	end	D-CLASSIC-08	skip this part runs only in the classic layout: for the maintainer
+2026-10-30 18:26:54	start	D-WIN-01..02	group: hold Super card, tap, delay 1500 and off, each put back
+2026-10-30 18:26:54	step	D-WIN-01..02	hold Super 1.5 s, frame; tap, frame; tap to close; delay 1500: hold 1.1 s and 1.8 s, frames; off: hold 1.5 s, frame; back to on and 1000
+2026-10-30 18:27:28	end	D-WIN-01..02	pass card on hold, overview on tap, 1500 waits, off none; put back
+2026-10-30 18:27:28	start	D-WIN-03	corners overview top-right, notifications top-left; push; put back
+2026-10-30 18:27:28	step	D-WIN-03	close the open overview; corners by ame; push HDMI-1's top right, frame, Escape; DP-1's top right next to it, frame; DP-1's top left, frame, Escape; none again
+2026-10-30 18:27:50	end	D-WIN-03	pass top right of the outer screen overview, the corner beside the other screen nothing, top left notifications; none again
+2026-10-30 18:27:50	start	D-WIN-07	keep a copy of my scratch editor
+2026-10-30 18:27:50	step	D-WIN-07	close the calendar menu with Escape; Alt+Space on the editor; frame
+2026-10-30 18:28:01	step	D-WIN-07	click Keep a copy in view; frame
+2026-10-30 18:28:15	step	D-WIN-07	drag the copy to the left low corner, frame; Super+4 on this screen, frame; Super+2; click the copy, frame
+2026-10-30 18:28:38	end	D-WIN-07	pass a live copy on top, dragged, there on the next workspace, its click brings the window back; an already-disposed line at the menu click
+2026-10-30 18:28:38	start	D-WIN-08..11	group: a second scratch editor; dim on and off; lights; Super+grave and Super+Tab
+2026-10-30 18:28:38	step	D-WIN-08..11	Super+N; frame; dim on; frame; dim off; Super+grave, frame; Super+Tab held, frame, Escape
+2026-10-30 18:29:10	step	D-WIN-08..11	hover the focused window's three lights, frame each; Super+grave, frame
+2026-10-30 18:29:37	end	D-WIN-08..11	pass dim, lights, Super+grave and Super+Tab seen
+2026-10-30 18:29:37	step		closed my second editor, read back
+2026-10-30 18:29:37	end		pass closed
+2026-10-30 18:29:37	start	D-WIN-12	virtual machine window
+2026-10-30 18:29:37	end	D-WIN-12	skip no virtual machine window open on this machine
