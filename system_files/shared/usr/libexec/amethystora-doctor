@@ -83,7 +83,7 @@ if wanted disk-space; then
         elif ((used >= 85)); then
             found disk-space warning playbook/disk-full "${target} is ${pcent} full (${avail} free)"
         fi
-    done < <(t df -h --output=target,pcent,avail / /var /var/home | tail -n +2 | sort -u -k1,1)
+    done < <(t df -h --output=target,pcent,avail /var /var/home | tail -n +2 | sort -u -k1,1)
 fi
 if wanted memory; then
     some="$(sed -n 's/^some avg60=\([0-9.]*\).*/\1/p' /proc/pressure/memory 2>/dev/null)"
