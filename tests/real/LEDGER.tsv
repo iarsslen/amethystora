@@ -833,3 +833,29 @@
 2026-10-30 18:56:33	end	D-TRANS-10	fail stuck picture, da7bf83 not in this image
 2026-10-30 18:56:33	start	D-TRANS-11	transition's look: fails on this image's stuck picture, not run
 2026-10-30 18:56:33	end	D-TRANS-11	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:57:36	start	D-WALL-10	colours follow the wallpaper; transitions off
+2026-10-30 18:57:36	step	D-WALL-10	colours soft; next wallpaper twice, each read; back to the first and vivid
+2026-10-30 18:58:17	end	D-WALL-10	pass worked out anew each picture; reveal not seen; put back
+2026-10-30 18:58:17	start	D-WALL-11	ten themes, three ways, two pictures: over a minute
+2026-10-30 18:58:17	end	D-WALL-11	skip ten themes by three ways by two pictures is past the minute per item; light and dark seen at D-WALL-07
+2026-10-30 18:58:17	start	D-TRANS-09	picker in a kitty I open, on the empty workspace 6
+2026-10-30 18:58:17	step	D-TRANS-09	kitty running ame desktop transition; frame; end that kitty by its PID
+2026-10-30 18:58:44	end	D-TRANS-09	pass list seen; nothing picked
+2026-10-30 18:58:44	start	D-STYLE-01..05	floating: bar, menus, banner and OSD, dock, windows
+2026-10-30 18:58:44	step	D-STYLE-01..05	bar, banner, volume up and down, calendar, quick settings, overview, a polkit prompt ended by its process, Files, Settings, switcher
+2026-10-30 18:59:44	end	D-STYLE-01..05	pass floating seen in each part
+2026-10-30 18:59:44	start	D-STYLE-06..10	islands
+2026-10-30 18:59:44	step	D-STYLE-06..10	style islands; same run
+2026-10-30 19:00:34	end	D-STYLE-06..10	pass islands seen
+2026-10-30 19:00:35	start	D-STYLE-11..15	hairline
+2026-10-30 19:00:35	step	D-STYLE-11..15	style hairline; same run
+2026-10-30 19:01:19	end	D-STYLE-11..15	pass hairline seen
+2026-10-30 19:01:19	start	D-STYLE-16..20	capsule
+2026-10-30 19:01:19	step	D-STYLE-16..20	style capsule; same run
+2026-10-30 19:02:17	step	D-STYLE-16..20	seen: my polkit prompts, ended by killing pkexec, were counted by the security watcher as wrong answers, which notified; no more prompts; faillock empty
+2026-10-30 19:02:17	end	D-STYLE-16..20	pass capsule seen; watcher's notice from my prompts
+2026-10-30 19:02:17	start	D-STYLE-21..25	terminal
+2026-10-30 19:02:17	step	D-STYLE-21..25	style terminal; same run, no polkit prompt
+2026-10-30 19:03:24	end	D-STYLE-21..25	fail terminal seen: Shield tile and Focus choices stay rounded
+2026-10-30 19:03:24	start	D-STYLE-26..30	segments
+2026-10-30 19:03:24	step	D-STYLE-26..30	style segments; same run, no polkit prompt

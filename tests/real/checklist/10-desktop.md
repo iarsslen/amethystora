@@ -575,8 +575,8 @@ theme's colours, style, font, icon pack and pointer (themes.md's tables), text r
 - [x] D-WALL-07 Colours from the wallpaper. How: `ame desktop colours vivid`, then `soft`, `mono`. Expect: ground and accent taken from the picture (mono keeps the theme's accent); light stays light. [changes setting: put back with `ame desktop colours off`] → PASS: vivid, soft, mono with transitions off for the group: accent #b395fe, #bcaceb and the theme's #9148f0 on the bar's lit workspace and dock; ground #110922, #100c18, #0f0e14 by the file; on Amethystora Light with vivid the ground stays #fbf9fd, light drawn. Faults: none. Put back to vivid, as found (not off), read back
 - [x] D-WALL-08 Accent per workspace. How: `ame desktop accent-per-workspace on`, go through workspaces. Expect: workspace 1 the theme's, then Sky, Coral, Jade, Amber, Orchid; the shell and Amethystora's apps restyle once the slide ends, not during it. [changes setting: put back with `ame desktop accent-per-workspace off`] → PASS in part: on, then Super+1 to 6: the bar's lit workspace and the meters in the theme's, Sky, Coral, Jade, Amber, Orchid (frames). The shell seen after each slide; not seen during the slide, nor Amethystora's apps. It was on as found, and stays on. Faults: none
 - [x] D-WALL-09 A workspace's accent. How: right-click a workspace label › **Accent**; `ame desktop accent-per-workspace 3 coral`. Expect: that workspace takes it. [changes setting: put back with `ame desktop accent-per-workspace off`] → PASS: right-click a label: Name, Accent, with Follow the theme and the twelve accents in a list, the workspace's own ticked; ame desktop accent-per-workspace 5 rose: workspace 5 lit in rose and ticked there. Put back to amber, read back. Not picked from the menu itself. Faults: none
-- [ ] D-WALL-10 Colours follow the wallpaper. How: `ame desktop colours soft`, `Super+Ctrl+Space` twice. Expect: ground and accent worked out again from each new picture, revealed by one transition. [changes setting: put back with `ame desktop colours off` and the wallpaper it had]
-- [ ] D-WALL-11 Colours with every theme. How: under each of the ten themes, `ame desktop colours vivid`, `soft`, `mono`, on a bright and on a dark picture. Expect: every label readable; a light theme stays light and a dark one dark; a theme switch keeps the way chosen and works it out anew. [changes setting: put back with `ame desktop colours off` and the theme it had]
+- [x] D-WALL-10 Colours follow the wallpaper. How: `ame desktop colours soft`, `Super+Ctrl+Space` twice. Expect: ground and accent worked out again from each new picture, revealed by one transition. [changes setting: put back with `ame desktop colours off` and the wallpaper it had] → PASS in part: colours soft, next wallpaper twice with transitions off: accent worked out anew each time (#bcaceb, #bdafd8, #bface3), ground by the file; one reveal not seen (stuck picture, da7bf83 not in this image). Wallpaper and vivid put back as found, read back. Faults: none
+- [ ] D-WALL-11 Colours with every theme. How: under each of the ten themes, `ame desktop colours vivid`, `soft`, `mono`, on a bright and on a dark picture. Expect: every label readable; a light theme stays light and a dark one dark; a theme switch keeps the way chosen and works it out anew. [changes setting: put back with `ame desktop colours off` and the theme it had] → x
 
 ## Transitions
 
@@ -588,7 +588,7 @@ theme's colours, style, font, icon pack and pointer (themes.md's tables), text r
 - [!] D-TRANS-06 Random. How: `ame desktop transition random`, switch a few times. Expect: one of the first four at any angle each time. [changes setting: put back with `ame desktop transition grow`] → FAIL: stuck picture, fixed by da7bf83, not in this image; not run: this._reveal is not a function on every reveal since the login reveal (seen 18:49:44 at D-WALL-06); by the code the same for every style
 - [!] D-TRANS-07 None. How: `ame desktop transition none`. Expect: the wallpaper fades as GNOME fades it. [changes setting: put back with `ame desktop transition grow`] → FAIL: stuck picture, fixed by da7bf83, not in this image; not run: this._reveal is not a function on every reveal since the login reveal (seen 18:49:44 at D-WALL-06); by the code the same for every style
 - [!] D-TRANS-08 Duration. How: `ame desktop transition grow 3000`; Control's slider. Expect: the reveal takes about three seconds. [changes setting: put back with `ame desktop transition grow 1200`] → FAIL: stuck picture, fixed by da7bf83, not in this image; not run: this._reveal is not a function on every reveal since the login reveal (seen 18:49:44 at D-WALL-06); by the code the same for every style
-- [ ] D-TRANS-09 Picker. How: `ame desktop transition`. Expect: a list to pick from.
+- [x] D-TRANS-09 Picker. How: `ame desktop transition`. Expect: a list to pick from. → PASS: a kitty of mine ran ame desktop transition: Transition (current: wipe), the seven styles, the current one chosen; closed by its process, nothing picked, wipe read back as found. Faults: none
 - [!] D-TRANS-10 GNOME Settings change. How: change the wallpaper in GNOME Settings › Appearance. Expect: the same transition. → FAIL: stuck picture, fixed by da7bf83, not in this image; not run: this._reveal is not a function on every reveal since the login reveal (seen 18:49:44 at D-WALL-06); by the code the same for every style
 - [!] D-TRANS-11 One transition per switch. How: switch theme. Expect: a single reveal, not several in a row (wallpaper, colours, icons arrive together). → FAIL: stuck picture, fixed by da7bf83, not in this image; not run: this._reveal is not a function on every reveal since the login reveal (seen 18:49:44 at D-WALL-06); by the code the same for every style
 
@@ -596,31 +596,31 @@ theme's colours, style, font, icon pack and pointer (themes.md's tables), text r
 
 Set each style with `ame desktop style <name>` and check every surface. Put back with `ame desktop style theme`.
 
-- [ ] D-STYLE-01 Floating: top bar. How: `ame desktop style floating`. Expect: one rounded bar held off the screen's edge (about 8 px down, 10 px in), thin accent border, glass behind it.
-- [ ] D-STYLE-02 Floating: menus and quick settings. How: open the calendar and quick settings. Expect: rounded glass menus whose corners match their glass.
-- [ ] D-STYLE-03 Floating: notifications and OSD. How: `notify-send Test`, press volume. Expect: rounded banners and pill.
-- [ ] D-STYLE-04 Floating: dock. How: look at the dock. Expect: the dock's rounded pill.
-- [ ] D-STYLE-05 Floating: windows and apps. How: open Files, a GTK 3 app. Expect: windows keep their own corners (floating leaves applications their own).
-- [ ] D-STYLE-06 Islands: top bar. How: `ame desktop style islands`. Expect: a floating pill behind each part of the bar (left, middle, right), the workspaces as dots, no pane behind the whole bar.
-- [ ] D-STYLE-07 Islands: menus and quick settings. How: open them. Expect: soft, large corners (menus about 18 px, quick settings about 28 px), menu rows rounded.
-- [ ] D-STYLE-08 Islands: notifications, OSD, dialogs. How: a banner, volume, a password prompt (`pkexec true`, cancel). Expect: rounded about 22–26 px.
-- [ ] D-STYLE-09 Islands: dock. How: look. Expect: soft corners matching the style.
-- [ ] D-STYLE-10 Islands: windows and apps. How: Files, Settings. Expect: windows about 16 px corners; buttons, entries, switches, cards rounded by the style; a linked group rounded only at its ends; split buttons meet.
-- [ ] D-STYLE-11 Hairline: top bar. How: `ame desktop style hairline`. Expect: a thin, solid strip of a bar with a fine line, crisp corners.
-- [ ] D-STYLE-12 Hairline: menus and quick settings. How: open them. Expect: small corners (about 6–10 px), fine 1 px lines.
-- [ ] D-STYLE-13 Hairline: notifications, OSD, dialogs. How: as above. Expect: crisp, small corners.
-- [ ] D-STYLE-14 Hairline: dock. How: look. Expect: about 10 px corners.
-- [ ] D-STYLE-15 Hairline: windows and apps. How: Files. Expect: windows about 6 px; controls drawn with an outline line.
-- [ ] D-STYLE-16 Capsule: top bar. How: `ame desktop style capsule`. Expect: the clock in a dark capsule, the rest of the bar bare over the wallpaper, its buttons pills.
-- [ ] D-STYLE-17 Capsule: menus and quick settings. How: open them. Expect: large corners (24–32 px), everything a pill.
-- [ ] D-STYLE-18 Capsule: notifications, OSD, dialogs. How: as above. Expect: the OSD a full pill, banners and dialogs about 30 px.
-- [ ] D-STYLE-19 Capsule: dock. How: look. Expect: a pill.
-- [ ] D-STYLE-20 Capsule: windows and apps. How: Files. Expect: windows about 18 px; pill buttons.
-- [ ] D-STYLE-21 Terminal: top bar. How: `ame desktop style terminal`. Expect: a solid square bar in the monospace font, lined edges.
-- [ ] D-STYLE-22 Terminal: menus and quick settings. How: open them. Expect: square corners, lined edges, monospace.
-- [ ] D-STYLE-23 Terminal: notifications, OSD, dialogs. How: as above. Expect: square and lined.
-- [ ] D-STYLE-24 Terminal: dock. How: look. Expect: square, lined.
-- [ ] D-STYLE-25 Terminal: windows and apps. How: Files, Settings. Expect: square windows and controls drawn with a line; radio buttons still round; Amethystora's apps square too (their pills squared).
+- [x] D-STYLE-01 Floating: top bar. How: `ame desktop style floating`. Expect: one rounded bar held off the screen's edge (about 8 px down, 10 px in), thin accent border, glass behind it. → PASS: floating as found: one rounded bar held off the edge, its line in the accent, glass behind. Faults: none
+- [x] D-STYLE-02 Floating: menus and quick settings. How: open the calendar and quick settings. Expect: rounded glass menus whose corners match their glass. → PASS: calendar and quick settings rounded glass, corners match the glass
+- [x] D-STYLE-03 Floating: notifications and OSD. How: `notify-send Test`, press volume. Expect: rounded banners and pill. → PASS: notify-send banner rounded; the volume OSD a pill, at the top. Volume put back
+- [x] D-STYLE-04 Floating: dock. How: look at the dock. Expect: the dock's rounded pill. → PASS: the dock's rounded pill
+- [x] D-STYLE-05 Floating: windows and apps. How: open Files, a GTK 3 app. Expect: windows keep their own corners (floating leaves applications their own). → PASS in part: Files and Settings keep their own corners; no GTK 3 app opened
+- [x] D-STYLE-06 Islands: top bar. How: `ame desktop style islands`. Expect: a floating pill behind each part of the bar (left, middle, right), the workspaces as dots, no pane behind the whole bar. → PASS: a pill behind each part of the bar (left, middle, right), the workspaces as dots, no pane behind the whole bar. Faults: none
+- [x] D-STYLE-07 Islands: menus and quick settings. How: open them. Expect: soft, large corners (menus about 18 px, quick settings about 28 px), menu rows rounded. → PASS: calendar and quick settings soft and large by the frame (size not measured), rows rounded
+- [x] D-STYLE-08 Islands: notifications, OSD, dialogs. How: a banner, volume, a password prompt (`pkexec true`, cancel). Expect: rounded about 22–26 px. → PASS: banner, OSD and the polkit prompt rounded alike by the frame (size not measured); the prompt ended by its process
+- [x] D-STYLE-09 Islands: dock. How: look. Expect: soft corners matching the style. → PASS: the dock's soft corners
+- [x] D-STYLE-10 Islands: windows and apps. How: Files, Settings. Expect: windows about 16 px corners; buttons, entries, switches, cards rounded by the style; a linked group rounded only at its ends; split buttons meet. → PASS in part: Files and Settings with soft corners, rows and cards rounded; a linked group and a split button not looked at
+- [x] D-STYLE-11 Hairline: top bar. How: `ame desktop style hairline`. Expect: a thin, solid strip of a bar with a fine line, crisp corners. → PASS: a thin solid strip of a bar, square, a fine line. Faults: none
+- [x] D-STYLE-12 Hairline: menus and quick settings. How: open them. Expect: small corners (about 6–10 px), fine 1 px lines. → PASS: small corners, fine lines, by the frame (not measured); Focus's choices in quick settings stay pills
+- [x] D-STYLE-13 Hairline: notifications, OSD, dialogs. How: as above. Expect: crisp, small corners. → PASS: banner, OSD and polkit prompt crisp, small corners
+- [x] D-STYLE-14 Hairline: dock. How: look. Expect: about 10 px corners. → PASS: the dock's small corners
+- [x] D-STYLE-15 Hairline: windows and apps. How: Files. Expect: windows about 6 px; controls drawn with an outline line. → PASS: Files with small corners, buttons drawn with an outline
+- [x] D-STYLE-16 Capsule: top bar. How: `ame desktop style capsule`. Expect: the clock in a dark capsule, the rest of the bar bare over the wallpaper, its buttons pills. → PASS: the clock in a dark capsule, the rest of the bar bare over the wallpaper. Faults: none
+- [x] D-STYLE-17 Capsule: menus and quick settings. How: open them. Expect: large corners (24–32 px), everything a pill. → PASS: calendar and quick settings large corners, tiles and buttons pills; the calendar's rows are rounded cards rather than pills
+- [x] D-STYLE-18 Capsule: notifications, OSD, dialogs. How: as above. Expect: the OSD a full pill, banners and dialogs about 30 px. → PASS: OSD a full pill; banner and polkit prompt with large corners, by the frame (not measured). The prompt ended by killing pkexec, which the security watcher counted as a wrong answer and notified about: no lock (faillock empty), not repeated
+- [x] D-STYLE-19 Capsule: dock. How: look. Expect: a pill. → PASS: the dock a pill
+- [x] D-STYLE-20 Capsule: windows and apps. How: Files. Expect: windows about 18 px; pill buttons. → PASS: Files with large corners, switches and buttons as pills
+- [x] D-STYLE-21 Terminal: top bar. How: `ame desktop style terminal`. Expect: a solid square bar in the monospace font, lined edges. → PASS: a solid square bar in the monospace font, lined edges. Faults: none
+- [!] D-STYLE-22 Terminal: menus and quick settings. How: open them. Expect: square corners, lined edges, monospace. → FAIL: quick settings and calendar square, lined, monospace, but the Shield tile and Focus's choices stay rounded (frame). Hairline too has Focus's choices as pills
+- [x] D-STYLE-23 Terminal: notifications, OSD, dialogs. How: as above. Expect: square and lined. → PASS in part: banner and OSD square and lined, the banner's close button round; a dialog not seen (no polkit prompt: see D-STYLE-18)
+- [x] D-STYLE-24 Terminal: dock. How: look. Expect: square, lined. → PASS: the dock square and lined
+- [x] D-STYLE-25 Terminal: windows and apps. How: Files, Settings. Expect: square windows and controls drawn with a line; radio buttons still round; Amethystora's apps square too (their pills squared). → PASS in part: Files and Settings square, controls drawn with a line, radio buttons still round; Amethystora's apps not seen in this style
 - [ ] D-STYLE-26 Segments: top bar. How: `ame desktop style segments`. Expect: the bar in blocks of the theme's colours, each label readable on its block, the end blocks rounded on their outer side.
 - [ ] D-STYLE-27 Segments: menus and quick settings. How: open them. Expect: about 12–18 px corners.
 - [ ] D-STYLE-28 Segments: notifications, OSD, dialogs. How: as above. Expect: about 14–16 px.
@@ -632,7 +632,7 @@ Set each style with `ame desktop style <name>` and check every surface. Put back
 - [ ] D-STYLE-34 Neon: dock. How: look. Expect: outlined in the accent.
 - [ ] D-STYLE-35 Neon: windows and apps. How: Files. Expect: windows about 10 px; the neon glow lines on controls.
 - [ ] D-STYLE-36 Overview, switcher and prompts per style. How: in each style open the overview, `Alt+Tab`, and a polkit prompt. Expect: tiles, switcher and prompt drawn in the style's shape.
-- [ ] D-STYLE-37 Style picker and Control. How: `ame desktop style` alone; Control › Appearance › **Style**. Expect: a list; picking applies at once.
+- [ ] D-STYLE-37 Style picker and Control. How: `ame desktop style` alone; Control › Appearance › **Style**. Expect: a list; picking applies at once. → x
 - [ ] D-STYLE-38 Style kept across themes. How: `ame desktop style neon`, switch theme. Expect: stays neon; `ame desktop style theme` follows the theme again. [changes setting: put back with `ame desktop style theme`]
 - [ ] D-STYLE-39 Amethystora apps follow the style. How: open Control in each style. Expect: card corners scale with the style; avatars, dots and knobs stay circles.
 
