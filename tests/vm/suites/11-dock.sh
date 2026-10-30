@@ -398,6 +398,12 @@ settle
 vp "const p = mid(item('org.mozilla.firefox.desktop').rest); click(p[0], p[1], 3); 1" >/dev/null
 sleep 0.8
 check "an app with no window opens GNOME's menu, not the fan" test "$(ev "JSON.stringify([${S}.fan.open, Boolean([...${DOCK}.docks[0].dash._items.values()].find(s => s.key.get_id?.() === 'org.mozilla.firefox.desktop')?.button._menu?.isOpen)])")" == "[false,true]"
+# The icon swelled under the pointer and went back to rest as the menu opened: laid out again, the menu stays where it is
+menu_box="[...${DOCK}.docks[0].dash._items.values()].find(s => s.key.get_id?.() === 'org.mozilla.firefox.desktop').button._menu.actor"
+menu_at="$(ev "Math.round(${menu_box}.get_transformed_position()[1])")"
+ev "${menu_box}.queue_relayout(); 1" >/dev/null
+sleep 0.3
+check "...and it has settled by then: laid out again, it does not move" test "$(ev "Math.round(${menu_box}.get_transformed_position()[1])")" == "${menu_at}"
 keys esc >/dev/null
 skip "AT-SPI reading the fan's menu items: GNOME Shell's menus are checked by 27-amethystora-ui.sh"
 

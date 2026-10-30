@@ -956,6 +956,10 @@ class AmethystoraDockDash extends Dash.Dash {
             const state = this._items.get(item.actor);
             state?.marks?.follow(item.shown.along, long);
             this._labelFollow(container);
+            // GNOME's menu reads where its icon is only when it is laid out: the swollen icon going back to rest as its
+            // menu opens would otherwise leave the menu high, until something lays it out and it drops
+            if (item.actor._menu?.isOpen)
+                item.actor._menu.actor.queue_relayout();
             recentMoved ||= Boolean(container._amethystoraRecent);
         }
         // The caption rises with the recent apps as they grow, so that they never cover it
