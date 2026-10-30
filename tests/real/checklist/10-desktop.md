@@ -72,7 +72,7 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 ## Live pill
 
 - [x] D-PILL-01 Pill at rest. How: with nothing happening, look at the clock. Expect: exactly GNOME's clock, no pill. → PASS
-- [ ] D-PILL-02 Timer. How: start a 1-minute timer from the calendar menu. Expect: the pill counts down; its card adds a minute, pauses, cancels; the timer buttons add that many minutes; at the end a sound, a notification (even while quiet) and **Timer done**.
+- [x] D-PILL-02 Timer. How: start a 1-minute timer from the calendar menu. Expect: the pill counts down; its card adds a minute, pauses, cancels; the timer buttons add that many minutes; at the end a sound, a notification (even while quiet) and **Timer done**. → PASS: countdown, +1 min, Pause, Resume, Cancel, the calendar's buttons add, at the end **Timer done** and a banner under Quiet while sharing. Sound not heard. The card's rings-at line keeps its time while paused.
 - [ ] D-PILL-03 Timer while locked. How: start a 1-minute timer, lock for two minutes, unlock. Expect: it rings as soon as you unlock.
 - [ ] D-PILL-04 What is playing. How: play music or a video in an app that reports to the desktop. Expect: the cover, title and artist and a small pause button that works; the card has Back, Pause, Next and how far in; a paused player stays ten minutes.
 - [x] D-PILL-05 Recording. How: `Ctrl+Shift+Alt+R`, then **Stop** in the pill. Expect: how long it has run, and Stop ends it; the file is in Videos › Screencasts. → PASS

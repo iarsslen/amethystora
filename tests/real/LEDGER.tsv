@@ -151,3 +151,18 @@
 2026-10-30 16:41:46	step	CLEAR-PICTURE	enable
 2026-10-30 16:41:48	step	CLEAR-PICTURE	one screenshot
 2026-10-30 16:41:49	end	CLEAR-PICTURE	pass see the screenshot
+2026-10-30 16:45:56	start	D-PILL-02	timer from the calendar menu, its card's buttons
+2026-10-30 16:45:56	step	D-PILL-02	go to workspace 2, open the calendar
+2026-10-30 16:46:05	step	D-PILL-02	click 1 min under Start a timer
+2026-10-30 16:46:14	step	D-PILL-02	click the pill for its card
+2026-10-30 16:46:22	step	D-PILL-02	+1 min, then Pause on the card
+2026-10-30 16:46:43	step	D-PILL-02	close calendar, card and +1 min in one input session
+2026-10-30 16:46:56	step	D-PILL-02	Pause on the card
+2026-10-30 16:47:13	step	D-PILL-02	Resume, then the card's date row to the calendar, then 5 min
+2026-10-30 16:47:22	step	D-PILL-02	the card's date row
+2026-10-30 16:47:31	step	D-PILL-02	right-click the pill
+2026-10-30 16:47:39	step	D-PILL-02	right-click the pill again, no card open
+2026-10-30 16:47:50	step	D-PILL-02	5 min adds; card Cancel
+2026-10-30 16:48:00	step	D-PILL-02	Cancel on the card; then 1 min and wait for its end
+2026-10-30 16:49:28	step	D-PILL-02	Cancel on the card, one input session; then 1 min
+2026-10-30 16:53:30	end	D-PILL-02	pass pill counts down, +1 min, Pause and Resume, Cancel, calendar's 5 min adds, Timer done and banner; sound not checkable
