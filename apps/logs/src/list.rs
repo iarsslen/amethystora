@@ -566,7 +566,7 @@ impl SlotRow {
         ellipsize_as_the_page(&parts.source, source);
         parts.source.set_label(source);
         parts.source.set_tooltip_text((!entry.source.is_empty()).then_some(entry.source.as_str()));
-        let line = collapsed(first_line(&entry.message));
+        let line = collapsed(first_line(entry.crash.as_deref().unwrap_or(&entry.message)));
         parts.message.set_attributes(marks(&line, matcher, mark).as_ref());
         parts.message.set_label(&line);
     }
@@ -586,7 +586,7 @@ impl SlotRow {
     /// The marks again, in the theme's new colour
     pub fn remark(&self, matcher: Option<&Matcher>, mark: &gdk::RGBA) {
         if let Some(Slot::Entry(entry)) = &*self.imp().slot.borrow() {
-            let line = collapsed(first_line(&entry.message));
+            let line = collapsed(first_line(entry.crash.as_deref().unwrap_or(&entry.message)));
             self.parts().message.set_attributes(marks(&line, matcher, mark).as_ref());
         }
     }

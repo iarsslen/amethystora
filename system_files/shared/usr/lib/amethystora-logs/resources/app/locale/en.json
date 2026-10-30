@@ -148,5 +148,6 @@
   "{day}, {time}": "{day}, {time}",
   "{name}, process {pid}": "{name}, process {pid}",
   "{program} crashed": "{program} crashed",
+  "{program} crashed with {signal}": "{program} crashed with {signal}",
   "{start} to {end}, {day}": "{start} to {end}, {day}"
 }

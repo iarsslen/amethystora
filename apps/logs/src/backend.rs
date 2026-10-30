@@ -292,6 +292,8 @@ pub struct Entry {
     pub priority: u8,
     pub source: String,
     pub message: String,
+    /// A crash's row says what crashed, not the first line of systemd-coredump's report
+    pub crash: Option<String>,
     pub from: Option<Source>,
     raw: Box<str>,
 }
@@ -300,7 +302,7 @@ impl Entry {
     /// An entry with only a cursor and a time, for the list's tests
     #[cfg(test)]
     pub fn at(cursor: &str, time: i64) -> Entry {
-        Entry { cursor: cursor.into(), time, priority: 6, source: String::new(), message: String::new(), from: None, raw: "{}".into() }
+        Entry { cursor: cursor.into(), time, priority: 6, source: String::new(), message: String::new(), crash: None, from: None, raw: "{}".into() }
     }
 
     /// Every field of the entry, by name, as text
@@ -394,6 +396,9 @@ struct RowFields {
     user_unit: String,
     unit: String,
     message: String,
+    message_id: String,
+    crashed: String,
+    signal: String,
 }
 
 impl<'de> Deserialize<'de> for RowFields {
@@ -418,6 +423,9 @@ impl<'de> Deserialize<'de> for RowFields {
                             "_SYSTEMD_USER_UNIT" => 7,
                             "_SYSTEMD_UNIT" => 8,
                             "MESSAGE" => 9,
+                            "MESSAGE_ID" => 10,
+                            "COREDUMP_COMM" => 11,
+                            "COREDUMP_SIGNAL_NAME" => 12,
                             _ => 0,
                         }))
                     }
@@ -448,13 +456,26 @@ impl<'de> Deserialize<'de> for RowFields {
                         6 => row.transport = value,
                         7 => row.user_unit = value,
                         8 => row.unit = value,
-                        _ => row.message = value,
+                        9 => row.message = value,
+                        10 => row.message_id = value,
+                        11 => row.crashed = value,
+                        _ => row.signal = value,
                     }
                 }
                 Ok(row)
             }
         }
         deserializer.deserialize_map(RowVisitor)
+    }
+}
+
+/// What a crash's row says. The names are the program's own, so they are cleaned like any message.
+fn crash_line(row: &RowFields) -> String {
+    let (program, signal) = (strip_ansi(&row.crashed), strip_ansi(&row.signal));
+    match (program.is_empty(), signal.is_empty()) {
+        (true, _) => t!("A program crashed"),
+        (false, true) => t!("{program} crashed", program = &*program),
+        (false, false) => t!("{program} crashed with {signal}", program = &*program, signal = &*signal),
     }
 }
 
@@ -795,6 +816,7 @@ impl Journal {
             priority,
             source,
             message: strip_ansi(&row.message).into_owned(),
+            crash: (row.message_id == COREDUMP).then(|| crash_line(&row)),
             from: self.origin(&row),
             raw: line.into(),
         })
@@ -859,7 +881,7 @@ impl Journal {
     ) -> Result<Follower, String> {
         // Whatever the time range, what is new is now
         let mut args = self.filters(request, false).await?;
-        args.extend(["--quiet", "--no-pager", "--output=json", "--follow", "--lines=0"].map(String::from));
+        args.extend(["--quiet", "--no-pager", "--output=json", "--all", "--follow", "--lines=0"].map(String::from));
         let process = spawn_reader(&args).ok_or_default()?;
         let stopped = Rc::new(Cell::new(false));
         let batch: Rc<RefCell<Vec<Rc<Entry>>>> = Rc::new(RefCell::new(Vec::new()));
@@ -1081,9 +1103,11 @@ pub fn escape(text: &str) -> String {
     out
 }
 
+/// `--all`, since journalctl's JSON otherwise gives a field longer than 4096 bytes as null: a crash's report, or
+/// any long message, would come up empty
 fn read_args(args: &[String], after: Option<&str>) -> Vec<String> {
     let mut read = args.to_vec();
-    read.extend(["--quiet", "--no-pager", "--output=json", "--reverse"].map(String::from));
+    read.extend(["--quiet", "--no-pager", "--output=json", "--all", "--reverse"].map(String::from));
     read.push(format!("--lines={PAGE}"));
     if let Some(after) = after.filter(|after| !after.is_empty()) {
         read.push(format!("--after-cursor={after}"));
@@ -1306,7 +1330,7 @@ mod tests {
         assert!(filters(&journal, &Request { source: Some(long), ..request("all") }, false).is_err());
         // Every argument of a page's read is one of these, then the page's own
         let read = read_args(&["--boot=0".into()], Some("s=1;i=2"));
-        assert_eq!(read, ["--boot=0", "--quiet", "--no-pager", "--output=json", "--reverse", "--lines=400", "--after-cursor=s=1;i=2"]);
+        assert_eq!(read, ["--boot=0", "--quiet", "--no-pager", "--output=json", "--all", "--reverse", "--lines=400", "--after-cursor=s=1;i=2"]);
     }
 
     #[test]
@@ -1349,6 +1373,18 @@ mod tests {
         assert!(journal.entry_of(br#"{"MESSAGE":"no cursor"}"#).is_none());
         assert!(journal.entry_of(b"not json").is_none());
         assert!(journal.entry_of(br#"{"__CURSOR":""}"#).is_none());
+        // A crash says what crashed, cleaned, with or without the report or the signal
+        let crash = |fields: &str| {
+            let line = format!(r#"{{"__CURSOR":"c","MESSAGE_ID":"{COREDUMP}","SYSLOG_IDENTIFIER":"systemd-coredump",{fields}}}"#);
+            journal.entry_of(line.as_bytes()).unwrap()
+        };
+        let long = crash(r#""COREDUMP_COMM":"\u001b[1mapp\u001b[0m","COREDUMP_SIGNAL_NAME":"SIGSEGV","MESSAGE":"Process 1 (app) dumped core.\nStack""#);
+        assert_eq!(long.crash.as_deref(), Some("app crashed with SIGSEGV"));
+        assert_eq!(long.source, "systemd-coredump");
+        assert!(long.message.starts_with("Process 1"));
+        assert_eq!(crash(r#""COREDUMP_COMM":"app","MESSAGE":null"#).crash.as_deref(), Some("app crashed"));
+        assert_eq!(crash(r#""MESSAGE":null"#).crash.as_deref(), Some("A program crashed"));
+        assert_eq!(journal.entry_of(br#"{"__CURSOR":"c","COREDUMP_COMM":"app","MESSAGE":"hello"}"#).unwrap().crash, None);
     }
 
     #[test]
