@@ -56,10 +56,12 @@ export class VolumeBlock {
         this.block._amethystoraQuickId = 'apps';
 
         this.block.add_child(new St.Widget({style_class: 'amethystora-quick-divider', x_expand: true}));
-        const header = new St.BoxLayout({style_class: 'amethystora-quick-apps-header', x_expand: true});
+        // One above the other: two outputs with long names would leave the heading no room beside them
+        const header = new St.BoxLayout({style_class: 'amethystora-quick-apps-header',
+            orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         header.add_child(new St.Label({style_class: 'amethystora-quick-heading',
             text: _('Playing now').toLocaleUpperCase(), y_align: Clutter.ActorAlign.CENTER, x_expand: true}));
-        this._pickerBin = new St.Bin({y_align: Clutter.ActorAlign.CENTER});
+        this._pickerBin = new St.Bin({x_align: Clutter.ActorAlign.START});
         header.add_child(this._pickerBin);
         this.block.add_child(header);
         this._rowBox = new St.BoxLayout({style_class: 'amethystora-quick-apps',
