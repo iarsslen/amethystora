@@ -198,7 +198,8 @@ read_in_background shelf gsettings get org.gnome.shell.extensions.amethystora-ui
 read_in_background desks gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.desks
 read_in_background agent-ui gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.agent
 read_in_background quit gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.quit
-read_in_background privacy gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.privacy
+# The UI's privacy apart from GNOME's above: one name each, or both reads write one file and the last wins
+read_in_background ui-privacy gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.privacy
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
@@ -1508,14 +1509,14 @@ if [[ "${ desks_onoff desks; }" == on ]]; then
 fi
 # Privacy (org.gnome.shell.extensions.amethystora-ui.privacy): the share guard, the shield and network by app. Walk-away
 # lock is a security switch, in Security.
-PRIVACY="${ said privacy; }"
+PRIVACY="${ said ui-privacy; }"
 privacy_key() {
     local value
     value="${ value_of "${PRIVACY}" "$1" "(.*)\$"; }"
     [[ "${value}" =~ ^\'(.*)\'$ ]] && value="${BASH_REMATCH[1]}"
     printf '%s\n' "${value}"
 }
-privacy_reason() { [[ "${ ended privacy; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+privacy_reason() { [[ "${ ended ui-privacy; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
 GROUP="${ gettext "Privacy"; }"
 privacy_reason
 choice blur "${ gettext "Blur"; }" "${ gettext "The window blurred, its words unreadable"; }" false ame desktop share-guard blur
