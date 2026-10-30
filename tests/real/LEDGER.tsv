@@ -579,3 +579,12 @@
 2026-10-30 18:10:14	start	D-TILESET-08	animation time
 2026-10-30 18:10:14	step	D-TILESET-08	glide time 1 s by gsettings: move the column, frame at once, 1 s later frame; glide time 0: same; reset
 2026-10-30 18:10:33	end	D-TILESET-08	pass at 1 s a frame caught the window midway, at 0 the first frame was final; reset, read back
+2026-10-30 18:10:36	start	D-TILESET-09	slide speeds
+2026-10-30 18:10:36	step	D-TILESET-09	hold Super+] 0.7 s at speed 2, frame while held; let go; speed 8, same; reset
+2026-10-30 18:10:54	end	D-TILESET-09	pass Super+] at speed 8 slid far further in the same time than at 2; the drag's speed not tried; reset
+2026-10-30 18:10:56	start	D-TILESET-10	map and darkening
+2026-10-30 18:10:56	step	D-TILESET-10	hold Super, Left, frame; map larger, darkening full: same; map 0: same; reset
+2026-10-30 18:11:21	end	D-TILESET-10	pass map shown over darkened windows; larger and fully dark when set; none at 0; reset
+2026-10-30 18:11:22	start	D-TILESET-11	screen edges
+2026-10-30 18:11:22	step	D-TILESET-11	widen Files so one window is beyond; Super+Home; size 0.4, push the right edge, frame; click off, frame; preview off, push, frame; delay on, frames at 0.3 s and 1 s; reset
+2026-10-30 18:11:57	end	D-TILESET-11	pass size 0.4 larger, preview off none, delay on shows then goes to the window; click off and on to the next not tried; reset
