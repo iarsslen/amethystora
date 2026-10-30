@@ -218,15 +218,15 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [x] D-GRID-01 Overview. How: tap `Super`. Expect: every open window at once, search at the top, the glass behind it; tap again closes. → PASS (each screen shows its own workspace's windows, the other workspaces in the thumbnails; tapping again closes)
 - [!] D-GRID-02 App grid. How: `Super+A`, the app grid button on the dock, or a three-finger pinch. Expect: **Recently used** row at the top (most used first, at most eight), **All apps** over the grid. → FAIL: Recently used and All apps are right, but a dim **No results** stays over the grid, on both pages, still there after 13 s. Seen in a session where the search box had been used; not checked on a fresh login. Not fixed here.
 - [x] D-GRID-03 Folders. How: look at the grid. Expect: folders **Office**, **Graphics**, **Games**, **System**, **Development**, **Utilities** in the session's language; Security, Updates, Control, Backups, the Manual, Phone, Steam and Lutris stay loose. → PASS (Office, Graphics, System, Utilities; Games and Development not shown, this image has no such apps here; Security, Updates, Control, Backups, the Manual and Phone loose; Steam and Lutris not installed)
-- [ ] D-GRID-04 Recent row off. How: `ame desktop app-grid recent off`. Expect: no recent row. [changes setting: put back with `ame desktop app-grid recent on`]
+- [x] D-GRID-04 Recent row off. How: `ame desktop app-grid recent off`. Expect: no recent row. [changes setting: put back with `ame desktop app-grid recent on`] → PASS (no recent row; put back on)
 - [ ] D-GRID-05 Folders reset. How: rename a folder, then `ame desktop app-grid folders reset`. Expect: the folders as the image has them. [risky: forgets your folder changes]
 - [ ] D-GRID-06 Uninstall from the app menu. How: right-click a Flatpak app in the grid. Expect: **Uninstall** and the app's page in Bazaar; Uninstall asks with choices in the theme's colours. [risky: removes the app if confirmed]
 - [ ] D-GRID-07 Updating app greyed. How: during a Flatpak update of an app. Expect: its icon greyed in the grid and dock; a progress bar while busy.
 
 ## Clipboard history
 
-- [ ] D-CLIP-01 Open. How: `Super+Shift+V`, or the clipboard icon in the top bar. Expect: the last 15 things copied; pick one to copy it; type to search; pin items.
-- [ ] D-CLIP-02 Pictures. How: copy an image, open the history. Expect: the picture listed.
+- [x] D-CLIP-01 Open. How: `Super+Shift+V`, or the clipboard icon in the top bar. Expect: the last 15 things copied; pick one to copy it; type to search; pin items. → PASS (Super+Shift+V: history, search narrows, Enter on a row copies it; pins seen, not pressed; fewer than 15 items here, so the limit not reached)
+- [x] D-CLIP-02 Pictures. How: copy an image, open the history. Expect: the picture listed. → PASS (a PNG put on the clipboard is listed as a picture)
 - [ ] D-CLIP-03 Private mode. How: turn **Private mode** on in the menu, copy text, look. Expect: nothing recorded until it is off.
 - [ ] D-CLIP-04 Password manager. How: copy from KeePassXC or Secrets. Expect: not recorded.
 - [ ] D-CLIP-05 Keep time. How: `ame desktop clipboard session`, log out and in. Expect: only pinned items remain. [changes setting: put back with `ame desktop clipboard always`] [logout]
