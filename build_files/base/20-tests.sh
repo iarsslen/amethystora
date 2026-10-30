@@ -1819,11 +1819,12 @@ done
     "$(bash -c 'source /usr/lib/amethystora/theme/lib.sh; printf "%s\n" "${WORKSPACE_ACCENTS[@]}"' | sed "s/.*/'&'/" | paste -sd, | sed 's/,/, /g; s/^/[/; s/$/]/')" ]]
 # Daylight: every theme has its four pictures, dawn, day, dusk and night in that order, each a wallpaper drawn at the
 # size of the others and named in CREDITS.md, and the slideshow made of them is GNOME's format: nine slides of whole
-# seconds, a day in all, every file there
+# seconds, a day in all, every file there. No picture has an alpha channel: Mutter 50.5 blends two such pictures without
+# the first one, so a fade would start near black
 for theme in /usr/share/amethystora/themes/*/; do
     [[ "$(cut -d' ' -f1 "${theme}daylight.list" | paste -sd' ')" == "dawn day dusk night" ]]
     while read -r _ picture; do
-        [[ "$(file -b "${picture}")" == "PNG image data, 3840 x 2160,"* ]]
+        [[ "$(file -b "${picture}")" == "PNG image data, 3840 x 2160, 8-bit/color RGB,"* ]]
         grep -qF "\`${picture#/usr/share/backgrounds/amethystora/}\`" /usr/share/backgrounds/amethystora/CREDITS.md
     done <"${theme}daylight.list"
     DAYLIGHT_XML="$(mktemp)"
