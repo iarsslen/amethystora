@@ -92,6 +92,9 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   Custom ones live under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/` (the image uses
   `custom20` and up).
 - Touchpad: `gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true`, `natural-scroll`.
+- `Super+.` is the emoji picker, Amethystora UI's `emoji` module (`ame desktop emoji tone`). IBus's own emoji
+  `hotkey` in `org.freedesktop.ibus.panel.emoji` is empty in the image: IBus reads a text field's keys before
+  GNOME's bindings and would take `Super+.` and `Super+;` for its panel. Do not set it back.
 
 ## Radios and the network
 

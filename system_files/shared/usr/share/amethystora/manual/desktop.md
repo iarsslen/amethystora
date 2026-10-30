@@ -560,7 +560,8 @@ ame desktop emoji tone medium    # none, light, medium-light, medium, medium-dar
 
 Your recent picks are kept on this computer only, in `~/.local/state/amethystora/emoji.json`. The lists
 and the names come from Unicode's emoji list (Emoji 16.0) and the Unicode CLDR, under the Unicode
-License. Smile, the emoji app, is still on `Ctrl+Alt+Space`.
+License. Smile, the emoji app, is still on `Ctrl+Alt+Space`. IBus's own emoji panel has no shortcut, so that
+`Super+.` reaches the picker in every text field.
 
 ## Text shortcuts
 
