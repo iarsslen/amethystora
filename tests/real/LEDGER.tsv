@@ -544,3 +544,17 @@
 2026-10-30 18:04:55	step		close my Files: Super+Left, Super+W twice with the guard; Alt+3 raises the minimized one, Super+W
 2026-10-30 18:05:16	start	D-TILE-30	shortcut collision kept
 2026-10-30 18:05:16	end	D-TILE-30	skip not run: switching to classic would move the windows of other sessions on workspace 1; held for the coordinator
+2026-10-30 18:05:18	start	D-TILESET-01	open the tiling settings
+2026-10-30 18:05:18	step	D-TILESET-01	ame desktop tiling-settings; frame
+2026-10-30 18:05:35	end	D-TILESET-01	pass window with the five pages, floating above the strip
+2026-10-30 18:05:36	start	D-TILESET-02	gaps
+2026-10-30 18:05:36	step	D-TILESET-02	click + on Between windows, read the key; set the four gaps large by gsettings, frame; click Back to the default on Gaps; read back
+2026-10-30 18:05:47	step	D-TILESET-02	Alt+3 Files to see the gap and the margin; frame
+2026-10-30 18:06:02	step	D-TILESET-02	raise the settings; click Back to the default on Gaps; read back; frame
+2026-10-30 18:06:15	step	D-TILESET-02	click the settings' icon in the dock; frame
+2026-10-30 18:06:31	step	D-TILESET-02	click Back to the default on Gaps; read back
+2026-10-30 18:06:33	end	D-TILESET-02	pass plus clicked once; gaps set large by gsettings moved the windows live; Back to the default put all four back, read back
+2026-10-30 18:06:44	start	D-TILESET-03	focus frame
+2026-10-30 18:06:44	step	D-TILESET-03	Super+End to the editor; set the frame's size 4 and corners 40 by gsettings, frame; size 0, frame; size 40, frame; raise the settings, Back to the default; read back
+2026-10-30 18:07:00	step	D-TILESET-03	raise the settings from the dock, click Back to the default on Focus frame; read back
+2026-10-30 18:07:20	end	D-TILESET-03	pass frame thin, none at 0, kept within the gap at 40, corners round; Back to the default put it back, read back
