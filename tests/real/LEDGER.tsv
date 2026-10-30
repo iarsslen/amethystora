@@ -181,3 +181,33 @@
 2026-10-30 16:56:32	start	D-PILL-06-check	does a mouse-like move from the pill to a card's button open the calendar
 2026-10-30 16:56:37	step	D-PILL-06-check	open the card, ten steps to Next, click
 2026-10-30 16:56:52	end	D-PILL-06-check	pass landed; only a press straight after a jump opened the calendar, the driver's jump, not a person's move
+2026-10-30 16:57:03	start	D-DOTS-04	GNOME Maps finds the location, violet dot
+2026-10-30 16:57:03	step	D-DOTS-04	to workspace 3, open Maps
+2026-10-30 16:58:47	step	D-DOTS-04	close Maps, take its permission back, open again to see who asks
+2026-10-30 16:59:23	end	D-DOTS-04	pass dot and list seen; dot takes the workspace's accent; Maps closed, its permission taken back
+2026-10-30 16:59:23	start	D-PRIV-02	during an input session open Backups, covered before it is drawn
+2026-10-30 16:59:23	step	D-PRIV-02	hold an input session, open Backups on workspace 3, screenshot
+2026-10-30 16:59:46	end	D-PRIV-02	pass covered with its label at 3 s, during the session
+2026-10-30 16:59:46	start	D-PRIV-06	share guard as a card, Backups under an input session
+2026-10-30 16:59:46	step	D-PRIV-06	ame desktop share-guard card, screenshot
+2026-10-30 16:59:49	step	D-PRIV-06	put back blur
+2026-10-30 16:59:57	end	D-PRIV-06	pass a solid card with the label; blur put back
+2026-10-30 16:59:57	start	D-PRIV-08	share guard apps picker in a scratch terminal, then reset
+2026-10-30 16:59:57	step	D-PRIV-08	scratch kitty with the picker, screenshot
+2026-10-30 17:00:11	step	D-PRIV-08	stop the picker; apps reset
+2026-10-30 17:00:12	end	D-PRIV-08	pass picker names the apps; reset leaves the shipped list
+2026-10-30 17:00:12	start	D-PRIV-10	shield tile, its menu, in quick settings
+2026-10-30 17:00:12	step	D-PRIV-10	stop Backups, go to scratch workspace 2, open quick settings, shield's menu
+2026-10-30 17:00:41	step	D-PRIV-10	click one line, encrypted DNS: opens Security
+2026-10-30 17:01:26	step	D-PRIV-10	the network line opens Security on its page
+2026-10-30 17:01:45	end	D-PRIV-10	pass tile says how many need a look, lines; network line opened Security's settings; dns and usb open the overview
+2026-10-30 17:01:45	start	D-PRIV-11	shield as a mark
+2026-10-30 17:01:45	step	D-PRIV-11	ame desktop shield mark; menu
+2026-10-30 17:01:47	end	D-PRIV-11	pass see the screenshot
+2026-10-30 17:01:47	start	D-PRIV-12	shield only on attention
+2026-10-30 17:01:48	step	D-PRIV-12	ame desktop shield attention
+2026-10-30 17:01:49	end	D-PRIV-12	pass see the screenshot
+2026-10-30 17:01:49	start	D-PRIV-13	shield off
+2026-10-30 17:01:50	step	D-PRIV-13	ame desktop shield off; quick settings
+2026-10-30 17:01:55	step	D-PRIV-13	put back: shield tile
+2026-10-30 17:02:06	end	D-PRIV-13	pass no tile, no mark, put back to tile
