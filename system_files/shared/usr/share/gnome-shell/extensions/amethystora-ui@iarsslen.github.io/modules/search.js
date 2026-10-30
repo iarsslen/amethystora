@@ -723,6 +723,10 @@ export class Search {
                 style_class: 'amethystora-search-row-hint', x_expand: true, x_align: Clutter.ActorAlign.END,
                 y_align: Clutter.ActorAlign.CENTER,
             });
+            // It goes with the row it is on, and a label destroyed must not be added to the next one (the shell died so)
+            this._spaceHint.connect('destroy', () => {
+                this._spaceHint = null;
+            });
         }
         this._spaceHint.text = _('Space previews');
         const content = wanted.get_child();

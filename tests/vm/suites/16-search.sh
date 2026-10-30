@@ -430,6 +430,14 @@ if wait_for 120 files_found; then
     ok "14 Files found both pictures"
     to_first_file
     same "14 the file's hint" "$(q '[.sections[].rows[] | select(.hint == "Space previews")][0].title' | cut -c1-14)" "vmlab-glance-1"
+    # The hint goes with its row: a new search destroys the row, and the next file row must get a hint of its own (adding
+    # the destroyed one took the shell down, on the real machine)
+    search "vmlab-nothing-is-called-this"
+    no_rows() { [[ "$(q '[.sections[].rows[].title | select(startswith("vmlab-glance"))] | length')" == 0 ]]; }
+    check "14 another search takes the file rows away" soon 10 no_rows
+    wait_for 60 files_found
+    to_first_file
+    same "14 ...and the file's hint comes back, on a new row" "$(q '[.sections[].rows[] | select(.hint == "Space previews")][0].title' | cut -c1-14)" "vmlab-glance-1"
     keys space
     check "14 Space opens the previewer" soon 10 previewer
     same "14 the card steps aside" "$(q '.glancing') $(q '.opacity')" "true 0"

@@ -29,6 +29,7 @@ shell_faults() {
         awk '/JS ERROR/ { block = $0; next } block && /@(resource|file):\/\// { block = block " | " $0; next }
             block { if (block ~ /amethystora-/) print block; block = "" }
             /Did not find color property/ { print }
+            /has been already disposed/ { print }
             /Amethystora UI: .*(failed|threw|did not (start|stop cleanly))/ { print }
             END { if (block ~ /amethystora-/) print block }' | sort | uniq -c | sort -rn | head -n 15
 }
