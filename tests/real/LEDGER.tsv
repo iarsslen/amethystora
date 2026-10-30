@@ -341,3 +341,65 @@
 2026-10-30 17:27:10	step	D-SHOT-15	video mode button look; back to picture; Ctrl+E on the frame; do not answer any language question
 2026-10-30 17:27:31	step	D-SHOT-15	language question left unanswered; close its window, then Gradia
 2026-10-30 17:28:00	end	D-SHOT-15	pass button on for a selection, off for screen and window, off in recording mode; Ctrl+E opened Gradia's language question, left unanswered
+2026-10-30 17:28:22	start	D-CAPTIONS-01	live captions
+2026-10-30 17:28:22	end	D-CAPTIONS-01	skip needs the model download and sound; left open
+2026-10-30 17:28:22	start	D-CAPTIONS-02	live captions
+2026-10-30 17:28:22	end	D-CAPTIONS-02	skip needs the model download and sound; left open
+2026-10-30 17:28:22	start	D-CAPTIONS-03	live captions
+2026-10-30 17:28:22	end	D-CAPTIONS-03	skip needs the model download and sound; left open
+2026-10-30 17:28:22	start	D-CAPTIONS-04	live captions
+2026-10-30 17:28:22	end	D-CAPTIONS-04	skip needs the model download and sound; left open
+2026-10-30 17:28:22	start	D-CAPTIONS-05	live captions
+2026-10-30 17:28:22	end	D-CAPTIONS-05	skip needs the model download and sound; left open
+2026-10-30 17:28:22	start	D-ACCESS-01	colour filters
+2026-10-30 17:28:22	step	D-ACCESS-01	filter protan, deutan, tritan, grey, each with a screenshot; then none
+2026-10-30 17:28:49	step	D-ACCESS-01	grey filter, a three-second screen recording, read a frame of it; filter none; delete it
+2026-10-30 17:29:08	end	D-ACCESS-01	skip commands and words right, key read back; both screenshot and a recording keep the apps' colours, so the filter's look cannot be seen by this driver; none, read back
+2026-10-30 17:29:47	start	D-ACCESS-02	access item
+2026-10-30 17:29:47	end	D-ACCESS-02	skip needs the filter's look, which screenshots and recordings leave out
+2026-10-30 17:29:47	start	D-ACCESS-07	access item
+2026-10-30 17:29:47	end	D-ACCESS-07	skip needs sound
+2026-10-30 17:29:47	start	D-ACCESS-08	access item
+2026-10-30 17:29:47	end	D-ACCESS-08	skip needs sound
+2026-10-30 17:29:47	start	D-ACCESS-09	access item
+2026-10-30 17:29:47	end	D-ACCESS-09	skip needs the filter's look, which screenshots and recordings leave out
+2026-10-30 17:29:47	start	D-TIPS-01	a tip
+2026-10-30 17:29:47	end	D-TIPS-01	skip tips stay away during a share, and the driver's input session counts as one
+2026-10-30 17:29:47	start	D-POINTER-05	pointer sets
+2026-10-30 17:29:47	step	D-POINTER-05	ame desktop pointer ink; pointer over editor's title; Print with pointer shown, capture; read file; delete it
+2026-10-30 17:30:50	end	D-POINTER-05	pass Ink in the Flatpak GTK 4 editor and the shell, Halo and Facet in the shell; theme gives Halo; GTK 3 and a light theme not seen
+2026-10-30 17:31:00	start	D-DOCK-06	launch ring
+2026-10-30 17:31:00	step	D-DOCK-06	click Bazaar in the dock, two screenshots
+2026-10-30 17:31:24	end	D-DOCK-06	pass ring running round the icon on the first frame, gone once the window opened
+2026-10-30 17:31:24	start	D-DOCK-07	launch hop, breathe, off
+2026-10-30 17:31:24	step	D-DOCK-07	close Bazaar; launch hop; click Files, frames; close it
+2026-10-30 17:31:50	step	D-DOCK-07	breathe; Backups from the dock; frames
+2026-10-30 17:33:21	step	D-DOCK-07	launch off; Gradia from the dock
+2026-10-30 17:33:42	end	D-DOCK-07	pass hop raised the icon, off no sign, breathe not told apart by frames; halo back
+2026-10-30 17:33:42	start	D-DOCK-08	running bar
+2026-10-30 17:33:42	step	D-DOCK-08	pointer away; crop dock; second Text Editor window with Ctrl+Shift+N; crop dock
+2026-10-30 17:33:56	end	D-DOCK-08	pass bar under the icon, longer with two windows
+2026-10-30 17:33:56	start	D-DOCK-12	window previews
+2026-10-30 17:33:57	step	D-DOCK-12	rest on Text Editor's icon, shot
+2026-10-30 17:34:08	step	D-DOCK-12	click the second preview; who is active
+2026-10-30 17:34:25	step	D-DOCK-12	again: rest on the icon, step into the second preview, click
+2026-10-30 17:34:39	end	D-DOCK-12	pass glass card with both windows; a click brought the second forward; the first click of the first try did not
+2026-10-30 17:34:39	start	D-DOCK-14	fan out windows
+2026-10-30 17:34:39	step	D-DOCK-14	right-click Text Editor in the dock; shot
+2026-10-30 17:34:50	step	D-DOCK-14	Right moves the fan; wheel moves it; Space picks; who is active
+2026-10-30 17:35:07	end	D-DOCK-14	pass windows fan over the menu; Right moved the mark, wheel back, Space picked the marked window; a click not tried
+2026-10-30 17:35:07	start	D-DOCK-15	pin and unpin
+2026-10-30 17:35:07	step	D-DOCK-15	right-click Text Editor, Pin to dock; read favourites; shot
+2026-10-30 17:35:21	step	D-DOCK-15	right-click it again; shot of the menu
+2026-10-30 17:35:35	step	D-DOCK-15	Unpin; read favourites
+2026-10-30 17:35:39	end	D-DOCK-15	pass pinned; the item now reads Unpin rather than Remove from the dock; removed
+2026-10-30 17:35:39	start	D-DOCK-16	drag off to unpin
+2026-10-30 17:35:39	step	D-DOCK-16	pin Text Editor by the setting; drag its icon off the dock; shot; app grid
+2026-10-30 17:35:57	step	D-DOCK-16	grid button; shot; Escape
+2026-10-30 17:36:15	end	D-DOCK-16	pass icon dissolved in sparks, favourite gone; listed in the grid's Recently Used; favourites put back as they were
+2026-10-30 17:36:25	start	D-DOCK-17	app pages from the dock menus
+2026-10-30 17:36:25	step	D-DOCK-17	pin the six for a moment, right-click each, shot of each menu, Escape
+2026-10-30 17:37:12	step	D-DOCK-17	each page from its menu; shot; close that window
+2026-10-30 17:41:12	end	D-DOCK-17	pass all labels right; Hotkeys, Crashes, Apps and Services, Backup Status, Virus Scan, Appearance, System reach their pages; Notes showed first-run setup in place of Tasks; favourites put back
+2026-10-30 17:41:12	start	D-DOCK-18	Alt+number
+2026-10-30 17:41:12	step	D-DOCK-18	Alt+5 with no pinned app in slot 5 first look; Alt+1 goes to Firefox
