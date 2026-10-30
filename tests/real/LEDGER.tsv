@@ -502,3 +502,35 @@
 2026-10-30 17:57:17	step	D-TILE-19	Super+Ctrl+Escape; Super+Alt+Escape, frame; again, frame; float off
 2026-10-30 17:57:43	step	D-TILE-19	Super+Ctrl+Escape takes the float off; frame
 2026-10-30 17:57:45	end	D-TILE-19	pass floated window hides on Super+Alt+Escape, returns on it
+2026-10-30 17:57:55	start	D-TILE-20	dialogs float
+2026-10-30 17:57:55	step	D-TILE-20	Super+End to the editor; check it has focus
+2026-10-30 17:57:57	step	D-TILE-20	Ctrl+Shift+S in the editor, frame
+2026-10-30 17:58:10	step	D-TILE-20	Escape in the Save dialog
+2026-10-30 17:58:11	end	D-TILE-20	pass the save dialog floats above the strip over its parent
+2026-10-30 17:58:13	start	D-TILE-21	on every workspace
+2026-10-30 17:58:13	step	D-TILE-21	Super+Left to Files; Alt+Space, frame
+2026-10-30 17:58:23	step	D-TILE-21	click Always on Visible Workspace; frame; Super+3 frame; Super+2 frame
+2026-10-30 17:58:39	step	D-TILE-21	Alt+Space, untick the entry at its place; Super+Alt+... frame
+2026-10-30 17:58:51	step	D-TILE-21	click Always on Visible Workspace to untick; frame
+2026-10-30 17:58:54	end	D-TILE-21	pass left the strip, stayed in place, seen on workspace 3 and 2; unticked
+2026-10-30 17:59:04	start	D-TILE-22	edge preview
+2026-10-30 17:59:04	step	D-TILE-22	pointer to the right edge at mid height, push, wait, frame
+2026-10-30 17:59:17	step	D-TILE-22	click at the edge on the preview; frame
+2026-10-30 17:59:33	end	D-TILE-22	pass small view at the edge, a click there went to that window
+2026-10-30 17:59:36	start	D-TILE-23	drag in the strip
+2026-10-30 17:59:36	step	D-TILE-23	drag the focused window by its title leftwards, frame while held, wheel down, frame, wheel up, drop, frame
+2026-10-30 17:59:56	step	D-TILE-23	drag again by its title to the far left of the column before it, frame while held, drop, frame
+2026-10-30 18:00:30	step	D-TILE-23	Super+Left, frame, to see the strip's places
+2026-10-30 18:00:40	step	D-TILE-23	drag the third column by its title down to lift it, then to the gap between the first two, frame, wheel down, frame, wheel up, drop, frame
+2026-10-30 18:01:11	step	D-TILE-23	drag the editor by its title bar: lift downwards, carry to the gap before the column on its left, frame, drop, frame
+2026-10-30 18:01:35	step	D-TILE-23	drag the editor by its title bar: down 340 to lift, carry left to the gap before the column on its left, frame, drop, frame
+2026-10-30 18:02:06	step	D-TILE-23	drag the Files column by its title down 340 to lift, right past the editor's far side, frame, drop, frame
+2026-10-30 18:02:24	step	D-TILE-23	Super+Home frame; Super+End frame, to read the order
+2026-10-30 18:02:48	end	D-TILE-23	skip five drags by title, one seen move sideways only, lifted ones dropped back in place; wheel injected moved the strip; left for a person
+2026-10-30 18:02:50	start	D-TILE-26	workspace cards
+2026-10-30 18:02:50	step	D-TILE-26	hold Super, Page Down, frame; let go, frame; Super+Page Up, frame
+2026-10-30 18:03:11	end	D-TILE-26	pass Page Down goes to workspace 3, Page Up back; a card with neighbours above and below while Super is held
+2026-10-30 18:03:13	start	D-TILE-27	previous workspaces
+2026-10-30 18:03:13	step	D-TILE-27	hold Super+Ctrl, grave, frame; grave, frame; let go, frame
+2026-10-30 18:03:26	step	D-TILE-27	move Files back: Super+Shift+2 with Files focused; frame
+2026-10-30 18:03:44	end	D-TILE-27	pass first press showed the workspace before, second one more back, carried window dropped there; moved back to 2
