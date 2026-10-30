@@ -29,7 +29,9 @@ should see: `10-desktop.md` (the shell), `20-apps.md` (the apps), `30-security.m
 software and the hardware). The maintainer's rule: **every item is validated, one by one, none skipped because
 it looks fine.**
 
-- Work on `main` (the maintainer's rule: always commit to main, no branch). Take the items in order, file by file. For each one: do what `How:` says, look at the screen (a screenshot through the
+- Work on `main` (the maintainer's rule: always commit to main, no branch). Take the items in order, file by file.
+  To have more than one session at work, `tests/real/TRACKS.md` splits what is left into tracks that run at once (one
+  walker on the screen, a terminal session beside it, a sitting with the person), with who marks which file. For each one: do what `How:` says, look at the screen (a screenshot through the
   portal, `org.freedesktop.portal.Screenshot` with `interactive` false, whose file comes in the request's
   `Response` signal and which asks the person once to allow it; or ask the person to press `Print`, which
   saves in `~/Pictures/Screenshots`; then read the PNG), and compare it with
