@@ -4,3 +4,11 @@
 2026-10-30 18:44:53	end	A-NOTES-05..07	pass 05-07
 2026-10-30 18:44:53	start	A-NOTES-10..14	switch, foot, new note, Markdown, layouts
 2026-10-30 18:47:18	end	A-NOTES-10..14	pass 10-14; 15-17 for the walker
+2026-10-30 18:47:20	start	A-NOTES-20..25	tags, notebooks, move, sort
+2026-10-30 18:49:09	end	A-NOTES-20..25	pass 21-23,25; 18-20,24 for the walker
+2026-10-30 18:49:21	start	A-NOTES-26..32	search, versions, trash, restore
+2026-10-30 18:50:13	end	A-NOTES-26..32	pass 26,29,30; 27 later; 28 for the walker; 31,32 question only
+2026-10-30 18:50:21	start	A-NOTES-33..43	tasks: box, details, subtasks, views, projects, sections, labels, search
+2026-10-30 18:51:15	step	A-NOTES-33..43	Settings: 46, then 47 to 49 in the scratch folder
+2026-10-30 18:52:13	step	A-NOTES-33..43	seed tasks and tags into the scratch data, since Enter needs keys
+2026-10-30 18:57:43	end	A-NOTES-33..43	pass 34,35,37-43; 33,36,65 for the walker; 44,45 next
