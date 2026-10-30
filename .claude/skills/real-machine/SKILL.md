@@ -22,6 +22,34 @@ security keys, a real phone for the phone link, sound devices, the TPM and firmw
   or touch the duress feature, never run `ame system reset-settings` or Start over, never lower a security
   setting to make a test pass, and ask before anything that restarts the machine or logs the person out.
 
+## Validating every feature: the checklist
+
+`tests/real/checklist/*.md` lists every feature of the OS, one line each, with how to reach it and what a person
+should see: `10-desktop.md` (the shell), `20-apps.md` (the apps), `30-security.md`, `40-system.md` (commands,
+software and the hardware). The maintainer's rule: **every item is validated, one by one, none skipped because
+it looks fine.**
+
+- Work on the branch `real/checklist` (`git switch real/checklist` if it exists on `origin`, else create it).
+  Take the items in order, file by file. For each one: do what `How:` says, look at the screen (a screenshot through the
+  portal, `org.freedesktop.portal.Screenshot` with `interactive` false, whose file comes in the request's
+  `Response` signal and which asks the person once to allow it; or ask the person to press `Print`, which
+  saves in `~/Pictures/Screenshots`; then read the PNG), and compare it with
+  `Expect:` and with what the person would call right: misplaced, clipped, overlapping, unreadable in a
+  theme, wrong in a style, slow, flickering or untranslated counts as a bug even when the line does not say so.
+- Mark the line where it stands, replacing `[ ]`:
+  `[x] … → PASS`, `[x] … → FIXED <sha>: <what was wrong>`, `[!] … → FAIL: <what is wrong, why not fixed
+  here>` (a kernel, package or build fix, or a design choice for the maintainer), or `[-] … → N/A: <why>`
+  (no such hardware). Never `PASS` an item you did not see work.
+- A bug found: fix it with the live loop below, check the item again, then check the items next to it that the
+  same file touches. Commit the fix (one commit per cause) and the checklist lines it settles.
+- Commit the checklist every few items (`test(real): checklist <ids>`), and push the branch, so that nothing is
+  lost and the maintainer's PC can follow it.
+- Flags: `changes setting: put back with …` is put back right after the check; `logout` and `reboot` items
+  are gathered and done together with the person; `risky` items run only after the person says yes to that
+  item; `never` items are only looked at, never configured. An item whose `Expect:` turns out wrong (the
+  feature works differently by design) is corrected in the checklist, with the source that says so.
+- A feature found that has no line gets one, in its file, in the same format.
+
 ## The live loop
 
 1. **Writable for this boot only:** `sudo bootc usr-overlay`. `/usr` takes changes until the next restart,
