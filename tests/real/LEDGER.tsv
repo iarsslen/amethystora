@@ -745,3 +745,48 @@
 2026-10-30 18:37:15	step	D-WS-05..08	hover the set row, frame whole screen; cross
 2026-10-30 18:37:35	step	D-WS-05..08	click the cross, frame; Escape; save a set again, sets off, menu frame, on, menu frame, forget
 2026-10-30 18:38:00	end	D-WS-05..08	pass saved, opened on an empty workspace, forgot, off and on; set forgotten; a frame stuck beside the window and a label left
+2026-10-30 18:38:20	start	D-THEME-01	set amethystora, frame, read what it set
+2026-10-30 18:38:20	step	D-THEME-01	amethystora-theme set amethystora; wait; frame
+2026-10-30 18:38:30	end	D-THEME-01	pass frame read
+2026-10-30 18:38:30	start	D-THEME-02	set amethystora-light, frame, read what it set
+2026-10-30 18:38:30	step	D-THEME-02	amethystora-theme set amethystora-light; wait; frame
+2026-10-30 18:38:46	end	D-THEME-02	pass frame read
+2026-10-30 18:38:59	start	stuck-picture	recover per the brief
+2026-10-30 18:38:59	step	stuck-picture	seen: picture stuck after theme set at 18:38, frame stayed dark; JS ERROR this._reveal is not a function in amethystora-transitions; extension off, 2 s, on, theme back
+2026-10-30 18:39:18	end	stuck-picture	pass light theme drawn after the off and on
+2026-10-30 18:39:18	start	D-THEME-group-note	the remaining theme items with the transitions extension off, since every reveal sticks in this image; on again after
+2026-10-30 18:39:18	end	D-THEME-group-note	pass noted
+2026-10-30 18:39:18	start	D-THEME-03	set catppuccin, frame, read what it set
+2026-10-30 18:39:18	step	D-THEME-03	amethystora-theme set catppuccin; wait; frame
+2026-10-30 18:39:33	end	D-THEME-03	pass frame read
+2026-10-30 18:39:33	start	D-THEME-04	set catppuccin-latte, frame, read what it set
+2026-10-30 18:39:33	step	D-THEME-04	amethystora-theme set catppuccin-latte; wait; frame
+2026-10-30 18:39:48	end	D-THEME-04	pass frame read
+2026-10-30 18:39:48	start	D-THEME-05	set everforest, frame, read what it set
+2026-10-30 18:39:48	step	D-THEME-05	amethystora-theme set everforest; wait; frame
+2026-10-30 18:40:03	end	D-THEME-05	pass frame read
+2026-10-30 18:40:03	start	D-THEME-06	set gruvbox, frame, read what it set
+2026-10-30 18:40:03	step	D-THEME-06	amethystora-theme set gruvbox; wait; frame
+2026-10-30 18:40:18	end	D-THEME-06	pass frame read
+2026-10-30 18:40:28	start	D-THEME-07	set matte-black, frame, read what it set
+2026-10-30 18:40:28	step	D-THEME-07	amethystora-theme set matte-black; wait; frame
+2026-10-30 18:40:43	end	D-THEME-07	pass frame read
+2026-10-30 18:40:43	start	D-THEME-08	set nord, frame, read what it set
+2026-10-30 18:40:43	step	D-THEME-08	amethystora-theme set nord; wait; frame
+2026-10-30 18:40:58	end	D-THEME-08	pass frame read
+2026-10-30 18:40:58	start	D-THEME-09	set rose-pine-dawn, frame, read what it set
+2026-10-30 18:40:58	step	D-THEME-09	amethystora-theme set rose-pine-dawn; wait; frame
+2026-10-30 18:41:13	end	D-THEME-09	pass frame read
+2026-10-30 18:41:13	start	D-THEME-10	set tokyo-night, frame, read what it set
+2026-10-30 18:41:13	step	D-THEME-10	amethystora-theme set tokyo-night; wait; frame
+2026-10-30 18:41:28	end	D-THEME-10	pass frame read
+2026-10-30 18:41:40	start	D-THEME-11..12	group: picker, Super+Ctrl+D on three themes
+2026-10-30 18:41:40	step	D-THEME-11..12	theme amethystora; picker, frame; Escape; Super+Ctrl+D on amethystora, catppuccin, nord, reading the theme after each
+2026-10-30 18:43:13	end	D-THEME-11..12	pass picker and partner keys
+2026-10-30 18:43:13	start	D-THEME-16	placeholder
+2026-10-30 18:43:13	end	D-THEME-16	skip taken in order below
+2026-10-30 18:43:43	start	D-THEME-15..18	group: Control's appearance page; high contrast with Files; a theme of my own; list, current, reload
+2026-10-30 18:43:43	step	D-THEME-15..18	Control appearance page, frame; close; high contrast on, Files, frame, close, off
+2026-10-30 18:44:16	step	D-THEME-15..18	own theme sunset from the shipped colours, frame; wallpapers read; back to amethystora; my folder removed; list, current, reload
+2026-10-30 18:44:54	step	D-THEME-15..18	own theme removed; amethystora-theme reload
+2026-10-30 18:45:28	end	D-THEME-15..18	pass Control page, high contrast, reload seen; own theme: one wallpaper file, not four; removed
