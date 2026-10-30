@@ -588,3 +588,14 @@
 2026-10-30 18:11:22	start	D-TILESET-11	screen edges
 2026-10-30 18:11:22	step	D-TILESET-11	widen Files so one window is beyond; Super+Home; size 0.4, push the right edge, frame; click off, frame; preview off, push, frame; delay on, frames at 0.3 s and 1 s; reset
 2026-10-30 18:11:57	end	D-TILESET-11	pass size 0.4 larger, preview off none, delay on shows then goes to the window; click off and on to the next not tried; reset
+2026-10-30 18:12:00	start	D-TILESET-13	top bar icons
+2026-10-30 18:12:01	step	D-TILESET-13	both icons off by gsettings, frame of the bar; each back
+2026-10-30 18:12:11	end	D-TILESET-13	pass both icons left the bar and came back
+2026-10-30 18:12:13	start	D-TILESET-14	workspace name in the top bar
+2026-10-30 18:12:13	step	D-TILESET-14	show the name by gsettings; frame of the bar
+2026-10-30 18:12:22	step	D-TILESET-14	click the name, frame; Escape; right-click it, frame
+2026-10-30 18:12:39	step	D-TILESET-14	Escape the name's menu; reset; read back
+2026-10-30 18:12:40	end	D-TILESET-14	pass name shows, click opens overview, right button offers renaming; rename not typed, wheel left for the real mouse; reset
+2026-10-30 18:12:42	start	D-TILESET-15	position line
+2026-10-30 18:12:42	step	D-TILESET-15	line on by gsettings; frames as focus moves left and right; reset
+2026-10-30 18:13:26	end	D-TILESET-15	pass a blue line at the bar's foot, under the focused window's place, moved with focus; gone on reset
