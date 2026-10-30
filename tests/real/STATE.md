@@ -68,15 +68,16 @@ Inferred:
   Seen at 16:36:28, cleared with `gnome-extensions disable` and `enable` of the transitions extension. Also in the journal at
   09:45:41 (5 lines, 5 s before that boot's end) and to 09:50:12. The heartbeat does not catch this form. Inferred: at 16:36:26
   every settings reader woke as `dnf` finished in the walk's toolbox, whose scriptlets reach the host's buses; not proven.
-- Studied 2026-10-30, 18:40: `clocksource: Watchdog remote CPU N read timed out` is not the cause (a 50 us limit, shorter than a C3
+- Studied 2026-10-30, 18:30: `clocksource: Watchdog remote CPU N read timed out` is not the cause (a 50 us limit, shorter than a C3
   wake-up; `clocksource.c` identical in 7.2.10, 7.2.11, 7.2.13; on clean boots too; TSC never marked unstable). Ranking: the dock's display
   path with something new, first; amdgpu on it; 7.2.13 open; evdi lowered (e04b5405 and 917847cd stopped without it); firmware or power
   possible but not testable from logs; tests alone unlikely. Every hung boot had the dock hub; the current boot is the first of 28 without
   it, over 3 h, which also changed screens, MST, DSC and evdi at once. Older kernels have only 279 awake minutes, longest 57.
-- 917847cd (15:38) did not end in an orderly way, as written below: only user managers stopped, so eight abrupt ends. Empty pstore, no
+- 917847cd (15:38): the maintainer cut the power, so it is not a hang: seven abrupt ends, not eight. Empty pstore, no
   hung_task lines, no AER and no BERT are no evidence: this kernel and firmware have none of them on.
 - At the next hang: ping and SSH from another machine, the wired NIC's link light, whether a USB device gets power, a short press of the
   power button, then a 4 s hold, and not the cord unless that fails. Then read the next boot's reset reason.
+- The maintainer's choices, 18:40: the Dell dock's test later, on their word; the shell fixes' install block and logout after the walker's current stretch.
 - Leading idea: kernel 7.2.13, or something else in the image of 2026-10-30. Seen: all 19 boots from 2026-10-15 to 10-27
   (kernels 7.2.5 to 7.2.11) ended with a clean shutdown, several through MST link drops, `Failed to get ACT` and page flip
   failures (boots of 10-23, 10-26, 10-27). Of the boots on 7.2.13, one ended clean (the first, 5 minutes) and five hung.
