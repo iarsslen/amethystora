@@ -487,7 +487,7 @@ impl SlotRow {
         let row: SlotRow = glib::Object::builder().property("orientation", gtk::Orientation::Vertical).build();
         let day = gtk::Label::builder().xalign(0.0).css_classes(["day"]).build();
         let time = gtk::Label::builder().xalign(0.0).css_classes(["entry-time"]).build();
-        let dot = gtk::Box::builder().css_classes(["level"]).valign(gtk::Align::Center).hexpand(false).build();
+        let dot = gtk::Box::builder().accessible_role(gtk::AccessibleRole::Img).css_classes(["level"]).valign(gtk::Align::Center).hexpand(false).build();
         let source = gtk::Label::builder().xalign(0.0).ellipsize(pango::EllipsizeMode::End).css_classes(["entry-source"]).build();
         let message =
             gtk::Label::builder().xalign(0.0).ellipsize(pango::EllipsizeMode::End).hexpand(true).css_classes(["entry-message"]).build();
@@ -562,6 +562,7 @@ impl SlotRow {
         parts.time.set_label(&text);
         parts.dot.set_css_classes(&["level", tone]);
         parts.dot.set_tooltip_text(Some(&word));
+        parts.dot.update_property(&[gtk::accessible::Property::Label(&word)]);
         let source = if entry.source.is_empty() { "—" } else { &entry.source };
         ellipsize_as_the_page(&parts.source, source);
         parts.source.set_label(source);
