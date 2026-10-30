@@ -1143,7 +1143,8 @@ fi
 if [[ ${EUID} -ne 0 ]]; then
     mapfile -t USER_EXTENSIONS < <(find "${HOME}/.local/share/gnome-shell/extensions" -mindepth 1 -maxdepth 1 -type d \
         -printf '%f\n' 2>/dev/null | sort | /usr/libexec/amethystora-security-text --lines --max 120)
-    if [[ ${#USER_EXTENSIONS[@]} -gt 0 ]]; then
+    # The cleaning prints one empty line for no input
+    if [[ -n "${USER_EXTENSIONS[0]:-}" ]]; then
         N="${#USER_EXTENSIONS[@]}"
         COMMAND="ame security block-user-extensions"
         report apps user-extensions info "$(gettext "GNOME extensions")" \
