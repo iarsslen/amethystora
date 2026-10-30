@@ -618,3 +618,7 @@
 2026-10-30 18:15:58	start	cleanup	workspace 2's position-line memory left by D-TILESET-20
 2026-10-30 18:15:58	step	cleanup	Super+Ctrl+B twice on workspace 2; read the state file; frame of the bar
 2026-10-30 18:16:10	end	cleanup	pass state file holds no hidden bar; bar shown
+2026-10-30 18:17:32	start	D-TILESET-21	workspace picture and colour by gsettings, frames, reset
+2026-10-30 18:17:32	step	D-TILESET-21	picture and colour on workspace 2; frame; Super+Page Down held, frame; Super+2
+2026-10-30 18:18:03	step	D-TILESET-21	seen: a second screen, HDMI-1, appeared between two frames at about 18:17:35, not by the walk; shell answering
+2026-10-30 18:18:51	end	D-TILESET-21	stopped second screen HDMI-1 appeared at 18:17:35, not by the walk; at 18:18:00 amdgpu REG_WAIT timeout and WARNING dcn31_program_compbuf_size from the shell's KMS thread, shell still answering; settings reset, read back empty
