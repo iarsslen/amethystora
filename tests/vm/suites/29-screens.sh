@@ -12,7 +12,7 @@
 #   - a window on a screen without the keyboard is drawn on glass, and the top bar is solid while a window of the
 #     workspace its screen shows reaches it;
 #   - nothing of Amethystora UI throws meanwhile.
-# vmlab-paths: @ui/extension.js @ui/*tiling* @ui/*glass* @ui/*bars*
+# vmlab-paths: @ui/extension.js @ui/*tiling* @ui/*glass* @ui/*bars* @ui/*workspaces*
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io
@@ -159,6 +159,39 @@ check "screen 2 still shows its workspace, empty now" test "$(ev "(() => { const
 check "and every screen still shows a workspace of its own" test "$(shown | tr ' ' '\n' | sort -u | wc -l)" == 4
 user_systemctl stop "vmlab-files2-$$"
 user_bus gsettings reset org.gnome.mutter dynamic-workspaces
+
+# The wheel on the top bar steps the bar's own screen, notch after notch: no other screen changes, and the pointer
+# stays where it is (a workspace another screen showed once took the pointer there, off the bar, with every later notch)
+primary="$(ev 'Main.layoutManager.primaryIndex')"
+bar_at="$(ev "(() => { const m = Main.layoutManager.primaryMonitor, s = global.stage; return ((m.x + m.width / 2) / s.width).toFixed(3) + ',' + ((m.y + 5) / s.height).toFixed(3); })()")"
+keys "move:${bar_at}"
+sleep 1
+notch() {
+    ev "${UI}.get('workspaces')._scrolled({get_scroll_direction: () => imports.gi.Clutter.ScrollDirection.$1}); true" >/dev/null
+    sleep 1
+}
+others() { shown | tr ' ' '\n' | sed "$((primary + 1))d" | paste -sd ' '; }
+bar_shows() { shown | cut -d' ' -f$((primary + 1)); }
+pointer_on_bar() { [[ "$(ev 'global.display.get_current_monitor()')" == "${primary}" ]]; }
+same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }
+restore="$(bar_shows)"
+before="$(others)"
+# The workspaces no other screen shows, from the one the bar's screen is on to the last: the wheel stops at the end
+list="$(ev "${UI}.get('tiling').engine.screens.workspacesFor(${primary}, false).map(w => w.index()).join(' ')")"
+rest="${list#*"${restore}"}"
+steps="$(wc -w <<<"${rest}")"
+seen="${restore}"
+for ((i = 0; i <= steps; i++)); do
+    notch DOWN
+    seen+=" $(bar_shows)"
+done
+same "the wheel steps the bar's screen through its own workspaces, and stops at the end" "${seen}" "${restore}${rest} ${list##* }"
+same "...and no other screen changes" "$(others)" "${before}"
+check "...and the pointer stays on the bar's screen" pointer_on_bar
+for ((i = 0; i < steps; i++)); do
+    notch UP
+done
+same "...and back up to where it was" "$(bar_shows)" "${restore}"
 
 # A JS error whose stack goes through the extension, or the extension's own word that a module failed (GNOME's own
 # errors while the session is ended for a restart are not its)
