@@ -354,4 +354,15 @@ wait_for 15 open
 # The errors of that throw were made on purpose: the shell's faults are counted from here
 SUITE_BEGAN="$(date '+%Y-%m-%d %H:%M:%S')"
 
+# 25: a settings object nobody disposes is never collected: GJS sweeping one while dconf's worker dispatches a change to it
+# deadlocks the shell for good (seen in this suite, from GNOME Shell's own). An object beside it is, so that the collector ran
+ev "globalThis.vmlabGone = {settings: false, control: false};
+    globalThis.vmlabWatch = new FinalizationRegistry(what => { globalThis.vmlabGone[what] = true; });
+    (() => { const {Gio} = imports.gi;
+        vmlabWatch.register(new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}), 'settings');
+        vmlabWatch.register({}, 'control'); })(); 1" >/dev/null
+collected() { ev 'imports.system.gc(); globalThis.vmlabGone.control' | grep -q true; }
+check "25 the collector ran" wait_for 20 collected
+same "25 ...and left the settings object alone" "$(ev 'globalThis.vmlabGone.settings')" false
+
 finish

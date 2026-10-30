@@ -8,6 +8,8 @@ import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+// Before anything else makes a settings object
+import './modules/keepsettings.js';
 import {Theme} from './modules/theme.js';
 import {Style} from './modules/style.js';
 import {Comfort} from './modules/comfort.js';
