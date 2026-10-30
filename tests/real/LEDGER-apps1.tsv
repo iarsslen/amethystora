@@ -1,0 +1,17 @@
+2026-10-30 18:43:12	start	A-MANUAL-01	open on the second screen, read the tree
+2026-10-30 18:44:02	end	A-MANUAL-01	pass window, title, sidebar read
+2026-10-30 18:44:02	start	A-MANUAL-04	click pages in the list
+2026-10-30 18:44:34	step	A-MANUAL-04	A-MANUAL-05, 06
+2026-10-30 18:45:19	end	A-MANUAL-04	pass 04..06 through the tree
+2026-10-30 18:45:19	start	A-MANUAL-02	close and reopen
+2026-10-30 18:45:25	end	A-MANUAL-02	pass reopened on the page
+2026-10-30 18:45:25	start	A-MANUAL-12	search through the entry's text
+2026-10-30 18:45:45	end	A-MANUAL-12	pass search by the entry
+2026-10-30 18:46:02	start	A-MANUAL-22	section route, window open, other page and same page; closed
+2026-10-30 18:48:25	end	A-MANUAL-22	fail same page: the glide's target is read in the viewport's coordinates
+2026-10-30 18:48:25	start	A-MANUAL-19	tables, cards read in the tree
+2026-10-30 18:49:15	end	A-MANUAL-19	pass 19 in the tree
+2026-10-30 18:49:15	start	A-MANUAL-25	fr, in the tree
+2026-10-30 18:49:54	end	A-MANUAL-25	fail fr: 12 of the 20 translated pages have fewer headings
+2026-10-30 18:49:54	start	A-MANUAL-17	Copy through the tree
+2026-10-30 18:50:06	end	A-MANUAL-17	pass said Copied; clipboard not read
