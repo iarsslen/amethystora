@@ -49,9 +49,30 @@ pub fn link_accessibles(label: &gtk::Label) {
     }
     label.connect_root_notify(|label| {
         if label.root().is_some() {
-            let _ = label.first_accessible_child();
+            // GTK names none of them, so a screen reader's list of links would be blank: each takes its words
+            let mut link = label.first_accessible_child();
+            for words in link_words(&label.label()) {
+                let Some(this) = link else { break };
+                this.update_property(&[gtk::accessible::Property::Label(&words)]);
+                link = this.next_accessible_sibling();
+            }
         }
     });
+}
+
+/// The words of each link in a label's markup, in order, as they read on the screen
+fn link_words(markup: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut rest = markup;
+    while let Some(start) = rest.find("<a ") {
+        let Some(open) = rest[start..].find('>') else { break };
+        let inside = &rest[start + open + 1..];
+        let Some(end) = inside.find("</a>") else { break };
+        // Parsed on its own, for what is inside it (code, an entity) to come out as text
+        words.push(gtk::pango::parse_markup(&inside[..end], '\0').map(|(_, text, _)| text.to_string()).unwrap_or_default());
+        rest = &inside[end + 4..];
+    }
+    words
 }
 
 /// Text on one line that never wraps, for a button or a state
@@ -413,5 +434,18 @@ impl Bar {
             glib::ControlFlow::Continue
         });
         imp.tick.replace(Some(id));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::link_words;
+
+    #[test]
+    fn a_link_is_named_by_its_words() {
+        let markup = r#"See <a href="updates.md#a">Rolling <tt>back</tt></a>, <a href="b.md" title="x">Q&amp;A</a> and <b>more</b>."#;
+        assert_eq!(link_words(markup), ["Rolling back", "Q&A"]);
+        assert!(link_words("no links").is_empty());
+        assert!(link_words("<a href=\"x\">never closed").is_empty());
     }
 }
