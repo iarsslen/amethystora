@@ -599,3 +599,10 @@
 2026-10-30 18:12:42	start	D-TILESET-15	position line
 2026-10-30 18:12:42	step	D-TILESET-15	line on by gsettings; frames as focus moves left and right; reset
 2026-10-30 18:13:26	end	D-TILESET-15	pass a blue line at the bar's foot, under the focused window's place, moved with focus; gone on reset
+2026-10-30 18:13:29	start	D-TILESET-16	overview filters
+2026-10-30 18:13:29	step	D-TILESET-16	only floating on: Super, frame, Escape; leave them out on: Super, frame, Escape; reset
+2026-10-30 18:13:47	step	D-TILESET-16	float Files; only floating on: Super, frame, Escape; leave them out on: Super, frame, Escape; reset; float off
+2026-10-30 18:14:12	end	D-TILESET-16	pass with one window floated: only floating showed it alone, leave them out showed the others; settings window counts as not floated; reset
+2026-10-30 18:14:13	start	D-TILESET-17	overview close animation
+2026-10-30 18:14:13	step	D-TILESET-17	each of 0, 1, 2 by gsettings: Super, Escape with a frame right after; reset
+2026-10-30 18:14:35	end	D-TILESET-17	pass fading seen in a frame; at once and gliding not told apart since no scroll was needed; reset
