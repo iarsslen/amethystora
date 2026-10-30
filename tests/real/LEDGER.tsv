@@ -709,3 +709,22 @@
 2026-10-30 18:30:56	step	D-QUIT-04	stopped the right process; click the editor, then the Calculator, wait 12 s, frame
 2026-10-30 18:31:20	step	D-QUIT-04	Escape, frame; frozen dialog off; click editor and Calculator; wait up to 22 s, frame
 2026-10-30 18:32:01	end	D-QUIT-04	pass dialog, wait, GNOME's own, continued, put back
+2026-10-30 18:32:03	start	D-MOTION-04..09	group: minimize settings; depth switch; slide; reduce motion: kept as frames of the setting read back, each put back
+2026-10-30 18:32:17	end	D-MOTION-04..09	skip opened ahead of its turn; 01 to 03 first
+2026-10-30 18:32:17	start	D-MOTION-01..03	group: Super+H on my editor, dock icon back, again mid-flight, Files from the dock
+2026-10-30 18:32:17	step	D-MOTION-01..03	pointer on the editor's dock icon; Super+H, frames at once; click, frame; Super+H, click at once, frames; Files from the dock, frame
+2026-10-30 18:32:52	end	D-MOTION-01..03	pass droplet, turn round, Files from the dock; a pink rectangle where the window will be during its rise
+2026-10-30 18:32:52	start	D-MOTION-04..08	group: shrink, depth, slide, reduce motion, animations off, each put back
+2026-10-30 18:32:52	step	D-MOTION-04..08	shrink: Super+H, frame; icon; droplet; Super+Page Down frame, Super+2: depth, slide, reduce motion, animations off
+2026-10-30 18:33:44	step	D-MOTION-04..08	my Files closed; the group again from the plain editor: shrink, depth, slide, reduce motion, animations off
+2026-10-30 18:34:29	end	D-MOTION-04..08	fail settings applied and put back; stills too slow for the movement; animations off plus Super+Page Down with two screens logs already-disposed lines from workspaceAnimation.js via tiling patches.js, twice
+2026-10-30 18:34:29	start	D-MOTION-04	motion
+2026-10-30 18:34:29	end	D-MOTION-04	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen
+2026-10-30 18:34:29	start	D-MOTION-05	motion
+2026-10-30 18:34:29	end	D-MOTION-05	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen
+2026-10-30 18:34:29	start	D-MOTION-06	motion
+2026-10-30 18:34:29	end	D-MOTION-06	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen
+2026-10-30 18:34:29	start	D-MOTION-07	motion
+2026-10-30 18:34:29	end	D-MOTION-07	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen
+2026-10-30 18:34:29	start	D-MOTION-09	motion
+2026-10-30 18:34:29	end	D-MOTION-09	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen

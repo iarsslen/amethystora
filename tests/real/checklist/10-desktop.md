@@ -479,14 +479,14 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Motion
 
-- [ ] D-MOTION-01 Droplet minimize. How: `Super+H`, then click its dock icon. Expect: the window gathers into a drop of glass and arcs into its dock icon, a ring ripples as it lands; it rises back and swells into the window.
-- [ ] D-MOTION-02 Turn round half-way. How: minimize, click the icon again mid-flight. Expect: the window turns round from where it is.
-- [ ] D-MOTION-03 Open from the dock. How: open an app from the dock. Expect: its window grows out of its icon.
+- [x] D-MOTION-01 Droplet minimize. How: `Super+H`, then click its dock icon. Expect: the window gathers into a drop of glass and arcs into its dock icon, a ring ripples as it lands; it rises back and swells into the window. → PASS in part: stills: Super+H gathers the window into a drop of glass above the dock; the dock's icon brings it back, rising out of a blob and swelling. Arc and ring not judged from stills. A filled pink rectangle stands at the window's place behind it during the rise (frame): looks like the focus frame drawn before the window is there, not in the Expect, for the maintainer. Faults: none
+- [x] D-MOTION-02 Turn round half-way. How: minimize, click the icon again mid-flight. Expect: the window turns round from where it is. → PASS in part: a click on the icon just after Super+H: the window is back at once in the next frames, nothing lost; the turn itself not seen in stills. Faults: none
+- [x] D-MOTION-03 Open from the dock. How: open an app from the dock. Expect: its window grows out of its icon. → PASS in part: Files from the dock opens, the icon lifted, the same pink rectangle in the first frame at the window's place; the growing out of the icon not caught in a still. My Files closed. Faults: none
 - [ ] D-MOTION-04 Shrink. How: `ame desktop minimize shrink`. Expect: GNOME's own shrink-and-fade. [changes setting: put back with `ame desktop minimize droplet`]
 - [ ] D-MOTION-05 Depth switch. How: `Super+2`, `Super+1`. Expect: windows travel a whole screen, the wallpaper a third, windows step back a little.
 - [ ] D-MOTION-06 Slide. How: `ame desktop workspace-switch slide`. Expect: each workspace slides in whole. [changes setting: put back with `ame desktop workspace-switch depth`]
 - [ ] D-MOTION-07 Reduce motion. How: `ame desktop comfort reduce-motion on`; minimize and switch workspaces. Expect: windows fade in place; workspaces crossfade. [changes setting: put back with `ame desktop comfort reduce-motion off`]
-- [ ] D-MOTION-08 Animations off. How: Settings › Accessibility › animations off. Expect: nothing moves; no transition, no reveal. [changes setting: put back with animations on]
+- [!] D-MOTION-08 Animations off. How: Settings › Accessibility › animations off. Expect: nothing moves; no transition, no reveal. [changes setting: put back with animations on] → FAIL: animations off by gsettings and Super+Page Down on this two-screen machine, seen twice (18:33:13, 18:34:04): gnome-shell logs some 13 'already disposed' lines each time for workspaceAnimation's MonitorGroup, WorkspaceGroup and a Clutter.Actor, workspaceAnimation.js:311-320 from tiling/patches.js:119 and 186, windowManager.js:1640. The switch itself ended right, nothing else came of it. Stills cannot judge 'nothing moves'. Put back, read back true
 - [ ] D-MOTION-09 Animation speed. How: watch the overview and menus open. Expect: GNOME's animations a little quicker than stock (0.6 slow-down factor), never cut off.
 
 ## Workspaces and saved sets
