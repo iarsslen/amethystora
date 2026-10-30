@@ -40,38 +40,38 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Quick settings
 
-- [ ] D-QUICK-01 Layout. How: click the system menu at the right end of the bar. Expect: tiles two to a row, each saying what it knows (Wi-Fi network and strength, earbuds and their battery, the power mode); then the sliders, the apps playing sound, a swatch for every theme, and Screenshot, Lock, Settings and Power.
-- [ ] D-QUICK-02 Tile click and arrow. How: click the Wi-Fi tile, then its arrow. Expect: the click switches Wi-Fi; the arrow opens its menu inside quick settings.
-- [ ] D-QUICK-03 Arrange by holding. How: hold a tile for half a second (or `Menu` on it), drag it to another place, close and reopen. Expect: tiles shrink a little and get a round button at a corner; the moved tile stays in its new place.
-- [ ] D-QUICK-04 Hide a tile. How: in arranging mode press a tile's round button, then the same button in the **Hidden** row. Expect: the tile goes to a Hidden row and comes back. [changes setting: put back with `ame desktop quick-settings reset`]
+- [x] D-QUICK-01 Layout. How: click the system menu at the right end of the bar. Expect: tiles two to a row, each saying what it knows (Wi-Fi network and strength, earbuds and their battery, the power mode); then the sliders, the apps playing sound, a swatch for every theme, and Screenshot, Lock, Settings and Power. → PASS
+- [x] D-QUICK-02 Tile click and arrow. How: click the Wi-Fi tile, then its arrow. Expect: the click switches Wi-Fi; the arrow opens its menu inside quick settings. → PASS
+- [x] D-QUICK-03 Arrange by holding. How: hold a tile for half a second (or `Menu` on it), drag it to another place, close and reopen. Expect: tiles shrink a little and get a round button at a corner; the moved tile stays in its new place. → PASS
+- [x] D-QUICK-04 Hide a tile. How: in arranging mode press a tile's round button, then the same button in the **Hidden** row. Expect: the tile goes to a Hidden row and comes back. [changes setting: put back with `ame desktop quick-settings reset`] → PASS
 - [ ] D-QUICK-05 Arrange with the keyboard. How: in arranging mode, `Ctrl`+arrow on a tile, `Delete`, `Enter` on a hidden one, then `Esc`. Expect: moves, hides and restores as with the mouse; Done, `Esc` or closing the menu ends the mode. [changes setting: put back with `ame desktop quick-settings reset`]
-- [ ] D-QUICK-06 Reset tiles. How: `ame desktop quick-settings reset`, and Control's **Quick settings tiles**. Expect: every tile back in its first place, none hidden.
-- [ ] D-QUICK-07 Battery tile. How: open quick settings on a laptop. Expect: the first tile is the battery: how full, and when it runs out or is full. [needs: laptop]
-- [ ] D-QUICK-08 Keep the battery at 80 %. How: the battery tile's menu. Expect: **Keep the battery at 80%** where the laptop can stop charging early (absent otherwise); kept across a restart. [needs: laptop] [changes setting: put back with the same switch]
-- [ ] D-QUICK-09 Battery explained. How: open the battery tile's menu. Expect: when it will be empty or full, the watts now and since unplugged, the apps that used most since last plugged in or out (said to be an estimate), health and cycles when the battery reports them. [needs: laptop]
-- [ ] D-QUICK-10 Battery details off. How: `ame desktop power battery off`, reopen. Expect: the details are gone. [changes setting: put back with `ame desktop power battery on`] [needs: laptop]
-- [ ] D-QUICK-11 Each app's volume. How: play sound in two apps, open quick settings. Expect: under the volume slider each app has its own slider and mute button; the buttons beside "Playing now" send sound to another output.
+- [x] D-QUICK-06 Reset tiles. How: `ame desktop quick-settings reset`, and Control's **Quick settings tiles**. Expect: every tile back in its first place, none hidden. → PASS
+- [-] D-QUICK-07 Battery tile. How: open quick settings on a laptop. Expect: the first tile is the battery: how full, and when it runs out or is full. [needs: laptop] → N/A: desktop with no battery
+- [-] D-QUICK-08 Keep the battery at 80 %. How: the battery tile's menu. Expect: **Keep the battery at 80%** where the laptop can stop charging early (absent otherwise); kept across a restart. [needs: laptop] [changes setting: put back with the same switch] → N/A: desktop with no battery
+- [-] D-QUICK-09 Battery explained. How: open the battery tile's menu. Expect: when it will be empty or full, the watts now and since unplugged, the apps that used most since last plugged in or out (said to be an estimate), health and cycles when the battery reports them. [needs: laptop] → N/A: desktop with no battery
+- [-] D-QUICK-10 Battery details off. How: `ame desktop power battery off`, reopen. Expect: the details are gone. [changes setting: put back with `ame desktop power battery on`] [needs: laptop] → N/A: desktop with no battery
+- [!] D-QUICK-11 Each app's volume. How: play sound in two apps, open quick settings. Expect: under the volume slider each app has its own slider and mute button; the buttons beside "Playing now" send sound to another output. → FAIL: not fixed here: each app has its slider and mute, and the output buttons work as drawn, but the heading reads PLAYING NO… and both outputs read HDMI / Display…: two outputs with long names clip the heading and cannot be told apart
 - [ ] D-QUICK-12 Theme swatch. How: tap a swatch. Expect: the desktop and Amethystora's apps switch to that theme at once, revealed by the transition; other apps at their next start.
-- [ ] D-QUICK-13 Hide the swatches. How: `ame desktop quick-settings theme off`, reopen; `on`. Expect: the swatches go, then come back. [changes setting: put back with `ame desktop quick-settings theme on`]
+- [x] D-QUICK-13 Hide the swatches. How: `ame desktop quick-settings theme off`, reopen; `on`. Expect: the swatches go, then come back. [changes setting: put back with `ame desktop quick-settings theme on`] → PASS
 - [ ] D-QUICK-14 Phone tile. How: with a paired phone connected. Expect: a tile with the phone and its battery; a click opens the Phone app. [needs: phone]
-- [ ] D-QUICK-15 Focus tile. How: open the **Focus** tile. Expect: chips Off, Work, Games and Sleep; it says what the profile does and when it ends: when turned off, after **1 hour**, or **tomorrow** (06:00).
+- [x] D-QUICK-15 Focus tile. How: open the **Focus** tile. Expect: chips Off, Work, Games and Sleep; it says what the profile does and when it ends: when turned off, after **1 hour**, or **tomorrow** (06:00). → PASS
 - [ ] D-QUICK-16 Screenshot, Lock, Settings, Power buttons. How: click each at the foot of quick settings. Expect: each does its job (screenshot bar, lock, GNOME Settings, power menu), and the menu closes first.
 
 ## Today and the calendar menu
 
-- [ ] D-TODAY-01 Calendar menu. How: click the clock, or `Super+V`. Expect: notifications, the calendar, events, world clocks, in the current style's shape; `Super+V` again closes it.
+- [x] D-TODAY-01 Calendar menu. How: click the clock, or `Super+V`. Expect: notifications, the calendar, events, world clocks, in the current style's shape; `Super+V` again closes it. → PASS
 - [ ] D-TODAY-02 Today's tasks. How: in Notes add a task due today and one overdue, keep Notes open and unlocked, open the calendar menu. Expect: both listed on today's page only; a click opens Notes' tasks; with an encrypted Notes locked or closed, none.
-- [ ] D-TODAY-03 Tasks off. How: `ame desktop today tasks off`. Expect: no tasks section. [changes setting: put back with `ame desktop today tasks on`]
-- [ ] D-TODAY-04 Getting set. How: on an account younger than four weeks, open the calendar menu. Expect: **Getting set** first: Pick a look, automatic updates, a backup, a PIN for the disk (left out on an unencrypted disk), pairing the phone; each ticked by what the machine says, never by a click; a click opens the place that does it, the security line opens Security.
-- [ ] D-TODAY-05 Getting set Hide. How: click **Hide**. Expect: it goes for good, as `ame desktop getting-set off` does. [changes setting: put back with `ame desktop getting-set on`]
-- [ ] D-TODAY-06 Weather while off. How: with the weather off, open the calendar menu. Expect: its place says it is off and what it sends, with **Turn on…**, which asks once more before turning it on.
-- [ ] D-TODAY-07 Weather on. How: `ame desktop weather on` (it says what it sends), with a place chosen in GNOME Weather. Expect: temperature and sky beside the clock and in the calendar menu; with no place in Weather, the menu offers to open it. [changes setting: put back with `ame desktop weather off`]
-- [ ] D-TODAY-08 Timer buttons. How: at the end of the calendar's column, under **Start a timer**. Expect: buttons 1, 5, 10 and 25 minutes; a click starts it in the pill and closes nothing unexpected.
-- [ ] D-TODAY-09 World clocks. How: add a world clock in GNOME Clocks, open the calendar menu. Expect: it is listed with its time.
+- [x] D-TODAY-03 Tasks off. How: `ame desktop today tasks off`. Expect: no tasks section. [changes setting: put back with `ame desktop today tasks on`] → PASS
+- [x] D-TODAY-04 Getting set. How: on an account younger than four weeks, open the calendar menu. Expect: **Getting set** first: Pick a look, automatic updates, a backup, a PIN for the disk (left out on an unencrypted disk), pairing the phone; each ticked by what the machine says, never by a click; a click opens the place that does it, the security line opens Security. → PASS (ticks follow the machine: 2 of 5 here; a row's click not tried on every row)
+- [x] D-TODAY-05 Getting set Hide. How: click **Hide**. Expect: it goes for good, as `ame desktop getting-set off` does. [changes setting: put back with `ame desktop getting-set on`] → PASS
+- [x] D-TODAY-06 Weather while off. How: with the weather off, open the calendar menu. Expect: its place says it is off and what it sends, with **Turn on…**, which asks once more before turning it on. → PASS
+- [x] D-TODAY-07 Weather on. How: `ame desktop weather on` (it says what it sends), with a place chosen in GNOME Weather. Expect: temperature and sky beside the clock and in the calendar menu; with no place in Weather, the menu offers to open it. [changes setting: put back with `ame desktop weather off`] → PASS (temperature and sky beside the clock and in the calendar menu, as this machine has it; turning it on again from off not re-run)
+- [x] D-TODAY-08 Timer buttons. How: at the end of the calendar's column, under **Start a timer**. Expect: buttons 1, 5, 10 and 25 minutes; a click starts it in the pill and closes nothing unexpected. → PASS
+- [!] D-TODAY-09 World clocks. How: add a world clock in GNOME Clocks, open the calendar menu. Expect: it is listed with its time. → FAIL: fixed in 240bf6f, not seen working here (needs the image): a clock is listed with its time, added here through its setting, but the heading reads World Cloc…, and the weather's Weath… and Ottaw…
 
 ## Live pill
 
-- [ ] D-PILL-01 Pill at rest. How: with nothing happening, look at the clock. Expect: exactly GNOME's clock, no pill.
+- [x] D-PILL-01 Pill at rest. How: with nothing happening, look at the clock. Expect: exactly GNOME's clock, no pill. → PASS
 - [ ] D-PILL-02 Timer. How: start a 1-minute timer from the calendar menu. Expect: the pill counts down; its card adds a minute, pauses, cancels; the timer buttons add that many minutes; at the end a sound, a notification (even while quiet) and **Timer done**.
 - [ ] D-PILL-03 Timer while locked. How: start a 1-minute timer, lock for two minutes, unlock. Expect: it rings as soon as you unlock.
 - [ ] D-PILL-04 What is playing. How: play music or a video in an app that reports to the desktop. Expect: the cover, title and artist and a small pause button that works; the card has Back, Pause, Next and how far in; a paused player stays ten minutes.
