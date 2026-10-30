@@ -615,3 +615,6 @@
 2026-10-30 18:15:27	start	cleanup	close my Files and the settings window
 2026-10-30 18:15:27	step	cleanup	Files with Super+W under the guard; settings window from the dock then Super+W
 2026-10-30 18:15:37	end	cleanup	pass windows closed; the scratch editor stays
+2026-10-30 18:15:58	start	cleanup	workspace 2's position-line memory left by D-TILESET-20
+2026-10-30 18:15:58	step	cleanup	Super+Ctrl+B twice on workspace 2; read the state file; frame of the bar
+2026-10-30 18:16:10	end	cleanup	pass state file holds no hidden bar; bar shown
