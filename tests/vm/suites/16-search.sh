@@ -88,12 +88,30 @@ enabled="$(user_bus gsettings get org.gnome.shell enabled-extensions)"
 [[ ${enabled} == *vmlab-eval@lab* ]] || user_bus gsettings set org.gnome.shell enabled-extensions "${enabled%]*}, 'vmlab-eval@lab']"
 loginctl unlock-sessions
 systemctl restart gdm
+# The new session's login keyring is locked again (GDM's automatic login), and lib.sh unlocks it once a boot only: the
+# first Flatpak to ask for a secret (Text Editor, step 12) would bring up GNOME's modal unlock dialog, which takes every
+# key after it. Unlocked once the new shell is up, and never waited on for long (a dialog already up holds it).
+fresh_keyring() {
+    unlock_login_keyring &
+    local pid=$!
+    wait_for 20 sh -c "! kill -0 ${pid} 2>/dev/null" || kill "${pid}" 2>/dev/null
+}
 search_ready() { [[ "$(ev "typeof ${S}?.snapshot")" == function ]]; }
 if ! wait_for 240 has_session || ! wait_for 120 search_ready; then
     not_ok "the search module did not start in the session"
     finish
 fi
-overview_hidden() { ev "Main.overview.hide(); 'hidden'" >/dev/null; [[ "$(ev "Main.overview.visible")" == false ]]; }
+fresh_keyring
+# The overview a session starts in, gone for good: the startup over (it shows the overview at its end), and the shell
+# in its normal mode, where the card's key works (no overview, no modal dialog)
+overview_hidden() {
+    ev "Main.overview.hide(); 'hidden'" >/dev/null
+    [[ "$(ev "!Main.layoutManager._startingUp && !Main.overview.visible && Main.actionMode === Shell.ActionMode.NORMAL")" == true ]]
+}
+# What keeps the card's key from it, for a failure's note
+shell_state() {
+    ev "'action mode ' + Main.actionMode + ', modal ' + Main.modalCount + ', overview ' + Main.overview.visible + ', key focus ' + global.stage.key_focus"
+}
 wait_for 20 overview_hidden
 # The lab's own theme and locale, read first, so that every path (the trap's too) puts back what the account had: its
 # language in AccountsService (GDM's LANG at the next login, as suite 42 sets it), its region, and what the shell reads
@@ -123,6 +141,7 @@ relogin() {
     loginctl unlock-sessions
     systemctl restart gdm
     wait_for 240 has_session && wait_for 120 new_shell || return 1
+    fresh_keyring
     wait_for 20 overview_hidden
 }
 # The lab's locale back: the account's language and region, the manager's LC_NUMERIC, a new session; false unless the
@@ -165,7 +184,7 @@ place_ok() {
     if ((top >= want_top - 1 && top <= want_top + 1)); then ok "2 its top edge at 11% of the work area (scale ${scale})"; else not_ok "2 its top" "expected ${want_top}" "found ${top}"; fi
 }
 search ""
-check "2 Super+Space opens the card" card_open
+if card_open; then ok "2 Super+Space opens the card"; else not_ok "2 Super+Space opens the card" "$(shell_state)"; fi
 place_ok
 close_card
 gs set org.gnome.desktop.interface scaling-factor 2
@@ -175,7 +194,8 @@ if soon 10 scaled; then
     place_ok
     close_card
 else
-    not_ok "2 the screen did not go to scale 2"
+    # org.gnome.desktop.interface scaling-factor is X11's: a Wayland session's scale is the monitor's own
+    skip "2 the screen did not go to scale 2 (scaling-factor is X11's; the lab's Wayland monitor stays at 1)"
 fi
 gs reset org.gnome.desktop.interface scaling-factor
 unscaled() { [[ "$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")" == 1 ]]; }
@@ -301,9 +321,13 @@ same "11 the spec's question finds Night Light" "$(q '[.sections[] | select(.id 
     "Getting around › Night Light and the screen's colour"
 search "rolling back"
 place="$(q '[.sections[].rows[]] | map(.title) | index("Updates › Rolling back")')"
-[[ "${place}" =~ ^[0-9]+$ ]] && keys "ctrl+$((place + 1))"
 manual_open() { [[ "$(ev "global.display.get_tab_list(0, null).some(w => w.get_wm_class() === 'org.amethystora.Manual')")" == true ]]; }
-check "11 Ctrl+N opens the Manual" wait_for 15 manual_open
+if [[ "${place}" =~ ^[0-9]+$ ]] && ((place < 9)); then
+    keys "ctrl+$((place + 1))"
+    check "11 Ctrl+N opens the Manual" wait_for 30 manual_open
+else
+    not_ok "11 Ctrl+N opens the Manual" "Updates › Rolling back is result '${place}', not one of the nine" "$(shell_state)"
+fi
 ev "global.display.get_tab_list(0, null).filter(w => w.get_wm_class() === 'org.amethystora.Manual').forEach(w => w.delete(0)); 'closed'" >/dev/null
 
 # --- 12: clip: ------------------------------------------------------------------------------------------------------
@@ -329,10 +353,14 @@ else
     not_ok "12 Text Editor did not open"
 fi
 user_bus systemctl --user stop vmlab-16-editor >/dev/null 2>&1
-gs set org.gnome.shell.extensions.amethystora-clipboard private-mode true
+# Private mode is the clipboard menu's switch, kept in no setting
+private_mode() {
+    ev "(() => { const c = Main.extensionManager.lookup('amethystora-clipboard@iarsslen.github.io').stateObj.clipboardIndicator; if (c.privateModeMenuItem.state !== $1) c.togglePrivateMode(); return String(c.privateModeMenuItem.state); })()"
+}
+same "12 private mode on" "$(private_mode true)" true
 search "clip:"
 same "12 private mode shows nothing" "$(q '[.sections[].id] | index("amethystora-clipboard")')" null
-gs reset org.gnome.shell.extensions.amethystora-clipboard private-mode
+private_mode false >/dev/null
 close_card
 
 # --- 13: the agent row ----------------------------------------------------------------------------------------------
@@ -345,9 +373,13 @@ check "13 within 3 s the row is last" soon 3 agent_last
 same "13 its header" "$(q '.sections[-1].title')" "THE AGENT"
 same "13 its row" "$(q '.sections[-1].rows[0].title')" "Ask the agent: ${QUESTION}"
 place="$(q '[.sections[].rows[]] | length')"
-((place <= 9)) && keys "ctrl+${place}"
 asked() { pgrep -af "amethystora-agent ask -- ${QUESTION}" >/dev/null; }
-check "13 Enter starts amethystora-agent ask -- QUESTION" soon 5 asked
+if [[ "${place}" =~ ^[0-9]+$ ]] && ((place >= 1 && place <= 9)); then
+    keys "ctrl+${place}"
+    check "13 Ctrl+${place} starts amethystora-agent ask -- QUESTION" soon 5 asked
+else
+    not_ok "13 the agent row has a Ctrl key" "it is result '${place}', past the nine" "$(snap)"
+fi
 pkill -f "amethystora-agent ask --" 2>/dev/null
 pkill -f "xdg-terminal-exec .*amethystora-agent" 2>/dev/null
 search "-rf"
