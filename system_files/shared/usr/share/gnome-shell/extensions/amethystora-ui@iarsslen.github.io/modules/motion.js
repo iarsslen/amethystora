@@ -419,7 +419,7 @@ export class Motion {
         const t0 = {x: actor.translation_x, y: actor.translation_y};
         const rise = new Rise(actor, {
             reduced: this._reduced,
-            rest: () => this._tilingRest(actor, t0),
+            rest: () => this._tilingRest(actor, actor.meta_window?.get_frame_rect(), t0),
             onEnd: r => this._endRise(r),
         });
         this._risings.set(actor, rise);

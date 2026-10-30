@@ -562,6 +562,7 @@ check "15 within 100 ms the window is a little smaller and lower" python3 -c "im
 first=[x for x in l if x[0]==l[0][0]][0]; sys.exit(0 if 0.89 < first[1] < 1 and first[2] > 0 else 1)" "${rise}"
 check "15 600 ms later it is in place" python3 -c "import json,sys; l=json.loads(sys.argv[1]);
 last=[x for x in l if x[0]==l[0][0]][1]; sys.exit(0 if last[1] == 1 and abs(last[2]) < 0.5 and last[3] == 255 else 1)" "${rise}"
+same "15 it rests where the strip draws it" "$(ev "(() => { const e = ${UI}.get('tiling').engine; const windows = e.strips().flatMap(s => s.windows).filter(w => w.get_workspace() === global.workspace_manager.get_active_workspace()); return windows.length > 0 && windows.every(w => { const f = w.get_frame_rect(), a = w.get_compositor_private(), v = e.info(w).vis; return Math.abs(f.x + a.translation_x - v.x) <= 1 && Math.abs(f.y + a.translation_y - v.y) <= 1; }); })()")" true
 ev "global.window_manager.disconnectObject(globalThis); 1" >/dev/null
 close_all
 gs set org.gnome.desktop.a11y.interface reduced-motion "'reduce'"
