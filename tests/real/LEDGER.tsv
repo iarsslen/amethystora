@@ -728,3 +728,20 @@
 2026-10-30 18:34:29	end	D-MOTION-07	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen
 2026-10-30 18:34:29	start	D-MOTION-09	motion
 2026-10-30 18:34:29	end	D-MOTION-09	skip the screenshot takes longer than the movement; setting tried and put back, the look not seen
+2026-10-30 18:34:31	start	D-WS-01..03	group: number keys, take my editor to a workspace, previous and next, swap with neighbour and back
+2026-10-30 18:34:31	step	D-WS-01..03	Super+4, frame; Super+Shift+3 takes nothing; Super+2; Super+Shift+4, frame; Super+Ctrl+Page Up, frame; Super+Ctrl+Page Down; Super+Ctrl+Alt+Right, frame; Left; frames
+2026-10-30 18:34:54	step	D-WS-01..03	my editor back to 2; Super+Ctrl+Alt+Right, frame; Left, frame; overview, frame
+2026-10-30 18:35:15	end	D-WS-01..03	pass numbers, take, previous and next, swap each seen
+2026-10-30 18:35:15	start	D-WS-04	drag my editor to workspace 4's card in the overview
+2026-10-30 18:35:15	step	D-WS-04	overview open; drag the editor onto the fourth picture; frame; Escape; back to 2
+2026-10-30 18:35:33	step	D-WS-04	first drop missed; again onto the card at x 1445; frame
+2026-10-30 18:35:49	end	D-WS-04	skip the drag reaches the cards and the clone shrinks over them, two drops left the window on 2: not settled with injected input
+2026-10-30 18:35:49	start	D-WS-05..08	group: save workspace 2 as a set, open it on an empty workspace, forget it, sets off and on
+2026-10-30 18:35:49	step	D-WS-05..08	right-click workspace 2 in the bar; frame
+2026-10-30 18:36:00	step	D-WS-05..08	click Save this workspace, frame; Super+4; right-click 4 in the bar, frame
+2026-10-30 18:36:21	step	D-WS-05..08	homing passed over the logo and switched menus; Escape; Super+2; right-click 2, straight down to Save, click, frame; Super+4; right-click 4, frame
+2026-10-30 18:36:44	step	D-WS-05..08	click the set on empty 4, frame
+2026-10-30 18:37:00	step	D-WS-05..08	frame again to see the pink rectangle; my new window closed; right-click 4, frame; cross on the set
+2026-10-30 18:37:15	step	D-WS-05..08	hover the set row, frame whole screen; cross
+2026-10-30 18:37:35	step	D-WS-05..08	click the cross, frame; Escape; save a set again, sets off, menu frame, on, menu frame, forget
+2026-10-30 18:38:00	end	D-WS-05..08	pass saved, opened on an empty workspace, forgot, off and on; set forgotten; a frame stuck beside the window and a label left

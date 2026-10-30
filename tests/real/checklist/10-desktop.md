@@ -491,14 +491,14 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Workspaces and saved sets
 
-- [ ] D-WS-01 Number keys. How: `Super+1`…`Super+6`, `Super+Shift+3`. Expect: go to that workspace; take the window there.
-- [ ] D-WS-02 Window to next / previous. How: `Super+Ctrl+Page Up` / `Page Down`. Expect: the window goes to the previous / next workspace.
-- [ ] D-WS-03 Swap workspaces. How: `Super+Ctrl+Alt+Left` / `Right`. Expect: the workspace swaps with its neighbour, windows and name included; stops at the first and last place.
+- [x] D-WS-01 Number keys. How: `Super+1`…`Super+6`, `Super+Shift+3`. Expect: go to that workspace; take the window there. → PASS: Super+4 goes to 4; Super+Shift+4 takes my editor there, the view following; Super+2 back. Super+1 not pressed (the coordinator's terminal), 3, 5 and 6 not each pressed. Faults: none
+- [x] D-WS-02 Window to next / previous. How: `Super+Ctrl+Page Up` / `Page Down`. Expect: the window goes to the previous / next workspace. → PASS in part: Super+Ctrl+Page Up from 4 takes the editor to 2, Page Down back to 4: with 3 shown by the other screen it is passed over, each way, which the Expect does not say. Faults: none
+- [x] D-WS-03 Swap workspaces. How: `Super+Ctrl+Alt+Left` / `Right`. Expect: the workspace swaps with its neighbour, windows and name included; stops at the first and last place. → PASS in part: Super+Ctrl+Alt+Right on 2 swaps it with 3, window and label together; Left back. The stops at the first and last place and a name going along not tried: the first place holds the coordinator's terminal. Faults: none
 - [ ] D-WS-04 Drag a window to a workspace card. How: in the overview, drag a window onto a workspace picture at the top. Expect: it moves there.
-- [ ] D-WS-05 Save a set. How: right-click a workspace › **Save this workspace**. Expect: a set named after the workspace under **Sets** in the same menu.
-- [ ] D-WS-06 Open a set. How: close the windows, click the set. Expect: its apps start and each window goes to its place on the workspace you are on (if empty, else the next empty one); with tiling, same order and widths; nothing closed.
-- [ ] D-WS-07 Forget a set. How: the cross on a set. Expect: forgotten.
-- [ ] D-WS-08 Sets off. How: `ame desktop sets off`. Expect: no Sets in the menu; saved sets kept for `on`. [changes setting: put back with `ame desktop sets on`]
+- [x] D-WS-05 Save a set. How: right-click a workspace › **Save this workspace**. Expect: a set named after the workspace under **Sets** in the same menu. → PASS: right-click on workspace 2 in the bar, Save this workspace: Saved as Text Editor, a set under Sets in that menu and on the other workspaces' menus. An empty workspace's button reads Nothing to save here. Faults: none
+- [!] D-WS-06 Open a set. How: close the windows, click the set. Expect: its apps start and each window goes to its place on the workspace you are on (if empty, else the next empty one); with tiling, same order and widths; nothing closed. → FAIL: not closing the scratch editor, on empty workspace 4: a click on the set started Text Editor there, nothing closed, so the app and workspace were right. But the new window sat at the right of the screen, x 1296 to 2550, and a filled pink rectangle, the window's frame colour, stood at the set's place, x 640 to 1920, unmoving for 15 s until the window was closed. And workspace 4's bar label still read Text Editor with no window on it, also after going to 2 and back, workspace-names empty. Width and order with more than one window not tried. My window closed. Faults: none
+- [x] D-WS-07 Forget a set. How: the cross on a set. Expect: forgotten. → PASS: the cross on the set's row (shown on hover): gone from the menu, the sets file empty. Faults: none
+- [x] D-WS-08 Sets off. How: `ame desktop sets off`. Expect: no Sets in the menu; saved sets kept for `on`. [changes setting: put back with `ame desktop sets on`] → PASS in part: ame desktop sets off: neither Save nor Sets in the menu; on, read back. Saved sets kept not seen, the one saved had been forgotten first. Faults: none
 
 ## Themes
 
