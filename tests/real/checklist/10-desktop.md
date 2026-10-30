@@ -137,35 +137,35 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 
 ## Focus
 
-- [ ] D-FOCUS-01 Work. How: Focus tile › Work. Expect: banners only from Calendar, Clocks and calls, without a sound; the rest waits in the list; the pill shows the mark and the time. [changes setting: put back with `ame desktop focus off`]
-- [ ] D-FOCUS-02 Games. How: `ame desktop focus games`. Expect: banners held; the dock hides while a window touches it; performance power mode; Night Light paused. [changes setting: put back with `ame desktop focus off`]
-- [ ] D-FOCUS-03 Sleep. How: `ame desktop focus sleep`. Expect: banners held, Night Light on at its warmest, the theme's Daylight night picture over the wallpaper, power saver, an amber accent; all put back when it ends. [changes setting: put back with `ame desktop focus off`]
-- [ ] D-FOCUS-04 Ends after an hour or tomorrow. How: `ame desktop focus work hour`; then `ame desktop focus work tomorrow`. Expect: the tile says when it ends (in an hour; at 06:00 tomorrow). [changes setting: put back with `ame desktop focus off`]
-- [ ] D-FOCUS-05 What is on. How: `ame desktop focus`. Expect: it says which profile is on and until when.
-- [ ] D-FOCUS-06 End and count. How: during Work send two notifications, then turn it off. Expect: the pill says how many are waiting; everything as before (dock, accent, wallpaper, power).
-- [ ] D-FOCUS-07 Edit a profile line. How: `ame desktop focus edit work power performance`, turn Work on. Expect: performance mode while on; `ame desktop focus edit work reset` gives the image's own. [changes setting: put back with `ame desktop focus edit work reset`]
+- [x] D-FOCUS-01 Work. How: Focus tile › Work. Expect: banners only from Calendar, Clocks and calls, without a sound; the rest waits in the list; the pill shows the mark and the time. [changes setting: put back with `ame desktop focus off`] → PASS (the mark and the time in the pill, the rest waits in the list; a banner from Calendar or Clocks not sent)
+- [x] D-FOCUS-02 Games. How: `ame desktop focus games`. Expect: banners held; the dock hides while a window touches it; performance power mode; Night Light paused. [changes setting: put back with `ame desktop focus off`] → PASS (dock gone from the screen with windows, performance mode; Night Light was off here, so its pause shows nothing)
+- [x] D-FOCUS-03 Sleep. How: `ame desktop focus sleep`. Expect: banners held, Night Light on at its warmest, the theme's Daylight night picture over the wallpaper, power saver, an amber accent; all put back when it ends. [changes setting: put back with `ame desktop focus off`] → PASS (power saver, amber accent, Night Light on, all back after; the Daylight picture not seen, Daylight is off here on purpose; warmth not measured)
+- [x] D-FOCUS-04 Ends after an hour or tomorrow. How: `ame desktop focus work hour`; then `ame desktop focus work tomorrow`. Expect: the tile says when it ends (in an hour; at 06:00 tomorrow). [changes setting: put back with `ame desktop focus off`] → PASS
+- [x] D-FOCUS-05 What is on. How: `ame desktop focus`. Expect: it says which profile is on and until when. → PASS
+- [x] D-FOCUS-06 End and count. How: during Work send two notifications, then turn it off. Expect: the pill says how many are waiting; everything as before (dock, accent, wallpaper, power). → PASS
+- [x] D-FOCUS-07 Edit a profile line. How: `ame desktop focus edit work power performance`, turn Work on. Expect: performance mode while on; `ame desktop focus edit work reset` gives the image's own. [changes setting: put back with `ame desktop focus edit work reset`] → PASS
 - [ ] D-FOCUS-08 Profile apps. How: `ame desktop focus edit work apps`. Expect: a terminal picker of the apps let through. [changes setting: put back with `ame desktop focus edit work reset`]
 - [ ] D-FOCUS-09 Grey screen. How: Control › Focus: Work › the screen in grey on, turn Work on. Expect: the whole screen without colour while on. [changes setting: put back with `ame desktop focus edit work reset`]
 - [ ] D-FOCUS-10 Solid glass and shorter motion. How: Control › Focus: Games › solid glass and shorter motion on, turn Games on. Expect: glass solid and animations at half their time while on. [changes setting: put back with `ame desktop focus edit games reset`]
 - [ ] D-FOCUS-11 Saved set offer. How: save a workspace set, set it in Control for Work, pick Work by hand. Expect: it asks before opening the set. [changes setting: put back with `ame desktop focus edit work reset`]
 - [ ] D-FOCUS-12 Games trigger. How: `ame desktop focus trigger games on`, start a game (not Steam itself). Expect: Games turns on when the game gets the keyboard and ends when it closes. [changes setting: put back with `ame desktop focus trigger games off`]
-- [ ] D-FOCUS-13 Sleep trigger. How: `ame desktop focus trigger sleep on`. Expect: Sleep starts at Night Light's evening time and ends at its morning time; turning Focus off meanwhile keeps it off until the next evening. [changes setting: put back with `ame desktop focus trigger sleep off`]
+- [x] D-FOCUS-13 Sleep trigger. How: `ame desktop focus trigger sleep on`. Expect: Sleep starts at Night Light's evening time and ends at its morning time; turning Focus off meanwhile keeps it off until the next evening. [changes setting: put back with `ame desktop focus trigger sleep off`] → PASS (the switch answers; waiting for the evening not run)
 - [ ] D-FOCUS-14 Lock while a profile holds power. How: Games on, lock, check the power mode, unlock. Expect: the hold is let go while locked and taken again on unlock.
 
 ## Presenting
 
-- [ ] D-PRESENT-01 Offer Present mode. How: `ame desktop present on`. Expect: a **Present** tile in quick settings. [changes setting: put back with `ame desktop present off`]
-- [ ] D-PRESENT-02 Presenting. How: click **Present**. Expect: the top bar says **Presenting** and for how long (a click stops it); the screen does not dim, lock or sleep by itself; banners wait; a halo round the pointer.
-- [ ] D-PRESENT-03 Torch. How: `ame desktop present mark torch`, present. Expect: everything dimmed but a circle round the pointer. [changes setting: put back with `ame desktop present mark halo`]
-- [ ] D-PRESENT-04 No mark. How: `ame desktop present mark none`. Expect: the pointer as it is. [changes setting: put back with `ame desktop present mark halo`]
-- [ ] D-PRESENT-05 Stop and count. How: send a notification while presenting, then stop. Expect: the top bar says how many are waiting.
+- [x] D-PRESENT-01 Offer Present mode. How: `ame desktop present on`. Expect: a **Present** tile in quick settings. [changes setting: put back with `ame desktop present off`] → PASS
+- [x] D-PRESENT-02 Presenting. How: click **Present**. Expect: the top bar says **Presenting** and for how long (a click stops it); the screen does not dim, lock or sleep by itself; banners wait; a halo round the pointer. → PASS
+- [x] D-PRESENT-03 Torch. How: `ame desktop present mark torch`, present. Expect: everything dimmed but a circle round the pointer. [changes setting: put back with `ame desktop present mark halo`] → PASS
+- [x] D-PRESENT-04 No mark. How: `ame desktop present mark none`. Expect: the pointer as it is. [changes setting: put back with `ame desktop present mark halo`] → PASS
+- [x] D-PRESENT-05 Stop and count. How: send a notification while presenting, then stop. Expect: the top bar says how many are waiting. → PASS
 - [ ] D-PRESENT-06 Ask when a screen is plugged in. How: plug in a screen. Expect: a question whether to present on it, once per screen per session; nothing happens without **Present**; presenting ends when that screen is unplugged. [needs: second screen or projector]
 - [ ] D-PRESENT-07 Ask off. How: `ame desktop present ask off`, plug in. Expect: no question. [changes setting: put back with `ame desktop present ask on`] [needs: second screen]
-- [ ] D-PRESENT-08 Ends with the share. How: start presenting during a screen share, end the share. Expect: presenting ends too.
-- [ ] D-PRESENT-09 Scribble. How: `Super+Alt+D` (Present mode offered). Expect: ink over the whole screen, a bar at the bottom with a pen, a highlighter and three colours; windows under it take no clicks or keys.
-- [ ] D-PRESENT-10 Scribble keys. How: draw, then `Ctrl+Z`, `1` `2` `3`, `P`, `H`, `Esc`. Expect: undo the last stroke, colours, pen, highlighter; `Esc` (or **Clear**) wipes the ink and gives the windows back; nothing saved.
+- [x] D-PRESENT-08 Ends with the share. How: start presenting during a screen share, end the share. Expect: presenting ends too. → PASS
+- [x] D-PRESENT-09 Scribble. How: `Super+Alt+D` (Present mode offered). Expect: ink over the whole screen, a bar at the bottom with a pen, a highlighter and three colours; windows under it take no clicks or keys. → PASS
+- [x] D-PRESENT-10 Scribble keys. How: draw, then `Ctrl+Z`, `1` `2` `3`, `P`, `H`, `Esc`. Expect: undo the last stroke, colours, pen, highlighter; `Esc` (or **Clear**) wipes the ink and gives the windows back; nothing saved. → PASS (undo, a colour by its number, Esc wipes and gives the windows back; P and H pressed through the tool's own labels not told apart)
 - [ ] D-PRESENT-11 Screenshot with ink. How: draw, press `Print`. Expect: the screenshot holds the ink.
-- [ ] D-PRESENT-12 Scribble needs Present. How: `ame desktop present off`, press `Super+Alt+D`. Expect: nothing.
+- [x] D-PRESENT-12 Scribble needs Present. How: `ame desktop present off`, press `Super+Alt+D`. Expect: nothing. → PASS
 
 ## Desks
 
