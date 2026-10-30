@@ -5,6 +5,7 @@
 
 import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import Graphene from 'gi://Graphene';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
@@ -52,6 +53,13 @@ export class Keep {
             const menu = this._manager?.activeMenu;
             if (!menu || menu === before || !(menu instanceof WindowMenu))
                 return;
+            // GNOME destroys this menu as it closes, in the click on one of its lines, whose press then ends on a line
+            // that is gone: the menu goes just after that event instead
+            const destroy = menu.destroy;
+            menu.destroy = () => GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                destroy.call(menu);
+                return GLib.SOURCE_REMOVE;
+            });
             try {
                 keep._addItem(menu, window);
             } catch (e) {

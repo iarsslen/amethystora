@@ -385,6 +385,15 @@ focus="$(ev "global.display.focus_window?.get_id()")"
 keys esc >/dev/null
 sleep 0.5
 check "Escape closes the fan and changes nothing" test "$(ev "JSON.stringify([global.display.focus_window?.get_id(), ${S}.fan.open, Main.modalCount])")" == "[${focus},false,0]"
+# A line of its menu, by the pointer: the click goes on after the fan closes, so an "already disposed" fails this suite
+pinned="$(user_bus gsettings get org.gnome.shell favorite-apps)"
+vp "const p = mid(item('org.gnome.Nautilus.desktop').rest); click(p[0], p[1], 3); 1" >/dev/null
+sleep 1
+vp "const line = ${DOCK}.fan._menu._toggleFavoriteItem; const [x, y] = line.get_transformed_position(); const [w, h] = line.get_transformed_size(); click(x + w / 2, y + h / 2, 1); 1" >/dev/null
+sleep 0.5
+check "a click on a line of the fan's menu closes the fan" test "$(ev "JSON.stringify([${S}.fan.open, Main.modalCount])")" == "[false,0]"
+user_bus gsettings set org.gnome.shell favorite-apps "${pinned}"
+settle
 # Firefox, pinned by the image and without a window here
 vp "const p = mid(item('org.mozilla.firefox.desktop').rest); click(p[0], p[1], 3); 1" >/dev/null
 sleep 0.8

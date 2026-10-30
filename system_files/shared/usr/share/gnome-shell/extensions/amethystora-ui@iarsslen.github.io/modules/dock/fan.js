@@ -7,6 +7,7 @@
 // of its own, on a layer that carries the veil, the windows and its own copy of the app's menu.
 
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -351,7 +352,13 @@ export class Fan {
         this._menu = null;
         if (menu) {
             menu.close(BoxPointer.PopupAnimation.NONE);
-            menu.destroy();
+            // A click on one of its lines ends here: GNOME goes on to close this menu and to end the press on that
+            // line once its signal returns, so the menu outlives the event, and the layer, which may go at once
+            menu.actor.get_parent()?.remove_child(menu.actor);
+            GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                menu.destroy();
+                return GLib.SOURCE_REMOVE;
+            });
         }
         const icon = this._icon;
         const dash = this._dash;
