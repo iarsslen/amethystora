@@ -2391,6 +2391,8 @@ grep -q '^desks \*ARGS:' /usr/share/amethystora/just/desktop.just
 # First start (manual: desktop.md#the-reveal-at-login, #tips, #the-app-grid, #gestures-and-keys). The reveal at login, a
 # key of the transitions extension, its own file, imported; ame desktop transition reveal on|off
 TRANSITIONS_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io
+# A field named as a method hides it: the reveal after every theme or wallpaper change threw once one did
+grep -q 'this\._reveal = ' "${TRANSITIONS_EXTENSION}/extension.js" && false
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-transitions reveal)" == true ]]
 test -s "${TRANSITIONS_EXTENSION}/reveal.js"
 grep -q "^import {Reveal} from './reveal.js';" "${TRANSITIONS_EXTENSION}/extension.js"

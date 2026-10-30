@@ -226,14 +226,14 @@ export default class TransitionsExtension extends Extension {
         this._dbus.export(Gio.DBus.session, '/org/amethystora/Transitions');
 
         // The reveal at login, which only happens while GNOME is starting
-        this._reveal = new Reveal(this._settings);
-        this._reveal.start();
+        this._loginReveal = new Reveal(this._settings);
+        this._loginReveal.start();
     }
 
     disable() {
         // The top bar is never left hidden or out of place
-        this._reveal?.stop();
-        this._reveal = null;
+        this._loginReveal?.stop();
+        this._loginReveal = null;
         this._dbus.unexport();
         this._injections.clear();
         for (const settings of this._watched)
