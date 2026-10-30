@@ -9,7 +9,7 @@
 #   - the app grid's six folders and the row of the apps used most.
 # The lab renders in software, where GNOME turns animations off: the new account's shell is started with
 # --force-animations (a drop-in of its own user unit), and the lab's Eval extension is its, as in the other suites.
-# vmlab-paths: @ui/*hints* @ui/*appgrid* @sf/usr/share/amethystora/user-setup.hooks.d/* @sf/usr/libexec/amethystora-layout-offer @sf/*just/desktop.just
+# vmlab-paths: @ui/*hints* @ui/*appgrid* @sf/usr/share/amethystora/user-setup.hooks.d/* @sf/usr/libexec/amethystora-layout-offer @sf/*just/desktop.just @sf/usr/share/gnome-shell/extensions/amethystora-transitions*
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io
@@ -329,5 +329,19 @@ log_in "${NEW}"
 sleep 3
 same "11 no reveal with the reveal off" "$(reveal_lines)" "${before}"
 in_session "ame desktop transition reveal on" >/dev/null 2>&1
+
+# 24: a change after the login reveal opens its frozen picture, and takes it away. Only this shell has animations in
+# the lab, and without them nothing ever freezes (a reveal that threw left the old picture over the desktop for good)
+T="Main.extensionManager.lookup('amethystora-transitions@iarsslen.github.io').stateObj"
+frozen() { [[ "$(ev "${T}._frozen")" == true ]]; }
+shown() { [[ "$(ev 'Main.layoutManager.screenTransition.visible')" == true ]]; }
+open() { ! frozen && ! shown; }
+scheme="$(gs get org.gnome.desktop.interface color-scheme)"
+gs set org.gnome.desktop.interface color-scheme "$([[ "${scheme}" == "'prefer-light'" ]] && echo default || echo prefer-light)"
+check "24 a change freezes the screen" wait_for 5 frozen
+check "24 ...and the reveal takes the picture away" wait_for 15 open
+same "24 ...without an error" "$(journalctl -b --since "${SUITE_SINCE}" "_UID=$(id -u "${NEW}")" --no-pager -o cat 2>/dev/null | grep -c 'is not a function')" 0
+gs set org.gnome.desktop.interface color-scheme "${scheme}"
+wait_for 15 open
 
 finish
