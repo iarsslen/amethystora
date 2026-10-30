@@ -1,7 +1,7 @@
 {
     "name": "opensuse-leap",
     "description": "openSUSE Leap 16.0",
-    "base": "registry.opensuse.org/opensuse/leap:16.0@sha256:cd9aac11608afabc96a10074619cf2a65ccf60ff4b72d09d4e4e125af409035d",
+    "base": "registry.opensuse.org/opensuse/leap:16.0@sha256:a9273058652f1f7d39f7c8439079662bd387be74013c6b40c9dfc42b228a972c",
     "manager": "zypper",
     "packages": []
 }

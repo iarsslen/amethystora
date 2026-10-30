@@ -64,8 +64,8 @@ fi
 
 # Starship Shell Prompt, from a pinned release checked against the SHA-256 pinned beside it, not one
 # fetched from the same release. Renovate bumps both together (.github/renovate.json5)
-STARSHIP_TAG="v1.26.0"
-STARSHIP_SHA256="321f0dd7af8340a5f2e6a8fec6538a04f617486f9ec70d878f91c09cd8deef22"
+STARSHIP_TAG="v1.27.0"
+STARSHIP_SHA256="3b94758850901717eb36aa1b53f8492c1322506ec6d41273bc6151e79ed8e4a1"
 STARSHIP_URL="https://github.com/starship/starship/releases/download/${STARSHIP_TAG}/starship-x86_64-unknown-linux-gnu.tar.gz"
 ghcurl "${STARSHIP_URL}" --fail --retry 3 -o /tmp/starship.tar.gz
 echo "${STARSHIP_SHA256}  /tmp/starship.tar.gz" | sha256sum -c -

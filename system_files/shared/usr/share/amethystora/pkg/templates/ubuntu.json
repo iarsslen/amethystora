@@ -1,7 +1,7 @@
 {
     "name": "ubuntu",
     "description": "Ubuntu 26.04 LTS",
-    "base": "quay.io/toolbx/ubuntu-toolbox:26.04@sha256:7abea7adfb587c3e0af2c633bcd49b16345f5e35b7df82cf97ea5d6a82578b55",
+    "base": "quay.io/toolbx/ubuntu-toolbox:26.04@sha256:d575e0429078479a49969bc0d75390e482acb7c2bd0e1840b9418ffdf81a049e",
     "manager": "apt",
     "packages": []
 }

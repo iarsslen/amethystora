@@ -26,8 +26,8 @@ jobs:
     # If you do not check out your code, Copilot will do this for you.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install and cache homebrew packages
-        uses: tecolicom/actions-use-homebrew-tools@v1
+        uses: tecolicom/actions-use-homebrew-tools@b9c066b79607fa3d71e0be05d7003bb75fd9ff34 # v1
         with:
           tools: just, podman, buildah

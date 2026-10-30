@@ -43,7 +43,7 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
 # What signs: Fedora's own image, pinned by digest, with sbsigntools from Fedora's repositories and
 # nothing else. The Secure Boot key is mounted in this stage's children only. From Fedora's registry,
 # the Justfile's fedora_image: quay.io stops serving a digest once the tag moves on, which is daily
-FROM registry.fedoraproject.org/fedora:44@sha256:ba35579e107f26a4c2c000390fb3ff549f3858a9584a6b5a35f7fa51f54de309 AS signer
+FROM registry.fedoraproject.org/fedora:44@sha256:b414c09be79dd1f32529b55b096b6bb30435d82ee16fbdbbabf8985eb5f86db0 AS signer
 RUN dnf -y install sbsigntools && dnf clean all
 
 # systemd-boot, signed with the same key. bootctl, which bootc installs it with, takes the .signed file
@@ -60,7 +60,7 @@ COPY --from=signed-boot /systemd-bootx64.efi.signed /usr/lib/systemd/boot/efi/sy
 RUN rm -f /usr/lib/modules/*/vmlinuz /usr/lib/modules/*/initramfs.img
 
 # Rechunked before the digest: the published layers must unpack to exactly the tree the UKI names
-FROM quay.io/coreos/chunkah:v0.7.0@sha256:8b56578258d1d10d3e1c7b0f71a4d05317c5fde331c4f483576a1b60e65f0cea AS chunkah
+FROM quay.io/coreos/chunkah:v0.7.1@sha256:71e593421c5de7dcc7c8c5c50e98d3bac572055a76f399f61a491d123c20a523 AS chunkah
 RUN --mount=type=bind,from=rootfs,source=/,target=/chunkah,ro \
     chunkah build --max-layers 128 --prune /ostree --prune /sysroot/ostree --output oci:/run/src/oci
 

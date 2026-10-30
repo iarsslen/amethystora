@@ -214,8 +214,8 @@ opentabletdriver ACTION="":
     UNIT=amethystora-opentabletdriver.service
     # The release the udev rules come from, and the SHA-256 of its tarball, both bumped by Renovate
     # (.github/renovate.json5): nothing is copied into /etc from a download that does not match
-    OTD_TAG="v0.6.7"
-    OTD_SHA256="38b6953ef67579d0afbc99c28522e54182f28838920102566bb5619f152f7b2d"
+    OTD_TAG="v0.6.8"
+    OTD_SHA256="57255c83a84e4ca45b10dbf96f9e77951779131e9bd1e5e7e6fe1f233ee1e6bf"
     action="${1:-}"
     # The choices are shown in the session's language, and what gum prints back is matched against the same words
     # Translators: a choice in a menu: to set the drawing tablet driver up

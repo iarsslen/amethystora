@@ -3,7 +3,7 @@ rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf
 brew_image := "ghcr.io/ublue-os/brew:latest"
 # Fedora's own image, for sbverify where the host has none (secureboot). From Fedora's registry, which
 # keeps serving a digest after the tag moves on, as quay.io does not: Fedora moves the tag daily
-fedora_image := "registry.fedoraproject.org/fedora:44@sha256:ba35579e107f26a4c2c000390fb3ff549f3858a9584a6b5a35f7fa51f54de309"
+fedora_image := "registry.fedoraproject.org/fedora:44@sha256:b414c09be79dd1f32529b55b096b6bb30435d82ee16fbdbbabf8985eb5f86db0"
 images := '(
     [amethystora]=amethystora
     [amethystora-dx]=amethystora-dx
