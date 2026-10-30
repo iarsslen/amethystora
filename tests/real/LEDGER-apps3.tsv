@@ -1,0 +1,6 @@
+2026-10-30 18:43:12	start	A-NOTES-01..04	first run, rules, encrypt
+2026-10-30 18:44:27	end	A-NOTES-01..04	pass 01-04
+2026-10-30 18:44:34	start	A-NOTES-05..07	lock button, wrong and right passphrase
+2026-10-30 18:44:53	end	A-NOTES-05..07	pass 05-07
+2026-10-30 18:44:53	start	A-NOTES-10..14	switch, foot, new note, Markdown, layouts
+2026-10-30 18:47:18	end	A-NOTES-10..14	pass 10-14; 15-17 for the walker
