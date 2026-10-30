@@ -626,3 +626,14 @@
 2026-10-30 18:18:56	step	D-TILESET-22	folder set by gsettings; Super+3; Super+Return; read the new terminal's folder; frame; end only that terminal; Super+2
 2026-10-30 18:19:32	step	D-TILESET-22	Super+Return's terminal was not in the folder; read the shell's own folder; a window started by the shell itself with the new-window key on my terminal, read its folder; end only mine
 2026-10-30 18:20:05	end	D-TILESET-22	fail Super+Return's terminal starts in the home folder; a window the shell starts itself (new-window key) starts in the folder; key reset, read back; shell's folder back
+2026-10-30 18:20:15	start	hotplug	second screen by HDMI, the maintainer's
+2026-10-30 18:20:15	step	hotplug	noticed at 18:17:52: HDMI-1 connected, the maintainer's, a frame first showed it about 18:17:35; udev activity 18:17:35; amdgpu REG_WAIT and compbuf WARNING 18:18:00; shell answering since
+2026-10-30 18:20:15	end	hotplug	pass logged; layout read again before the next click
+2026-10-30 18:20:33	start	D-TILE-24	resize a terminal of mine by its edge onto the other screen
+2026-10-30 18:20:33	step	D-TILE-24	layout frame; Super+Return on workspace 3 on HDMI-1; frame
+2026-10-30 18:20:43	step	D-TILE-24	pointer to my terminal's left edge; press; drag across the join to DP-1; frame while held; let go; frame
+2026-10-30 18:21:04	step	D-TILE-24	first drag missed the edge (a move across the join stops at it); from the far right corner of HDMI-1 to the edge, drag again, frames
+2026-10-30 18:21:25	step	D-TILE-24	edge measured at x 3371; same drag from there, frames
+2026-10-30 18:21:43	step	D-TILE-24	pointer back on HDMI-1, a second terminal, to see whether the first now floats; frame
+2026-10-30 18:21:59	step	D-TILE-24	end the resized terminal, frame; end mine; back to the workspace layout
+2026-10-30 18:22:20	end	D-TILE-24	pass the resized terminal floats: the workspace label dropped it, a new terminal tiled under it, stops at the edge of its own screen; both terminals ended
