@@ -558,3 +558,24 @@
 2026-10-30 18:06:44	step	D-TILESET-03	Super+End to the editor; set the frame's size 4 and corners 40 by gsettings, frame; size 0, frame; size 40, frame; raise the settings, Back to the default; read back
 2026-10-30 18:07:00	step	D-TILESET-03	raise the settings from the dock, click Back to the default on Focus frame; read back
 2026-10-30 18:07:20	end	D-TILESET-03	pass frame thin, none at 0, kept within the gap at 40, corners round; Back to the default put it back, read back
+2026-10-30 18:07:23	start	D-TILESET-04	new windows and places
+2026-10-30 18:07:23	step	D-TILESET-04	turn every place on by gsettings; Super+Home; Super+Shift+W six times, read the key after each
+2026-10-30 18:07:40	step	D-TILESET-04	open position End, Ctrl+N in Files, frame; Start, Ctrl+N, frame; Up, Ctrl+N, frame
+2026-10-30 18:08:02	step	D-TILESET-04	put back: reset the places, position Left; close the three new Files
+2026-10-30 18:08:08	end	D-TILESET-04	pass cycle goes through all six when on; new windows at end, start, above; put back and read back
+2026-10-30 18:08:09	start	D-TILESET-05	default scroll mode
+2026-10-30 18:08:09	step	D-TILESET-05	focus mode now; set default mode centre, frame; Super+Shift+C leaves it, default mode back; frame
+2026-10-30 18:08:33	step	D-TILESET-05	set default mode centre; frame; Super+End, frame; Super+Home, frame; reset
+2026-10-30 18:08:54	step	D-TILESET-05	Super+Shift+C to centre on this workspace; set default mode edge, frames of the icon here and on workspace 3; reset, frame
+2026-10-30 18:09:15	end	D-TILESET-05	pass default mode edge moved this workspace's mode from centre and workspace 3 showed it too, reset put it back; a strip that fits the screen stays centred whatever the mode
+2026-10-30 18:09:16	start	D-TILESET-06	width and height steps
+2026-10-30 18:09:16	step	D-TILESET-06	steps 25 and 75 percent, and 800 px, by gsettings; Super+R frames; stack with Super+I, Super+Shift+R frames; reset
+2026-10-30 18:09:41	end	D-TILESET-06	pass steps 25 and 75 percent, and 800 px for height, stepped as set; reset, read back
+2026-10-30 18:09:42	start	D-TILESET-07	fill width share and maximize
+2026-10-30 18:09:42	step	D-TILESET-07	Super+O; share 50 percent by gsettings; Super+F, frame; Super+F; maximize stays off the strip: key false; frame to place the button
+2026-10-30 18:09:55	step	D-TILESET-07	click the title bar's maximize, frame
+2026-10-30 18:10:11	step	D-TILESET-07	click maximize again; reset the key; read back
+2026-10-30 18:10:13	end	D-TILESET-07	pass Super+F fills half at share 50 percent; maximizing off the strip covers the screen; reset, read back
+2026-10-30 18:10:14	start	D-TILESET-08	animation time
+2026-10-30 18:10:14	step	D-TILESET-08	glide time 1 s by gsettings: move the column, frame at once, 1 s later frame; glide time 0: same; reset
+2026-10-30 18:10:33	end	D-TILESET-08	pass at 1 s a frame caught the window midway, at 0 the first frame was final; reset, read back
