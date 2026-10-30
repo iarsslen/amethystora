@@ -805,3 +805,31 @@
 2026-10-30 18:48:07	step	D-WALL-06	twelve accents through ame on Amethystora, a crop of the bar each; ame desktop accent theme
 2026-10-30 18:50:09	step	D-WALL-06	seen: stuck picture during the accents, JS ERROR this._reveal is not a function 18:49:44; extension off, 2 s, on; frame
 2026-10-30 18:50:24	end	D-WALL-06	skip the accents' reveal stuck the picture, none judged; recovered; accent back to the theme, read back
+2026-10-30 18:52:54	start	D-WALL-07	colours vivid, soft, mono from the wallpaper; light theme
+2026-10-30 18:52:54	step	D-WALL-07	transitions off for the group; accent per workspace off; each way, a frame; back
+2026-10-30 18:53:38	step	D-WALL-07	light theme with colours vivid, frame, back to amethystora with colours vivid
+2026-10-30 18:54:13	end	D-WALL-07	pass vivid soft mono and light seen; put back to vivid as found
+2026-10-30 18:54:13	start	D-WALL-08..09	accent per workspace through workspaces; a workspace's own accent, menu and command
+2026-10-30 18:54:13	step	D-WALL-08..09	on; Super+1 to 6 a bar crop each; back to 3; right-click a label
+2026-10-30 18:54:40	step	D-WALL-08..09	right-click label 5, frame the menu, Escape
+2026-10-30 18:56:32	end	D-WALL-08..09	pass each workspace's accent and the menu's list seen; 5 put back to amber, read back
+2026-10-30 18:56:32	start	D-TRANS-01	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:32	end	D-TRANS-01	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:32	start	D-TRANS-02	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:32	end	D-TRANS-02	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:32	start	D-TRANS-03	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:32	end	D-TRANS-03	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:32	start	D-TRANS-04	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:32	end	D-TRANS-04	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:32	start	D-TRANS-05	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:32	end	D-TRANS-05	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:32	start	D-TRANS-06	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:32	end	D-TRANS-06	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:33	start	D-TRANS-07	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:33	end	D-TRANS-07	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:33	start	D-TRANS-08	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:33	end	D-TRANS-08	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:33	start	D-TRANS-10	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:33	end	D-TRANS-10	fail stuck picture, da7bf83 not in this image
+2026-10-30 18:56:33	start	D-TRANS-11	transition's look: fails on this image's stuck picture, not run
+2026-10-30 18:56:33	end	D-TRANS-11	fail stuck picture, da7bf83 not in this image
