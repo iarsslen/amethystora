@@ -365,13 +365,6 @@ impl Shelf {
         let item = Rc::new(Item { kind, name: name.clone(), button: button.clone(), missing: Cell::new(false), keep: Cell::new(false), cancelled: Cell::new(false) });
         self.drag_out(&item);
 
-        let weak = self.me.clone();
-        let weak_item = Rc::downgrade(&item);
-        button.connect_clicked(move |_| {
-            if let (Some(this), Some(item)) = (weak.upgrade(), weak_item.upgrade()) {
-                this.menu(&item);
-            }
-        });
         let press = gtk::GestureClick::new();
         press.set_button(gdk::BUTTON_SECONDARY);
         let weak = self.me.clone();

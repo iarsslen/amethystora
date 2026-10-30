@@ -315,6 +315,13 @@ check "S8 ...and back, it is itself again" wait_for 5 shelf_lacks "moved or dele
 
 # --- M3: Remove from an item's menu, with other items held -------------------------------------------------------------------
 read -r wx wy ww wh <<<"$(win_box)"
+click $((wx + ww / 2)) $((wy + 10 + 22))
+sleep 1
+if user_bus python3 "${HERE}/atspi.py" amethystora-shelf find Remove >/dev/null 2>&1; then
+    not_ok "S9 a left click on an item opens no menu"
+else
+    ok "S9 a left click on an item opens no menu"
+fi
 click $((wx + ww / 2)) $((wy + 10 + 22)) 3
 sleep 1
 user_bus python3 "${HERE}/atspi.py" amethystora-shelf click Remove >/dev/null 2>&1
