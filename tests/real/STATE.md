@@ -62,6 +62,11 @@ Inferred:
   unplug did not cause the freeze; no hotplug came before it.
 - AMD's reset reason (`x86/amd: Previous system reset reason`), read at boot: printed for the clean restarts, and absent at
   each of the seven boots after a hang since 09:46. Meaning not settled.
+- A second kind of freeze, not the hard hang: the stuck picture. On an image without da7bf83, `this._reveal is not a function`
+  leaves GNOME's frozen `screenTransition` actor up (clock and dock stale, menus still draw, shell answers, journal goes on).
+  Seen at 16:36:28, cleared with `gnome-extensions disable` and `enable` of the transitions extension. Also in the journal at
+  09:45:41 (5 lines, 5 s before that boot's end) and to 09:50:12. The heartbeat does not catch this form. Inferred: at 16:36:26
+  every settings reader woke as `dnf` finished in the walk's toolbox, whose scriptlets reach the host's buses; not proven.
 - Leading idea: kernel 7.2.13, or something else in the image of 2026-10-30. Seen: all 19 boots from 2026-10-15 to 10-27
   (kernels 7.2.5 to 7.2.11) ended with a clean shutdown, several through MST link drops, `Failed to get ACT` and page flip
   failures (boots of 10-23, 10-26, 10-27). Of the boots on 7.2.13, one ended clean (the first, 5 minutes) and five hung.
