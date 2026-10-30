@@ -12,3 +12,18 @@
 2026-10-30 19:00:28	end	A-CONTROL-156	pass page read, real marker not written, window closed
 2026-10-30 19:00:28	start	A-CONTROL marks	write marks, no window
 2026-10-30 19:00:52	end	A-CONTROL marks	pass marks written
+2026-10-30 19:44:00	start	A-CONTROL-read	open items again: each page read, nothing pressed but the page rows
+2026-10-30 19:44:07	step	A-CONTROL-read	page rows
+2026-10-30 19:44:38	end	A-CONTROL-read	pass six pages read in the tree against the list, window closed; no item newly settled
+2026-10-30 19:44:43	start	A-LOGS-07	Crashes view, open a crash in the tree
+2026-10-30 19:45:28	end	A-LOGS-07	skip a row has no action in the tree: needs the pointer
+2026-10-30 19:45:35	start	A-LOGS-29	All, a long range, scroll bar pushed down through the tree, how the window answers
+2026-10-30 19:46:19	end	A-LOGS-29	pass 29 in part, Logs closed; 07, 10 to 17, 21, 27 need keys or the pointer
+2026-10-30 19:46:19	start	A-MANUAL-16	Manual: Hotkeys read, links and cards probed in the tree
+2026-10-30 19:47:27	end	A-MANUAL-16	fail 16: Escape and the brackets are not keycaps
+2026-10-30 19:47:27	start	A-MANUAL-26	sidebar width: Maximize and back through the tree; cards' places read
+2026-10-30 19:47:59	step	A-MANUAL-26	cards: press one card and again
+2026-10-30 19:48:04	step	A-MANUAL-26	two frames of the cards
+2026-10-30 19:48:39	end	A-MANUAL-26	pass 26 in part; 20, 21 left, see the report
+2026-10-30 19:48:39	start	A-MANUAL-07	a link in a page: is there a press in the tree
+2026-10-30 19:48:53	end	A-MANUAL-07	skip links have no action or name in the tree: needs the pointer; window closed
