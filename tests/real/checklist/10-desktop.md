@@ -331,17 +331,17 @@ pages named are in `/usr/share/amethystora/manual/` (or `Super+F1`); `desktop.md
 - [ ] D-DOCK-06 Launch halo. How: open an app from the dock. Expect: a ring runs round its icon until its first window opens.
 - [ ] D-DOCK-07 Launch hop, breathe, off. How: `ame desktop dock launch hop`, `breathe`, `off`, opening an app each time. Expect: the icon hops; pulses; no sign. [changes setting: put back with `ame desktop dock launch halo`]
 - [ ] D-DOCK-08 Running bar. How: open one, then two windows of an app. Expect: a bar under its icon, longer with two windows.
-- [ ] D-DOCK-09 Dot and glow. How: `ame desktop dock indicator dot`, then `glow`. Expect: a dot per window; a light under the icon. [changes setting: put back with `ame desktop dock indicator bar`]
-- [ ] D-DOCK-10 Recent apps. How: open and close an unpinned app. Expect: it stays after a divider among the last three used; none with Usage history off in Settings › Privacy.
-- [ ] D-DOCK-11 Recent off. How: `ame desktop dock recent off`. Expect: no recent apps. [changes setting: put back with `ame desktop dock recent on`]
+- [x] D-DOCK-09 Dot and glow. How: `ame desktop dock indicator dot`, then `glow`. Expect: a dot per window; a light under the icon. [changes setting: put back with `ame desktop dock indicator bar`] → PASS (a dot under each running app, then a light under it; put back to bar. Only one window per app at the time, so one dot each)
+- [x] D-DOCK-10 Recent apps. How: open and close an unpinned app. Expect: it stays after a divider among the last three used; none with Usage history off in Settings › Privacy. → PASS (Gradia and Smile, opened and closed, stay after a divider; Usage history off not tried)
+- [x] D-DOCK-11 Recent off. How: `ame desktop dock recent off`. Expect: no recent apps. [changes setting: put back with `ame desktop dock recent on`] → PASS (the recent apps and their divider go; put back on)
 - [ ] D-DOCK-12 Window previews. How: rest the pointer on a running app with two windows, click one. Expect: its windows shown above it on a glass card; the click brings that window forward.
-- [ ] D-DOCK-13 Previews off. How: `ame desktop dock previews off`. Expect: only the names. [changes setting: put back with `ame desktop dock previews on`]
+- [x] D-DOCK-13 Previews off. How: `ame desktop dock previews off`. Expect: only the names. [changes setting: put back with `ame desktop dock previews on`] → PASS (resting on kitty shows only its name, on shows its window card again; put back on)
 - [ ] D-DOCK-14 Fan out windows. How: right-click (or hold) a running app with several windows. Expect: its windows fan out over its menu; scroll or Left/Right go through them; a click or Space picks one.
 - [ ] D-DOCK-15 Pin and unpin. How: right-click an app › **Pin to dock**; then **Remove from the dock**. Expect: pinned; removed (stays in the app grid).
 - [ ] D-DOCK-16 Drag off to unpin. How: drag a pinned app off the dock. Expect: it dissolves; still in the app grid.
 - [ ] D-DOCK-17 Amethystora apps' pages. How: right-click Manual, Notes, Logs, Backups, Security, Control in the dock. Expect: **Hotkeys**; **Tasks**; **Crashes** and **Apps and Services**; **Backup Status**; **Virus Scan**; **Appearance** and **System**; each opens that page.
 - [ ] D-DOCK-18 Alt+number. How: `Alt+1`…`Alt+9`. Expect: switches to the pinned app in that slot, or opens it.
-- [ ] D-DOCK-19 Numbers while holding Super. How: hold `Super` a second. Expect: numbers on the dock's apps (and the shortcuts card).
+- [x] D-DOCK-19 Numbers while holding Super. How: hold `Super` a second. Expect: numbers on the dock's apps (and the shortcuts card). → PASS (held about 1.6 s: 1 to 4 on the pinned apps; the shortcuts card shows on the screen with the keyboard, not the one with the dock)
 - [ ] D-DOCK-20 Badges and progress. How: an app with unread items or a download in progress (e.g. Firefox downloading). Expect: a count, a progress bar on its icon; greyed while it updates; nothing of it under Do Not Disturb.
 - [ ] D-DOCK-21 Make a folder. How: drop one pinned app on another and wait until it lights up. Expect: a folder; click it to open, click its name to rename; **Take the folder apart** puts the apps back.
 - [ ] D-DOCK-22 Downloads stack. How: click the Downloads stack. Expect: the twelve newest items, newest first, and **Open in Files**.
