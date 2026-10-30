@@ -9,7 +9,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
   test is behind the freezes). After a hang, run `tests/real/ledger.sh hang` first: the test left open is the suspect, and
   `~/.local/state/amethystora/walk/{ledger,beats}.tsv` hold it, `tests/real/LEDGER.tsv` the pushed copy. Tracks do not run at once
   while this is open: at 15:32 the walker (RemoteDesktop) and the terminal track (`rpm-ostree status`, last at 15:31:14) both ran.
-- Track 1 (desktop walker), 17:21 EDT, RemoteDesktop input, in the ledger, stretch of 40 ended at D-SHOT-13, next D-EMOJI-05, D-SHOT-02. Under an input session a click on the clock takes the Quiet chip for some seconds; right-click opens the calendar always.
+- Track 1 (desktop walker), 17:28 EDT, RemoteDesktop input, in the ledger, walked D-EMOJI-05, D-SHOT-02, 04, 11, 15, next the captions and access items.
 - Updated: 2026-10-30 15:08 EDT. Boot e04b5405, started 15:01:44, after the hard hang at 14:57. Image
   `latest-44.20261030`, built from 587de45, without today's fixes. DisplayLink is running again (its mask ended with the
   restart), `kernel.sysrq` is 16, and the journald drop-in is still in `/etc`, so sync stays 1 s.

@@ -320,3 +320,24 @@
 2026-10-30 17:21:44	end		pass menu, Close offered; Esc lets the pin go; cross not pressed
 2026-10-30 17:21:44	start	D-SHOT-09	click-through
 2026-10-30 17:21:44	end	D-SHOT-09	pass amber ring, a right-click reached the editor below, the arrow gave it back
+2026-10-30 17:23:27	start	D-EMOJI-05	emoji then input method in the same window
+2026-10-30 17:23:27	step	D-EMOJI-05	Super+period, search smile, Enter; then Ctrl+Shift+U unicode entry through IBus
+2026-10-30 17:23:54	end	D-EMOJI-05	pass cat emoji typed by Enter; unicode-entry e-acute through the input method right after, no refocus; no accent engine configured
+2026-10-30 17:24:24	start	D-SHOT-02	tool keys in the screenshot bar
+2026-10-30 17:24:24	step	D-SHOT-02	Print, drag an area on the empty wallpaper, press 2, draw, screenshot
+2026-10-30 17:24:40	step	D-SHOT-02	keys 3 to 9 each with a stroke on the wallpaper
+2026-10-30 17:24:56	step	D-SHOT-02	key 9 marker, Ctrl+Z, key 2 move, pick up the box, Delete; Escape closes
+2026-10-30 17:25:11	step	D-SHOT-02	keys 8 and 1, then Escape closes
+2026-10-30 17:25:26	end	D-SHOT-02	pass 1 pointer, 2 move, 3 pen to 9 marker by number; Ctrl+Z took the marker; Delete took the box
+2026-10-30 17:25:26	start	D-SHOT-04	pen colour and width come back
+2026-10-30 17:25:26	step	D-SHOT-04	pen, red, wider by slider drag; Escape; Print again; read pen
+2026-10-30 17:25:51	end	D-SHOT-04	pass pen came back red and wide; put back
+2026-10-30 17:25:51	start	D-SHOT-11	pin seven, oldest goes
+2026-10-30 17:25:51	step	D-SHOT-11	Print, Selection, frame an area, Ctrl+P; look
+2026-10-30 17:26:06	step	D-SHOT-11	six more pins down the wallpaper, one by one
+2026-10-30 17:26:42	end	D-SHOT-11	pass seven pinned, the first went, six stay; let go by the switch, put back on
+2026-10-30 17:26:42	start	D-SHOT-15	extract text from an area
+2026-10-30 17:26:42	step	D-SHOT-15	Print, frame the editor's text, look at the Extract Text button; Screen and Window modes
+2026-10-30 17:27:10	step	D-SHOT-15	video mode button look; back to picture; Ctrl+E on the frame; do not answer any language question
+2026-10-30 17:27:31	step	D-SHOT-15	language question left unanswered; close its window, then Gradia
+2026-10-30 17:28:00	end	D-SHOT-15	pass button on for a selection, off for screen and window, off in recording mode; Ctrl+E opened Gradia's language question, left unanswered
