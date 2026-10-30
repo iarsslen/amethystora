@@ -29,8 +29,7 @@ should see: `10-desktop.md` (the shell), `20-apps.md` (the apps), `30-security.m
 software and the hardware). The maintainer's rule: **every item is validated, one by one, none skipped because
 it looks fine.**
 
-- Work on the branch `real/checklist` (`git switch real/checklist` if it exists on `origin`, else create it).
-  Take the items in order, file by file. For each one: do what `How:` says, look at the screen (a screenshot through the
+- Work on `main` (the maintainer's rule: always commit to main, no branch). Take the items in order, file by file. For each one: do what `How:` says, look at the screen (a screenshot through the
   portal, `org.freedesktop.portal.Screenshot` with `interactive` false, whose file comes in the request's
   `Response` signal and which asks the person once to allow it; or ask the person to press `Print`, which
   saves in `~/Pictures/Screenshots`; then read the PNG), and compare it with
@@ -79,10 +78,12 @@ it looks fine.**
 
 ## Committing
 
-- Commit on a branch of its own, never on `main`: `git switch -c real/<topic>`, one commit per cause,
-  conventional commits, the footer `Assisted-by: <model> via Claude Code` and no Co-Authored-By line.
-- `git push origin real/<topic>` and tell the person the branch. The maintainer's PC takes it through the
-  lab (`run-tests`), and only a lab-validated commit reaches `main` (`queue-latest`).
+- Commit on `main`, one commit per cause, conventional commits, the footer `Assisted-by: <model> via Claude Code`
+  and no Co-Authored-By line. Push after every fix (`git pull --rebase origin main`, then `git push origin main`):
+  a session here can end without warning, and what is not pushed is lost. A push publishes nothing by itself.
+- Say in the commit body whether the fix was seen working here or not yet. The maintainer's PC takes each commit
+  through the lab (`run-tests`), and only a validated commit is built for everyone (`queue-latest`): never start
+  `Latest Images` from here.
 - Write down in the commit body what the hardware was (`lspci -nn`, `lsusb`, the model) and what was seen.
 - A bug that only real hardware shows still gets the check that would have caught it where one can be
   written (`20-tests.sh` or a suite), or a line in the commit body saying why none can.
