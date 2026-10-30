@@ -211,3 +211,49 @@
 2026-10-30 17:01:50	step	D-PRIV-13	ame desktop shield off; quick settings
 2026-10-30 17:01:55	step	D-PRIV-13	put back: shield tile
 2026-10-30 17:02:06	end	D-PRIV-13	pass no tile, no mark, put back to tile
+2026-10-30 17:02:09	start	D-PRIV-15	network by app in the network meter's menu
+2026-10-30 17:02:09	step	D-PRIV-15	ame desktop network-apps on; open the meter's menu
+2026-10-30 17:02:59	step	D-PRIV-15	Network per app, in Security; put back
+2026-10-30 17:03:03	end	D-PRIV-15	pass apps with connections, count, addresses; link opens Security's Apps; off
+2026-10-30 17:03:13	start	D-NOTIFY-03	Do Not Disturb tile, banners wait, badges hidden
+2026-10-30 17:03:13	step	D-NOTIFY-03	close old Timer banner; tile on; notify-send
+2026-10-30 17:03:34	step	D-NOTIFY-03	the list; tile off
+2026-10-30 17:03:53	end	D-NOTIFY-03	pass no banner, in the list, badge hidden; tile put back
+2026-10-30 17:03:53	start	D-NOTIFY-04	Quiet while fullscreen on scratch editor
+2026-10-30 17:03:53	step	D-NOTIFY-04	F11 on the scratch editor
+2026-10-30 17:03:57	step	D-NOTIFY-04	notify-send, screenshot
+2026-10-30 17:03:58	step	D-NOTIFY-04	notify-send critical, screenshot
+2026-10-30 17:04:09	end	D-NOTIFY-04	pass no banner; critical pops
+2026-10-30 17:04:09	start	D-NOTIFY-05	leaving fullscreen: pill says how many wait
+2026-10-30 17:04:09	step	D-NOTIFY-05	F11 off; screenshot
+2026-10-30 17:04:26	step	D-NOTIFY-05	again, then a click on the words
+2026-10-30 17:04:56	end	D-NOTIFY-05	pass pill says how many wait, then the clock's dot; a click opens the list; not replayed
+2026-10-30 17:04:56	start	D-NOTIFY-06	Quiet off, banner pops while fullscreen
+2026-10-30 17:04:56	step	D-NOTIFY-06	ame desktop quiet off; F11; notify-send
+2026-10-30 17:05:01	step	D-NOTIFY-06	F11 off; put back quiet on
+2026-10-30 17:05:20	end	D-NOTIFY-06	fail no banner with quiet off in fullscreen, 1 s after notify-send; quiet put back
+2026-10-30 17:05:28	start	D-NOTIFY-08	digest two minutes ahead
+2026-10-30 17:05:28	step	D-NOTIFY-08	digest on, times two minutes ahead, send three
+2026-10-30 17:07:21	step	D-NOTIFY-08	Show all; put back digest
+2026-10-30 17:07:34	end	D-NOTIFY-08	pass no banners, one card at the time with row, Show all, Clear; Show all closed the card, list open not seen; put back
+2026-10-30 17:07:34	start	D-NOTIFY-09	Later on a banner
+2026-10-30 17:07:34	step	D-NOTIFY-09	notify-send, pointer on the banner, Later
+2026-10-30 17:08:15	end	D-NOTIFY-09	pass the four choices; banner removed, pill Back at, Undo
+2026-10-30 17:08:15	start	D-NOTIFY-12	the calendar's Later list
+2026-10-30 17:08:15	step	D-NOTIFY-12	open the calendar: right-click
+2026-10-30 17:08:26	step	D-NOTIFY-12	Now
+2026-10-30 17:08:29	end	D-NOTIFY-12	pass Later at the top says when, with Now; the snoozed one still in the list
+2026-10-30 17:08:29	start	D-NOTIFY-11	Later with the L key
+2026-10-30 17:08:29	step	D-NOTIFY-11	notify-send, Super+n, l
+2026-10-30 17:09:03	end	D-NOTIFY-11	pass with focus on the banner, L is Later in an hour
+2026-10-30 17:09:18	start	D-NOTIFY-13	mute an app from its banner
+2026-10-30 17:09:18	step	D-NOTIFY-13	notify-send, Mute on the banner; two more
+2026-10-30 17:09:34	step	D-NOTIFY-13	Unmute, then Now on the snoozed one
+2026-10-30 17:09:51	end	D-NOTIFY-13	pass Muted at the top with until and held; Unmute shows them together
+2026-10-30 17:09:53	start	D-NOTIFY-14	Later off
+2026-10-30 17:09:53	step	D-NOTIFY-14	later off; notify-send; hover; screenshot
+2026-10-30 17:10:05	end	D-NOTIFY-14	pass no Later, no Mute on the banner; put back on
+2026-10-30 17:10:05	start	D-NOTIFY-15	later times
+2026-10-30 17:10:05	step	D-NOTIFY-15	later-times 19:00 08:00; a banner; Later; This evening
+2026-10-30 17:11:38	step	D-NOTIFY-15	put back later-times
+2026-10-30 17:11:49	end	D-NOTIFY-15	pass Later says Back at 19:00; put back 18:00 09:00
