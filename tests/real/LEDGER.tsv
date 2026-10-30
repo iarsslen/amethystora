@@ -455,3 +455,5 @@
 2026-10-30 17:48:57	end	D-TILE-06	pass Ctrl+Right and period moved the whole column right, Ctrl+Left and comma back
 2026-10-30 17:48:57	start	cleanup	close the three Files windows; editor back to its width
 2026-10-30 17:49:29	end	cleanup	pass windows closed, editor back
+2026-10-30 17:49:54	start	seen	D-DOCK-15 journal
+2026-10-30 17:49:54	end	seen	stopped seen: already disposed in gnome-shell at 17:35:12 and 17:35:36, BoxPointer and PopupMenuItem, popupMenu.js 1104 and 118, on Pin and Unpin; no core dump; shell answering
