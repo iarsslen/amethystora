@@ -409,6 +409,13 @@ export class Search {
         this._undress();
         for (const [actor, index] of lent.places)
             lent.controls.insert_child_at_index(actor, index);
+        // GNOME fades its results out when the search empties and hides them once the fade ends, which taken out of
+        // the overview it never does: left half seen, its "No results" stood over the app grid
+        if (lent.results.searchActive === false) {
+            lent.results.remove_all_transitions();
+            lent.results.opacity = 0;
+            lent.results.hide();
+        }
         this._guardReturn(lent);
     }
 
