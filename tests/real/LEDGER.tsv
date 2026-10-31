@@ -1104,3 +1104,22 @@
 2026-10-30 20:10:32	start	A-MANUAL-24	fresh Manual, Page Down and arrows without a click
 2026-10-30 20:10:32	step	A-MANUAL-24	close the Manual; open it; frame; Page Down; Down twice; frame
 2026-10-30 20:10:57	end	A-MANUAL-24	pass fresh window, keys scroll with no click
+2026-10-30 20:11:15	start	A-SECURITY-10	Security's Overview: a card's link to the manual, pressed through the tree
+2026-10-30 20:11:15	step	A-SECURITY-10	open Security; list what can be pressed
+2026-10-30 20:11:28	step	A-SECURITY-10	press Security watcher in the manual; the Manual's title and first heading
+2026-10-30 20:11:40	step	A-SECURITY-10	open Security; press the card's manual link; the Manual
+2026-10-30 20:12:10	step	A-SECURITY-10	press Security in the manual, then the watcher link again; the Manual's title each
+2026-10-30 20:12:42	end	A-SECURITY-10	skip the apps track marked it on a scratch home meanwhile; here pressed on its window, nothing to add
+2026-10-30 20:12:49	start	A-SECURITY-25	Virus scan, Files..., choose a scratch file in the dialog; result page
+2026-10-30 20:12:50	step	A-SECURITY-25	open Security, Virus scan; press Files; frame the dialog
+2026-10-30 20:13:07	step	A-SECURITY-25	in the dialog: Ctrl+L, the scratch path, frame, Return
+2026-10-30 20:14:00	step	A-SECURITY-25	Return again in the dialog; read Security after the session
+2026-10-30 20:14:35	step	A-SECURITY-25	press Scan in the dialog; read the result page
+2026-10-30 20:14:55	end	A-SECURITY-25	pass file chosen in the dialog, result page, by keys and the tree
+2026-10-30 20:14:56	start	A-SECURITY-26	Folders..., a scratch folder; result names it
+2026-10-30 20:14:56	step	A-SECURITY-26	press Done, Folders; path by keys; press the dialog's accept; result
+2026-10-30 20:15:26	end	A-SECURITY-26	pass folder chosen by keys, Return accepted; result
+2026-10-30 20:15:48	start	A-SECURITY-27	a drop on the window: not with an input session
+2026-10-30 20:15:48	end	A-SECURITY-27	skip the share guard covers Security under an input session and takes the pointer; for the person
+2026-10-30 20:15:48	start	A-SECURITY-28	needs a drop, as A-SECURITY-27
+2026-10-30 20:15:48	end	A-SECURITY-28	skip for the person
