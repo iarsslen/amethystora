@@ -244,6 +244,10 @@ case "${SUITE_PHASE}" in
             "left: $(user_bus dconf dump /org/gnome/shell/extensions/clipboard-indicator/)"
     fi
     user_bus gsettings reset "${SCHEMA}" history-size
+    # The extension started again over what was left, as at the login after the update: a suite before this one in
+    # the same session may have unlocked the keyring, and the history kept from before is only merged once, when it
+    # first opens
+    ext_again
 
     # A keyring now, made and unlocked with the password: the menu, opened, asks for it again
     out="$(keyring unlock "${TEST_USER}" 2>&1)"
