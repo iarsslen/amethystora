@@ -1729,7 +1729,10 @@ impl Control {
         }
         let cards = ui::vbox(12, &["cards"]);
         for item in items {
-            cards.append(&self.card(item));
+            let card = self.card(item);
+            // Found by its entry's id when the window is opened on it (amethystora-control PAGE ENTRY)
+            card.set_widget_name(&format!("entry:{}", item.id));
+            cards.append(&card);
         }
         section.append(&cards);
         section

@@ -3,7 +3,8 @@
 Most of what you can change about Amethystora is a command in the terminal, and a command nobody tells
 you about is one you never use. **Control** puts those settings in one window: `Super+Ctrl+Shift+C`,
 **Control** in the app grid, or **Control** in the Amethystora menu. `amethystora-control PAGE` opens it at
-a page: `appearance`, `desktop`, `apps`, `agent`, `system` or `setup`. `amethystora-control welcome` opens
+a page: `appearance`, `desktop`, `apps`, `agent`, `system` or `setup`, and `amethystora-control PAGE ENTRY` at one
+setting's card on it (`amethystora-control desktop focus`). `amethystora-control welcome` opens
 **Pick a look**, the page a new account sees once: the theme, the style, the dock, the pointer and the windows, with
 a preview of the desktop as you pick.
 

@@ -50,6 +50,14 @@ pub fn page_argument(args: &[String]) -> Option<&'static str> {
     PAGES.iter().chain([WELCOME].iter()).find(|known| *known == page).copied()
 }
 
+/// The entry after the page (`amethystora-control desktop focus`), whose card the page opens scrolled to: an id as the
+/// list writes them, and nothing else
+pub fn entry_argument(args: &[String]) -> Option<String> {
+    let entry = args.iter().filter(|arg| !arg.starts_with('-')).nth(1)?;
+    let fits = !entry.is_empty() && entry.len() <= 64 && entry.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+    fits.then(|| entry.clone())
+}
+
 // --- The list ---------------------------------------------------------------------------------------------
 //
 // What the list holds and how an entry's id and value become a command are amethystora-control-core's,

@@ -81,7 +81,7 @@ export class FocusTile {
             y_align: Clutter.ActorAlign.CENTER});
         edit.connect('clicked', () => {
             Main.panel.statusArea.quickSettings?.menu.close();
-            Util.spawn([CONTROL, 'desktop']);
+            Util.spawn([CONTROL, 'desktop', 'focus']);
         });
         ends.add_child(edit);
         this.block.add_child(ends);

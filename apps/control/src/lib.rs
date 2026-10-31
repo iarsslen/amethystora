@@ -69,6 +69,8 @@ struct Banner {
 /// What the page keeps between drawings, as control.js's `state`
 struct PageState {
     page: &'static str,
+    /// The entry the window was opened on, scrolled to once its card is drawn
+    reveal: Option<String>,
     /// The list as the page was last given it
     list: Option<Rc<List>>,
     error: String,
@@ -108,6 +110,7 @@ impl Default for PageState {
     fn default() -> Self {
         PageState {
             page: "appearance",
+            reveal: None,
             list: None,
             error: String::new(),
             search: String::new(),
@@ -180,6 +183,7 @@ impl App for Control {
         // Opened again while a closed window waited for its last command: it is presented again and stays open
         self.closing.set(false);
         let page = backend::page_argument(args);
+        let entry = page.and_then(|_| backend::entry_argument(args));
         let this = self.rc();
         let first = !self.state.borrow().started;
         if first {
@@ -188,11 +192,14 @@ impl App for Control {
                 let mut state = self.state.borrow_mut();
                 state.started = true;
                 state.page = page.unwrap_or("appearance");
+                state.reveal = entry;
             }
             self.render();
             this.load(false);
         } else if let Some(page) = page {
             this.show(page);
+            self.state.borrow_mut().reveal = entry;
+            this.reveal();
         }
     }
 
@@ -502,7 +509,36 @@ impl Control {
             }
         }
         self.render();
+        self.reveal();
         self.read_diff();
+    }
+
+    /// The card of the entry the window was opened on, scrolled to the top of the page once the page has been laid out
+    /// (its place is only known then); once
+    fn reveal(self: &Rc<Self>) {
+        let Some(id) = ({
+            let state = self.state.borrow();
+            state.list.is_some().then(|| state.reveal.clone()).flatten()
+        }) else {
+            return;
+        };
+        self.state.borrow_mut().reveal = None;
+        let name = format!("entry:{id}");
+        let view = self.parts.view.clone();
+        let adjustment = self.parts.scroller.vadjustment();
+        let tries = Cell::new(0);
+        self.parts.scroller.add_tick_callback(move |_, _| {
+            tries.set(tries.get() + 1);
+            let card = find_named(view.upcast_ref(), &name);
+            match card.as_ref().and_then(|card| card.compute_point(&view, &amethystora_ui::graphene::Point::new(0.0, 0.0))) {
+                Some(point) if card.as_ref().is_some_and(|card| card.width() > 0) => {
+                    adjustment.set_value((point.y() as f64 - 24.0).max(0.0));
+                    glib::ControlFlow::Break
+                }
+                _ if tries.get() < 60 => glib::ControlFlow::Continue,
+                _ => glib::ControlFlow::Break,
+            }
+        });
     }
 
     /// The setup page compares the machine with the file, which takes a moment, once it is shown
@@ -634,4 +670,19 @@ impl Control {
             }
         });
     }
+}
+
+/// The first widget under `root` (itself included) with that name
+fn find_named(root: &gtk::Widget, name: &str) -> Option<gtk::Widget> {
+    if root.widget_name() == name {
+        return Some(root.clone());
+    }
+    let mut child = root.first_child();
+    while let Some(widget) = child {
+        if let Some(found) = find_named(&widget, name) {
+            return Some(found);
+        }
+        child = widget.next_sibling();
+    }
+    None
 }

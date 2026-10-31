@@ -925,7 +925,7 @@ no passkey.
 
 ### The Control app
 
-Amethystora Control (`amethystora-control [page]`, **Control** in the app grid, `Super+Ctrl+Shift+C`) is
+Amethystora Control (`amethystora-control [page [entry]]`, **Control** in the app grid, `Super+Ctrl+Shift+C`) is
 the window for Amethystora's own settings outside security: the theme, wallpaper and transition, the
 window layout, widgets, the terminal's greeting and tools, games, Android apps, drawing tablets, the AUR,
 web apps, the add-ons, the AI agent, the image and stream, developer mode, an image of one's own, the CPU

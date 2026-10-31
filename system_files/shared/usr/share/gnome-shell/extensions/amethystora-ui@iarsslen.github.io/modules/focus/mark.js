@@ -109,7 +109,7 @@ export class FocusMark {
             }, {primary: true}),
             cardButton(_('Edit in Control'), () => {
                 api.close();
-                Util.spawn(['amethystora-control', 'desktop']);
+                Util.spawn(['amethystora-control', 'desktop', 'focus']);
             }),
         ]));
         return body;
