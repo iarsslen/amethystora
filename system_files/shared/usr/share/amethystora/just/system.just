@@ -430,8 +430,10 @@ benchmark:
     fi
 
     echo "$(gettext "Running a 1 minute benchmark ...")"
-    trap popd EXIT
-    pushd "$(mktemp -d)"
+    # stress-ng writes its files where it runs: a folder of its own, gone afterwards
+    work="$(mktemp -d)"
+    trap 'rm -rf "${work}"' EXIT
+    cd "${work}"
     stress-ng --matrix 0 -t 1m --times
 
 # Pick the CPU scheduler: the kernel's own, or a sched-ext one for games (lavd), a busy desktop (bpfland) or audio work (flash)
