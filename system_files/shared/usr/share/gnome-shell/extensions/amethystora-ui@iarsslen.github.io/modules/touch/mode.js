@@ -77,6 +77,9 @@ export class TouchMode {
         this._forced = null;
         this._value = 'off';
         this._apply(false);
+        if (this._relayout)
+            GLib.source_remove(this._relayout);
+        this._relayout = 0;
         this._setTile(false);
     }
 
@@ -153,7 +156,21 @@ export class TouchMode {
             this._dropEdge();
             this._dropHint();
         }
+        this._relayoutBar();
         this._touch.surfacesChanged();
+    }
+
+    // The top bar's buttons can keep the size they had before the bar's font and paddings changed, which cut the
+    // workspaces' names short, until something lays them out again: once the new style has settled, that is done
+    _relayoutBar() {
+        if (this._relayout)
+            GLib.source_remove(this._relayout);
+        this._relayout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            this._relayout = 0;
+            for (const button of Object.values(Main.panel.statusArea))
+                button.queue_relayout?.();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     // ---- Today from the right edge ----
