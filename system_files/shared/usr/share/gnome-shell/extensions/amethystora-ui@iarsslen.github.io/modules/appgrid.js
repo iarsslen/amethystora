@@ -79,7 +79,16 @@ export class AppGrid {
         this._icons = new Map();
         this._show(false);
         // Filled as the overview opens, and only then
-        Main.overview.connectObject('showing', () => this._fill(), this);
+        Main.overview.connectObject('showing', () => {
+            this._rowSize = 0;
+            this._alignAgain = 0;
+            this._fill();
+        },
+            // Once the overview has opened, where the grid came to rest
+            'shown', () => {
+                this._alignAgain = 0;
+                this._queueAlign();
+            }, this);
         // The grid lays itself out again when the screen, the row or its pages change: the row follows it then, once the
         // layout is over (sizes changed while the grid is being laid out leave its icons without an allocation, and the
         // grid then draws over its old frames)
@@ -93,6 +102,8 @@ export class AppGrid {
         if (this._alignLater)
             global.compositor.get_laters().remove(this._alignLater);
         this._alignLater = 0;
+        this._first?.disconnectObject(this);
+        this._first = null;
         Main.overview.disconnectObject(this);
         this._appDisplay?._grid.disconnectObject(this);
         this._appDisplay?._grid.layout_manager.disconnectObject(this);
@@ -166,6 +177,8 @@ export class AppGrid {
     }
 
     _queueAlign() {
+        if ((this._alignAgain ?? 0) >= 5)
+            return;
         this._alignLater ||= global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
             this._alignLater = 0;
             this._align();
@@ -178,24 +191,50 @@ export class AppGrid {
     _align() {
         if (!this._row || !this._icons?.size)
             return;
+        // What it changes lays the grid out again, and the grid then picks its icons' size for the room left: the row
+        // looks once more after that, until nothing changes (a few times at most). Its icons' size changes its height,
+        // which changes the grid's: within one opening of the overview it only gets smaller, or the two would take
+        // turns at each other's size for ever
+        let changed = false;
         const layout = this._appDisplay._grid.layout_manager;
-        const size = layout.fixedIconSize > 0 ? layout.fixedIconSize : layout.iconSize;
+        const grid = layout.fixedIconSize > 0 ? layout.fixedIconSize : layout.iconSize;
+        const size = this._rowSize > 0 ? Math.min(grid, this._rowSize) : grid;
+        if (size > 0)
+            this._rowSize = size;
         const [first, second] = (this._appDisplay._orderedItems ?? []).filter(item => item.visible);
         const placed = first?.has_allocation() && first.width > 0;
-        for (const icon of this._icons.values()) {
-            if (size > 0 && icon.icon.iconSize !== size)
-                icon.icon.setIconSize(size);
-            if (placed && icon.width !== first.width)
-                icon.set_width(first.width);
+        // The grid's own size stays as its icons change size and place: its first icon is followed instead
+        if (first !== this._first) {
+            this._first?.disconnectObject(this);
+            this._first = first ?? null;
+            first?.connectObject('notify::allocation', () => this._queueAlign(),
+                'destroy', () => (this._first = null), this);
         }
-        if (!placed)
-            return;
+        for (const icon of this._icons.values()) {
+            if (size > 0 && icon.icon.iconSize !== size) {
+                icon.icon.setIconSize(size);
+                changed = true;
+            }
+            if (placed && icon.width !== first.width) {
+                icon.set_width(first.width);
+                changed = true;
+            }
+        }
+        if (placed)
+            changed = this._alignRow(first, second, layout) || changed;
+        this._alignAgain = changed ? (this._alignAgain ?? 0) + 1 : 0;
+        if (changed)
+            this._queueAlign();
+    }
+
+    // The row as far from the left and as far apart as the grid's first row; whether that changed anything
+    _alignRow(first, second, layout) {
         // Within the app grid, whatever the overview does to it as it opens; a later page is further right
         const box = this._appDisplay._box;
         const at = item => item.apply_relative_transform_to_point(box, new Graphene.Point3D({x: 0, y: 0, z: 0})).x;
         const left = at(first);
         if (left < 0 || left >= box.width)
-            return;
+            return false;
         let spacing = layout.columnSpacing ?? 0;
         if (second?.has_allocation()) {
             const step = at(second) - left;
@@ -205,11 +244,12 @@ export class AppGrid {
         const pad = `padding-left: ${Math.round(left)}px;`;
         const rowStyle = `${pad} spacing: ${Math.round(spacing)}px;`;
         // Set only when it changes: a new style lays the grid out again
-        if (this._row.get_style() !== rowStyle) {
-            this._row.set_style(rowStyle);
-            this._recentLabel.set_style(pad);
-            this._allLabel.set_style(pad);
-        }
+        if (this._row.get_style() === rowStyle)
+            return false;
+        this._row.set_style(rowStyle);
+        this._recentLabel.set_style(pad);
+        this._allLabel.set_style(pad);
+        return true;
     }
 
     // --- The folders -------------------------------------------------------------------------------------------------
