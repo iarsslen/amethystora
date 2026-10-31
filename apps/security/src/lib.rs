@@ -629,8 +629,10 @@ impl Security {
         match request.await {
             Begun::Canceled => {}
             Begun::Error(error) => {
+                // A second drop while the first one's scan starts is refused, and that scan stays in view
+                let running = self.scan.borrow().is_some();
                 self.state.borrow_mut().notice = error;
-                self.show("scan", None);
+                self.show(if running { "scanning" } else { "scan" }, None);
             }
             Begun::Started(progress) => {
                 self.state.borrow_mut().running = Some(progress);
