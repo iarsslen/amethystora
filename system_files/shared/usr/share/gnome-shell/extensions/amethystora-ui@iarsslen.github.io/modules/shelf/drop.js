@@ -46,7 +46,8 @@ function transfer(selection, type, most, cancellable) {
     });
 }
 
-// The drag's data as the shelf takes it: {files: [uri...]} | {picture: Uint8Array} | {text: string} | null
+// The drag's data as the shelf takes it: {files: [uri...]} | {picture: Uint8Array} | {text: string}, {refused: true}
+// for one it cannot take (too large, or empty), which the shelf then says, or null for a drag that offered nothing
 export async function readDrag(cancellable) {
     const selection = global.display.get_selection();
     const types = selection.get_mimetypes(Meta.SelectionType.SELECTION_DND) ?? [];
@@ -69,7 +70,7 @@ export async function readDrag(cancellable) {
         if (text.trim())
             return {text};
     }
-    return null;
+    return types.length ? {refused: true} : null;
 }
 
 // The hand-off: `amethystora-shelf take LAYOUT` with the drop on its standard input, one line of JSON then the
@@ -78,7 +79,9 @@ export async function readDrag(cancellable) {
 export function handOff(drop, layout) {
     let header;
     let tail = null;
-    if (drop.files)
+    if (drop.refused)
+        header = {items: []};
+    else if (drop.files)
         header = {items: [{kind: 'files', uris: drop.files}]};
     else if (drop.picture)
         [header, tail] = [{items: [{kind: 'picture', mime: 'image/png', length: drop.picture.length}]}, drop.picture];
