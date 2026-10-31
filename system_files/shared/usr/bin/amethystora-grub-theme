@@ -46,6 +46,20 @@ need_root() {
     [[ ${EUID} -eq 0 ]] || die "this needs root: try sudo ${0##*/} $*"
 }
 
+# bootc mounts /boot read-only, and ostree makes it writable for its own changes only, in a mount namespace of its
+# own: the command given runs again the same way, so that /boot stays read-only for everything else. A /boot that is a folder
+# of the system's btrfs is a bind mount, which is remounted as one.
+boot_writable() {
+    local source options bind=""
+    [[ -z ${AMETHYSTORA_BOOT_RW:-} ]] || return 0
+    read -r source options <<<"$(findmnt -rn -o SOURCE,FSTYPE,OPTIONS --mountpoint /boot 2>/dev/null |
+        awk '$2 != "autofs" { print $1, $3; exit }')"
+    [[ ",${options}," == *,ro,* ]] || return 0
+    [[ "${source}" == *\[* ]] && bind=bind,
+    exec env AMETHYSTORA_BOOT_RW=1 unshare -m sh -c 'mount -o "remount,${1}rw" /boot && shift && exec "$@"' \
+        sh "${bind}" "$0" "$1"
+}
+
 # GRUB has to be the bootloader, and it has to be one that reads user.cfg. If it is not, say so
 # rather than copying files somewhere nothing will read them.
 check_supported() {
@@ -105,6 +119,7 @@ EOF
 
 do_install() {
     need_root install
+    boot_writable install
     check_supported
     copy_theme
     write_user_cfg
@@ -113,6 +128,7 @@ do_install() {
 
 do_remove() {
     need_root remove
+    boot_writable remove
     rm -rf "${TARGET}"
     if [[ -f ${USER_CFG} ]]; then
         sed -i "/^${BEGIN_MARK}$/,/^${END_MARK}$/d" "${USER_CFG}"
@@ -130,6 +146,7 @@ do_refresh() {
     if [[ -f ${STAMP} ]] && [[ "$(cat "${STAMP}")" == "$(theme_fingerprint)" ]]; then
         exit 0
     fi
+    boot_writable refresh
     check_supported
     copy_theme
     write_user_cfg
