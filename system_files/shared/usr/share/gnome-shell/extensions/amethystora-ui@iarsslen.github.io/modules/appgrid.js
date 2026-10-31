@@ -18,6 +18,9 @@ import * as ParentalControlsManager from 'resource:///org/gnome/shell/misc/paren
 import {InjectionManager, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const MOST = 8;
+// GNOME's grid fits three rows to a page of any wide shape, so a short screen's icons shrink to make room for the row:
+// with the row, a page as wide as that may take two rows instead
+const TWO_ROWS = {rows: 2, columns: 8};
 // The folder tile's square, as a share of its side: the corners, the inset of the four apps and the gap between them
 const TILE_RADIUS = 18 / 64;
 const TILE_INSET = 9 / 64;
@@ -78,14 +81,19 @@ export class AppGrid {
         box.insert_child_at_index(this._allLabel, 2);
         this._icons = new Map();
         this._show(false);
+        const grid = this._appDisplay._grid;
+        this._gridModes = grid._gridModes;
+        if (Array.isArray(this._gridModes))
+            grid.setGridModes([...this._gridModes, TWO_ROWS]);
         // Filled as the overview opens, and only then
         Main.overview.connectObject('showing', () => {
-            this._rowSize = 0;
             this._alignAgain = 0;
             this._fill();
         },
-            // Once the overview has opened, where the grid came to rest
+            // Once the overview has opened, where the grid came to rest: its icons' size then is the row's (the
+            // grid is smaller for a moment as the overview opens)
             'shown', () => {
+                this._rowSize = 0;
                 this._alignAgain = 0;
                 this._queueAlign();
             }, this);
@@ -107,6 +115,9 @@ export class AppGrid {
         Main.overview.disconnectObject(this);
         this._appDisplay?._grid.disconnectObject(this);
         this._appDisplay?._grid.layout_manager.disconnectObject(this);
+        if (this._gridModes)
+            this._appDisplay?._grid.setGridModes(this._gridModes);
+        this._gridModes = null;
         for (const name of ['_recentLabel', '_row', '_allLabel']) {
             this[name]?.destroy();
             this[name] = null;
