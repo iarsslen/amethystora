@@ -84,7 +84,11 @@ export default class ClipboardIndicatorExtension extends Extension {
             uuid: this.uuid
         });
 
-        Main.panel.addToStatusArea('amethystoraClipboard', this.clipboardIndicator, 1);
+        // Amethystora UI's meters take the first places on the right of the bar, before or after this is turned on (a
+        // login turns this on first, an unlock the meters): the icon goes one place past those there now, as at a login
+        const meters = ['amethystora-meters-processor', 'amethystora-meters-memory', 'amethystora-meters-network']
+            .filter(role => Main.panel.statusArea[role]).length;
+        Main.panel.addToStatusArea('amethystoraClipboard', this.clipboardIndicator, meters + 1);
     }
 
     disable () {
