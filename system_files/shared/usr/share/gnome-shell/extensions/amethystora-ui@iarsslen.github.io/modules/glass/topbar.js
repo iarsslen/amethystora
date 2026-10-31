@@ -47,6 +47,7 @@ export class TopBar {
 
     enable() {
         this._laterId = 0;
+        this._ended = false;
         // The bars with a pane: the main one, and the other screens' (modules/bars.js)
         this._bars = new Set();
         this._pills = new Set();
@@ -61,6 +62,13 @@ export class TopBar {
                 this._sync();
             }, this);
         Main.sessionMode.connectObject('updated', () => this._queue(), this);
+        // GNOME Shell ending destroys its bar without turning the extensions off first: nothing touches it after
+        Main.panel.connectObject('destroy', () => {
+            this._ended = true;
+            if (this._laterId)
+                global.compositor.get_laters().remove(this._laterId);
+            this._laterId = 0;
+        }, this);
         this._glass.windows?.onChange(() => this._queue());
         this.restyle();
     }
@@ -68,15 +76,17 @@ export class TopBar {
     disable() {
         Main.overview.disconnectObject(this);
         Main.sessionMode.disconnectObject(this);
+        if (!this._ended)
+            Main.panel.disconnectObject(this);
         if (this._laterId)
             global.compositor.get_laters().remove(this._laterId);
         this._laterId = 0;
-        for (const {panel} of this._panels())
+        for (const {panel} of this._ended ? [] : this._panels())
             panel.remove_style_class_name(CLEAR);
-        for (const panel of this._bars)
+        for (const panel of this._ended ? [] : this._bars)
             this._glass.detach(panel);
         this._bars = null;
-        for (const button of this._pills)
+        for (const button of this._ended ? [] : this._pills)
             this._glass.detach(button);
         this._pills = null;
     }
@@ -89,7 +99,7 @@ export class TopBar {
 
     // The panes the style wants: one behind each bar, one behind each button, or none
     restyle() {
-        if (!this._pills)
+        if (!this._pills || this._ended)
             return;
         const style = this._glass.style;
         const bar = style?.look.bar ?? 'pane';
@@ -131,7 +141,7 @@ export class TopBar {
 
     // Windows move every frame while they are dragged: the bar looks once per frame at most
     _queue() {
-        if (this._laterId)
+        if (this._laterId || this._ended)
             return;
         this._laterId = global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
             this._laterId = 0;
@@ -141,7 +151,7 @@ export class TopBar {
     }
 
     _sync() {
-        if (!this._pills)
+        if (!this._pills || this._ended)
             return;
         // The effects are made again when the glass stops being solid: they are asked for each time
         for (const actor of [...this._bars, ...this._pills]) {
