@@ -51,7 +51,9 @@ SETUPS="$(restic snapshots --json --tag amethystora-setup 2>/dev/null)" ||
 if [[ -n "${SNAPSHOT}" ]]; then
     ID="$(jq -r --arg s "${SNAPSHOT}" '[.[] | select(.id | startswith($s))][0].id // empty' <<<"${SETUPS}")"
     if [[ -z "${ID}" ]]; then
-        FILES="$(restic snapshots --json "${SNAPSHOT}" 2>/dev/null)" || die "There is no snapshot ${SNAPSHOT}."
+        # restic lists an ID it does not know as no snapshot at all, and succeeds
+        FILES="$(restic snapshots --json "${SNAPSHOT}" 2>/dev/null)" && [[ "$(jq length <<<"${FILES}")" -gt 0 ]] ||
+            die "There is no snapshot ${SNAPSHOT}."
         ID="$(jq -r --argjson f "${FILES}" '($f[0].time[:19] + "Z" | fromdateiso8601) as $t | $f[0].hostname as $h
             | [.[] | select(.hostname == $h and ((.time[:19] + "Z" | fromdateiso8601) >= $t))]
             | sort_by(.time) | .[0].id // empty' <<<"${SETUPS}")"

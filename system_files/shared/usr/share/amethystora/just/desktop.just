@@ -16,7 +16,7 @@ theme THEME="":
     current="$(amethystora-theme current 2>/dev/null || true)"
     shown="${current:-$(gettext "none")}"
     choice="$(amethystora-theme list | sed 's/^[*] /  /' | awk '{ print $1 }' |
-        gum choose --header "$(eval_gettext "Theme (current: \${shown})")" --height 14 --selected "${current}")"
+        gum choose --header "$(eval_gettext "Theme (current: \${shown})")" --height 14 --selected "${current}")" || exit 0
     amethystora-theme set "${choice}"
 
 # Cycle the wallpaper of the current theme (Super+Ctrl+Space), or show IMAGE, one that amethystora-theme bg list names
@@ -51,7 +51,7 @@ accent ACCENT="":
             printf '%-9s %s\n' "${id}" "${names[${id}]}"
         done
         accent="$(gum choose --header "$(gettext "Accent")" --selected "${current:-theme}" \
-            amethyst iris sky lagoon jade moss amber ember coral rose orchid slate theme)"
+            amethyst iris sky lagoon jade moss amber ember coral rose orchid slate theme)" || exit 0
     fi
     if [[ "${accent}" == theme && ! -e "${IMAGE_SETUP_DIR}/accent" ]]; then
         rm -f "${CONFIG_DIR}/accent"
@@ -121,7 +121,7 @@ colours WAY="":
         echo "soft   $(gettext "The same hues, quieter")"
         echo "mono   $(gettext "Tinted greys, colour on controls only")"
         echo "off    $(gettext "The theme's own colours")"
-        way="$(gum choose --header "$(gettext "Colours from the wallpaper")" --selected "${current:-soft}" vivid soft mono off)"
+        way="$(gum choose --header "$(gettext "Colours from the wallpaper")" --selected "${current:-soft}" vivid soft mono off)" || exit 0
     fi
     [[ "${way}" == on ]] && way=soft
     if [[ "${way}" == off && ! -e "${IMAGE_SETUP_DIR}/colours" ]]; then
@@ -245,7 +245,7 @@ transition STYLE="" DURATION="":
     if [[ -z "${style}" ]]; then
         current="$(gsettings get "${schema}" style | tr -d "'")"
         style="$(gum choose --header "$(eval_gettext "Transition (current: \${current})")" --selected "${current}" \
-            grow outer wipe wave fade random none)"
+            grow outer wipe wave fade random none)" || exit 0
     fi
     gsettings set "${schema}" style "${style}"
     # gsettings refuses a length outside the schema's range
@@ -280,7 +280,7 @@ icons PACK="":
         echo "clay         $(gettext "Soft matte volumes, a highlight above and a shade below")"
         echo "muted        $(gettext "Glass in quieter colours, for themes of low chroma")"
         echo "theme        $(gettext "Whatever the theme chooses")"
-        pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" "${ICON_PACKS[@]}" theme)"
+        pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" "${ICON_PACKS[@]}" theme)" || exit 0
     fi
     if [[ "${pack}" == theme ]]; then
         rm -f "${flag}"
@@ -321,7 +321,7 @@ style STYLE="":
         echo "neon      $(gettext "Dark glass outlined and glowing in the theme's accent")"
         echo "theme     $(gettext "Whatever the theme chooses")"
         style="$(gum choose --header "$(eval_gettext "Style (current: \${current})")" --selected "${current}" \
-            islands floating hairline capsule terminal segments neon theme)"
+            islands floating hairline capsule terminal segments neon theme)" || exit 0
     fi
     if [[ "${style}" == theme ]]; then
         rm -f "${flag}"
@@ -352,7 +352,7 @@ glass MATERIAL="":
         echo "prism  $(gettext "Less tint, more colour, a lit top edge and light along the bottom")"
         echo "clear  $(gettext "The thinnest glass and the brightest rim; it darkens by itself where text needs it")"
         material="$(gum choose --header "$(eval_gettext "Glass (current: \${current})")" --selected "${current}" \
-            frost prism clear)"
+            frost prism clear)" || exit 0
     fi
     case "${material}" in
         frost | prism | clear) gsettings set "${SCHEMA}" material "${material}" ;;
@@ -470,7 +470,7 @@ font FAMILY="":
     family="${1:-}"
     if [[ -z "${family}" ]]; then
         family="$(gum choose --header "$(eval_gettext "Font (current: \${current})")" --selected "${current}" \
-            theme "${UI_FONTS[@]}")"
+            theme "${UI_FONTS[@]}")" || exit 0
     fi
     if [[ "${family}" == theme ]]; then
         rm -f "${flag}"
@@ -502,7 +502,7 @@ mono-font FAMILY="":
     family="${1:-}"
     if [[ -z "${family}" ]]; then
         family="$(gum choose --header "$(eval_gettext "Monospace font (current: \${current})")" --selected "${current}" \
-            theme "${MONO_FONTS[@]}")"
+            theme "${MONO_FONTS[@]}")" || exit 0
     fi
     if [[ "${family}" == theme ]]; then
         rm -f "${flag}"
@@ -540,7 +540,7 @@ pointer SET="":
         echo "facet  $(gettext "Cut like the gem, in two faces of amethyst")"
         echo "theme  $(gettext "Whatever the theme chooses")"
         set="$(gum choose --header "$(eval_gettext "Pointer (current: \${current})")" --selected "${current}" \
-            "${POINTER_SETS[@]}" theme)"
+            "${POINTER_SETS[@]}" theme)" || exit 0
     fi
     if [[ "${set}" == theme ]]; then
         rm -f "${flag}"
@@ -570,7 +570,7 @@ pointer-shake MODE="":
         echo "beacon  $(gettext "The pointer grows a little and sends rings out from where it is")"
         echo "off     $(gettext "Shaking the mouse does nothing")"
         mode="$(gum choose --header "$(eval_gettext "Shake to find (current: \${current})")" --selected "${current}" \
-            grow beacon off)"
+            grow beacon off)" || exit 0
     fi
     case "${mode}" in
         grow | beacon | off) gsettings set "${schema}" shake "${mode}" ;;
@@ -622,7 +622,7 @@ layout STYLE="":
     if [[ -z "${style}" ]]; then
         echo "tiling   $(gettext "Windows open side by side on a strip that scrolls, arranged for you")"
         echo "classic  $(gettext "Windows float and overlap, and you move and size them, as on Windows and macOS")"
-        style="$(gum choose --header "$(eval_gettext "Layout (current: \${current})")" --selected "${current}" tiling classic)"
+        style="$(gum choose --header "$(eval_gettext "Layout (current: \${current})")" --selected "${current}" tiling classic)" || exit 0
     fi
     case "${style}" in
         classic)
@@ -649,7 +649,7 @@ minimize STYLE="":
     if [[ -z "${style}" ]]; then
         echo "droplet  $(gettext "The window gathers into a drop of glass and arcs into its icon")"
         echo "shrink   $(gettext "The window shrinks and fades into its icon, as GNOME does it")"
-        style="$(gum choose --header "$(eval_gettext "Minimize (current: \${current})")" --selected "${current}" droplet shrink)"
+        style="$(gum choose --header "$(eval_gettext "Minimize (current: \${current})")" --selected "${current}" droplet shrink)" || exit 0
     fi
     case "${style}" in
         droplet | shrink) gsettings set "${schema}" minimize "${style}" ;;
@@ -676,7 +676,7 @@ workspace-switch STYLE="":
     if [[ -z "${style}" ]]; then
         echo "depth  $(gettext "The wallpaper slides a third as far as the windows, which step back a little on the way")"
         echo "slide  $(gettext "Each workspace slides in whole, wallpaper and all")"
-        style="$(gum choose --header "$(eval_gettext "Changing workspace (current: \${current})")" --selected "${current}" depth slide)"
+        style="$(gum choose --header "$(eval_gettext "Changing workspace (current: \${current})")" --selected "${current}" depth slide)" || exit 0
     fi
     case "${style}" in
         depth | slide) gsettings set "${schema}" workspace-switch "${style}" ;;
@@ -878,7 +878,7 @@ clipboard KEEP="":
         echo "restart  $(gettext "Pinned items, and the rest until the computer restarts")"
         echo "session  $(gettext "Pinned items, and the rest until you log out")"
         keep="$(gum choose --header "$(eval_gettext "Keep the clipboard history (current: \${current})")" --selected "${current}" \
-            always restart session)"
+            always restart session)" || exit 0
     fi
     case "${keep}" in
         always | restart | session) ;;
@@ -915,7 +915,7 @@ privacy WHAT="" VALUE="":
             current="$(gsettings get "${schema}" old-files-age | sed 's/^uint32 //')"
         fi
         value="$(gum choose --header "$(eval_gettext "Empty the trash of what was deleted more than this many days ago (current: \${current})")" \
-            --selected "${current}" 7 14 30 60 off)"
+            --selected "${current}" 7 14 30 60 off)" || exit 0
     fi
     if [[ "${value}" == off ]]; then
         gsettings set "${schema}" remove-old-trash-files false
@@ -986,7 +986,7 @@ boot-menu ACTION="":
     action="${1:-}"
     amethystora-grub-theme status
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "Boot menu")" "${turn_on}" "${turn_off}" "$(gettext "Cancel")")"
+        action="$(gum choose --header "$(gettext "Boot menu")" "${turn_on}" "${turn_off}" "$(gettext "Cancel")")" || exit 0
     fi
     case "${action}" in
         "${turn_on}" | "Turn on" | install | on) sudo amethystora-grub-theme install ;;
@@ -1215,7 +1215,7 @@ pill *ARGS:
     state="${1:-}"
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" "${what}")" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "\${what} (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "\${what} (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "${what}:${state}" in
         live:on) echo "$(gettext "The live pill is on: the clock shows what is happening now.")" ;;
@@ -1252,7 +1252,7 @@ quick-settings ACTION="" VALUE="":
         current="$(theme_state)"
         echo "reset  $(gettext "Every tile back in its first order, and every tile shown")"
         echo "theme  $(eval_gettext "Show or hide the theme block (now \${current})")"
-        action="$(gum choose reset theme)"
+        action="$(gum choose reset theme)" || exit 0
     fi
     case "${action}" in
         reset)
@@ -1266,7 +1266,7 @@ quick-settings ACTION="" VALUE="":
             if [[ -z "${value}" ]]; then
                 [[ -t 0 && -t 1 ]] || usage
                 current="$(theme_state)"
-                value="$(gum choose --header "$(eval_gettext "The theme block (current: \${current})")" --selected "${current}" on off)"
+                value="$(gum choose --header "$(eval_gettext "The theme block (current: \${current})")" --selected "${current}" on off)" || exit 0
             fi
             # The other tiles put away stay so
             others="$(hidden | grep -vx theme || true)"
@@ -1305,7 +1305,7 @@ quiet *ARGS:
     state="${1:-}"
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" "${what}")" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "\${what} (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "\${what} (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     # Night Light's times as HH:MM, from its decimal hours
     hhmm() { awk -v h="$1" 'BEGIN { m = int(h * 60 + 0.5) % 1440; printf "%02d:%02d", int(m / 60), m % 60 }'; }
@@ -1368,7 +1368,7 @@ digest *ARGS:
     state="${1:-}"
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" digest)" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "Digest (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "Digest (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "${state}" in
         on)
@@ -1416,7 +1416,7 @@ notifications *ARGS:
             state="${2:-}"
             if [[ -z "${state}" ]]; then
                 if [[ "$(gsettings get "${schema}" later)" == true ]]; then current=on; else current=off; fi
-                state="$(gum choose --header "$(eval_gettext "Later and mute (current: \${current})")" --selected "${current}" on off)"
+                state="$(gum choose --header "$(eval_gettext "Later and mute (current: \${current})")" --selected "${current}" on off)" || exit 0
             fi
             case "${state}" in
                 on)
@@ -1446,7 +1446,7 @@ whats-new *ARGS:
     state="${1:-}"
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" whats-new)" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "What's new (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "What's new (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "${state}" in
         on)
@@ -1477,7 +1477,7 @@ getting-set *ARGS:
     state="${1:-}"
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" getting-set)" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "Getting set (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "Getting set (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "${state}" in
         on)
@@ -1522,7 +1522,7 @@ power *ARGS:
         else
             header="$(eval_gettext "Say when an app is busy (current: \${current})")"
         fi
-        state="$(gum choose --header "${header}" --selected "${current}" on off)"
+        state="$(gum choose --header "${header}" --selected "${current}" on off)" || exit 0
     fi
     case "${state}" in
         on) gsettings set "${schema}" "${key}" true ;;
@@ -1987,7 +1987,7 @@ top-bar *ARGS:
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" "${key}")" == true ]]; then current=on; else current=off; fi
         what="$1"
-        state="$(gum choose --header "$(eval_gettext "Top bar \${what} (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "Top bar \${what} (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "$1:${state}" in
         screens:on) echo "$(gettext "Every screen has a top bar with the workspace it shows.")" ;;
@@ -2015,7 +2015,7 @@ today *ARGS:
     state="${2:-}"
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" tasks)" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "Today's tasks (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "Today's tasks (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "${state}" in
         on) echo "$(gettext "The calendar menu lists today's tasks while Notes is open and unlocked.")" ;;
@@ -2045,14 +2045,19 @@ weather *ARGS:
     fi
     if [[ -z "${state}" ]]; then
         if [[ "$(gsettings get "${schema}" weather)" == true ]]; then current=on; else current=off; fi
-        state="$(gum choose --header "$(eval_gettext "Weather (current: \${current})")" --selected "${current}" on off)"
+        state="$(gum choose --header "$(eval_gettext "Weather (current: \${current})")" --selected "${current}" on off)" || exit 0
     fi
     case "${state}" in
         on)
             gsettings set "${schema}" weather true
             echo "$(gettext "The weather is on.")"
             if [[ "$(gsettings get org.gnome.shell.weather locations 2>/dev/null)" == "@av []" ]]; then
-                echo "$(gettext "Choose a place in Weather: it opens with gnome-weather.")"
+                # Weather is a Flatpak (org.gnome.Weather): opened by its launcher
+                if gtk-launch org.gnome.Weather >/dev/null 2>&1; then
+                    echo "$(gettext "Choose a place in Weather, which opens now.")"
+                else
+                    echo "$(gettext "Choose a place in Weather, from the app grid.")"
+                fi
             fi
             ;;
         off)
@@ -2084,7 +2089,7 @@ breaks *ARGS:
             *movement*) current=movement ;;
             *) current=off ;;
         esac
-        state="$(gum choose --header "$(eval_gettext "Rest reminders (current: \${current})")" --selected "${current}" eyesight movement both off)"
+        state="$(gum choose --header "$(eval_gettext "Rest reminders (current: \${current})")" --selected "${current}" eyesight movement both off)" || exit 0
     fi
     # GNOME's times for one kind of break, as the account has them, in seconds: between breaks, and a break's length
     seconds_of() { gsettings get "${schema}.$1" "$2" | awk '{print $NF}'; }
@@ -2142,7 +2147,7 @@ dock *ARGS:
         local setting="$1" current="$2" value="$3"
         shift 3
         if [[ -z "${value}" ]]; then
-            value="$(gum choose --header "$(eval_gettext "\${setting} (current: \${current})")" --selected "${current}" "$@")"
+            value="$(gum choose --header "$(eval_gettext "\${setting} (current: \${current})")" --selected "${current}" "$@")" || exit 0
         fi
         local IFS='|'
         if [[ "|$*|" != *"|${value}|"* ]]; then
@@ -2336,7 +2341,7 @@ dock *ARGS:
             ;;
         amount)
             if [[ -z "${value}" ]]; then
-                value="$(gum input --header "$(gettext "How far Swell grows, 120 to 220 per cent")" --value "$(percent)")"
+                value="$(gum input --header "$(gettext "How far Swell grows, 120 to 220 per cent")" --value "$(percent)")" || exit 0
             fi
             # Per cent (120 to 220), or the multiple itself (1.2 to 2.2)
             amount="$(awk -v v="${value}" 'BEGIN {

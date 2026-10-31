@@ -34,7 +34,7 @@ backup ACTION="":
         daily="${turn_off}"
         systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null || daily="${turn_on}"
         action="$(gum choose --header "$(gettext "Backups (restic)")" \
-            "${set_up}" "${back_up_now}" "${show_snapshots}" "${daily}" "$(gettext "Cancel")")"
+            "${set_up}" "${back_up_now}" "${show_snapshots}" "${daily}" "$(gettext "Cancel")")" || exit 0
     fi
     case "${action}" in
         "${set_up}" | "Set up" | setup)
@@ -48,12 +48,12 @@ backup ACTION="":
             echo
             current="$(sed -n 's/^RESTIC_REPOSITORY=//p' "${ENV_FILE}" 2>/dev/null || true)"
             repository="$(gum input --header "$(gettext "Repository")" \
-                --placeholder "rest:https://user:pass@host:8000/" --value "${current}")"
+                --placeholder "rest:https://user:pass@host:8000/" --value "${current}")" || exit 0
             [[ -n "${repository}" ]] || exit 0
             password="$(gum input --password \
-                --header "$(gettext "Repository password (keep a copy elsewhere: without it the backup cannot be read)")")"
+                --header "$(gettext "Repository password (keep a copy elsewhere: without it the backup cannot be read)")")" || exit 0
             [[ -n "${password}" ]] || exit 0
-            paths="$(gum input --header "$(gettext "What to back up, separated by spaces")" --value "${HOME}")"
+            paths="$(gum input --header "$(gettext "What to back up, separated by spaces")" --value "${HOME}")" || exit 0
             [[ -n "${paths}" ]] || exit 0
             mkdir -p "${CONFIG_DIR}"
             (umask 077 && printf '%s' "${password}" >"${PASSWORD_FILE}")

@@ -7657,7 +7657,11 @@ msgid "The weather is on."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
-msgid "Choose a place in Weather: it opens with gnome-weather."
+msgid "Choose a place in Weather, which opens now."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Choose a place in Weather, from the app grid."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

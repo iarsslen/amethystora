@@ -460,7 +460,7 @@ scheduler NAME="":
         echo "lavd     $(gettext "Keeps games smooth while other work runs, made for gaming handhelds and laptops")"
         echo "bpfland  $(gettext "Keeps the desktop responsive while something heavy builds or renders")"
         echo "flash    $(gettext "Steady timing, for audio and music work")"
-        name="$(gum choose --header "$(gettext "CPU scheduler")" kernel lavd bpfland flash)"
+        name="$(gum choose --header "$(gettext "CPU scheduler")" kernel lavd bpfland flash)" || exit 0
     fi
     case "${name}" in
         kernel | off)
@@ -515,7 +515,7 @@ zram MODE="":
         echo "fast     $(gettext "Compressed quickly and left so (Fedora's own): nothing runs in the background, but about 540 MB of RAM for each GB, back at about 250 MB/s.")"
         echo "compact  $(gettext "Compressed small from the start: about 430 MB of RAM for each GB, but moving out and back is about half as quick, at about 130 MB/s.")"
         echo
-        mode="$(gum choose --header "$(gettext "Swapped-out memory")" default fast compact)"
+        mode="$(gum choose --header "$(gettext "Swapped-out memory")" default fast compact)" || exit 0
     fi
     case "${mode}" in
         default) sudo rm -f "${choice}" ;;

@@ -21,7 +21,7 @@ key ACTION="":
         registered="$(awk -F: -v user="${USER}" '$1 == user { print NF - 1 }' "${keys}" 2>/dev/null || true)"
         count="${registered:-0}"
         echo "$(eval_gettext "Security keys registered for \${USER}: \${count}")"
-        action="$(gum choose --header "$(gettext "Security key login")" "${add_key}" "${add_fingerprint}" "${remove_keys}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "Security key login")" "${add_key}" "${add_fingerprint}" "${remove_keys}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${add_key}" | add)
@@ -98,13 +98,13 @@ fingerprint ACTION="":
         echo "$(eval_gettext "No finger is enrolled for \${USER}.")"
     fi
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "Fingerprint login")" "${add_finger}" "${test_finger}" "${remove_fingers}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "Fingerprint login")" "${add_finger}" "${test_finger}" "${remove_fingers}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${add_finger}" | add)
             finger="$(gum choose --header "$(gettext "Which finger?")" right-index-finger left-index-finger right-thumb \
                 left-thumb right-middle-finger left-middle-finger right-ring-finger left-ring-finger \
-                right-little-finger left-little-finger)"
+                right-little-finger left-little-finger)" || exit 0
             [[ -n "${finger}" ]] || exit 0
             name="$(finger_name "${finger}")"
             echo "$(eval_gettext "Touch the reader with your \${name} again and again, a little differently each time, until it says the enrolment is complete.")"
@@ -397,7 +397,7 @@ ssh-codes ACTION="":
     fi
     if [[ -e "${secret}" ]]; then echo "$(eval_gettext "\${USER} has codes set up.")"; else echo "$(eval_gettext "\${USER} has no codes set up.")"; fi
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "One-time codes for SSH")" "${setup_codes}" "${turn_on}" "${turn_off}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "One-time codes for SSH")" "${setup_codes}" "${turn_on}" "${turn_off}" "${cancel}")" || exit 0
     fi
     reload() {
         systemctl is-active --quiet sshd.service || return 0
@@ -509,7 +509,7 @@ lockdown ACTION="":
         exit 1
     fi
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "Kernel lockdown")" "${turn_on}" "${strict}" "${turn_off}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "Kernel lockdown")" "${turn_on}" "${strict}" "${turn_off}" "${cancel}")" || exit 0
     fi
     nvidia=false
     [[ "$(jq -r '."image-flavor" // ""' /usr/share/amethystora/image-info.json 2>/dev/null)" == nvidia* ]] && nvidia=true
@@ -566,7 +566,7 @@ apps ACTION="":
     open_flatseal="$(gettext "Open Flatseal")"
     cancel="$(gettext "Cancel")"
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "App permissions")" "${take_back}" "${open_flatseal}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "App permissions")" "${take_back}" "${open_flatseal}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${take_back}" | reset)
@@ -575,7 +575,7 @@ apps ACTION="":
                 echo "$(gettext "You have granted no app anything of your own.")"
                 exit 0
             fi
-            choice="$(printf '%s\n' "${granted[@]}" | gum choose --header "$(gettext "Take back from which app?")")"
+            choice="$(printf '%s\n' "${granted[@]}" | gum choose --header "$(gettext "Take back from which app?")")" || exit 0
             [[ -n "${choice}" ]] || exit 0
             app="${choice##*(}"
             app="${app%)}"
@@ -749,7 +749,7 @@ settings SETTING="" VALUE="":
         echo
         echo "$(gettext "Everything off at once, or back as the image ships it: ame security profile")"
         mapfile -t names < <("${config}" --list --json | jq -r '.settings[].setting')
-        setting="$(gum choose --header "$(gettext "Change which?")" --height 16 "${names[@]}" realtime "${cancel}")"
+        setting="$(gum choose --header "$(gettext "Change which?")" --height 16 "${names[@]}" realtime "${cancel}")" || exit 0
     fi
     case "${setting}" in
         on-detection)
@@ -757,7 +757,7 @@ settings SETTING="" VALUE="":
                 printf '%-12s%s\n' report "$(gettext "Say so, and leave the file where it is (the default).")"
                 printf '%-12s%s\n' quarantine "$(gettext "Move it where nothing can open it. ame security scan restore puts it back.")"
                 printf '%-12s%s\n' delete "$(gettext "Delete it. A match can be a false positive, and this cannot be undone.")"
-                value="$(gum choose --header "$(gettext "Files a virus scan finds")" report quarantine delete)"
+                value="$(gum choose --header "$(gettext "Files a virus scan finds")" report quarantine delete)" || exit 0
             fi
             if [[ "${value}" == delete ]]; then
                 gum confirm "$(gettext "Delete what scans find, with no way to get it back?")" || exit 0
@@ -769,7 +769,7 @@ settings SETTING="" VALUE="":
             if [[ -z "${value}" ]]; then
                 printf '%-5s%s\n' on "$(gettext "Read each change as the audit log records it, and scan every file written in a home folder as it is closed. Costs some CPU while files are being written.")"
                 printf '%-5s%s\n' off "$(gettext "Look every 15 minutes, and scan weekly (the default).")"
-                value="$(gum choose --header "$(gettext "Real-time watching")" on off)"
+                value="$(gum choose --header "$(gettext "Real-time watching")" on off)" || exit 0
             fi
             sudo "${config}" set REALTIME "${value}"
             # The units check the setting as they start (ExecCondition), so a restart applies it either
@@ -787,7 +787,7 @@ settings SETTING="" VALUE="":
                 printf '%-7s%s\n' watch "$(gettext "Suricata inspects every connection this machine makes and receives, and says what it recognises. Nothing is blocked. Start here: a week of it shows what blocking would get in the way of.")"
                 printf '%-7s%s\n' block "$(gettext "As watch, and connections to known malware, command servers and exploits are cut off. Each one is a notification, and ame security connections allows it again.")"
                 echo "$(gettext "Whatever goes wrong with it, connections go on uninspected rather than stop.")"
-                value="$(gum choose --header "$(gettext "Network protection")" off watch block)"
+                value="$(gum choose --header "$(gettext "Network protection")" off watch block)" || exit 0
             fi
             sudo "${config}" set NETWORK "${value}"
             if [[ "${value}" == off ]]; then
@@ -824,7 +824,7 @@ settings SETTING="" VALUE="":
             jq -r .text <<<"${entry}" | fold -s -w 96
             if [[ -z "${value}" ]]; then
                 mapfile -t values < <(jq -r '.allowed[]' <<<"${entry}")
-                value="$(gum choose --header "${title}" "${values[@]}" "${cancel}")"
+                value="$(gum choose --header "${title}" "${values[@]}" "${cancel}")" || exit 0
                 [[ -n "${value}" && "${value}" != "${cancel}" ]] || exit 0
             fi
             # What turning these down gives up, said before it is done
@@ -854,7 +854,7 @@ settings SETTING="" VALUE="":
             if [[ "${key}" == REPUTATION && "${value}" == on ]]; then
                 echo
                 echo "$(gettext "Make a free key at https://auth.abuse.ch/ (sign in with a GitHub, Google or similar account).")"
-                abusech="$(gum input --password --prompt "$(gettext "abuse.ch key")> " | tr -cd 'A-Za-z0-9_-')"
+                abusech="$(gum input --password --prompt "$(gettext "abuse.ch key")> " | tr -cd 'A-Za-z0-9_-')" || exit 0
                 [[ -n "${abusech}" ]] || { echo "$(gettext "No key, so nothing is looked up.")"; exit 0; }
                 printf '%s\n' "${abusech}" | sudo install -D -m 0600 /dev/stdin /etc/amethystora/abusech.key
             fi
@@ -892,7 +892,7 @@ profile NAME="":
     printf '%-10s%s\n' thorough "$(gettext "Everything that looks for new threats on: the decoy key, the YARA rules, the behaviour sensor (Falco, a few hundred megabytes) recording, odd DNS names and hunting rules, the command-server lists hourly. Costs memory, CPU and downloads; developers will see noise.")"
     echo "$(gettext "None of them turns on what sends something to somebody else: site checking, asking the agent about events and hash reputation are each chosen on their own.")"
     if [[ -z "${name}" ]]; then
-        name="$(gum choose --header "$(gettext "Security profile")" off default light balanced thorough "${cancel}")"
+        name="$(gum choose --header "$(gettext "Security profile")" off default light balanced thorough "${cancel}")" || exit 0
     fi
     case "${name}" in
         off)
@@ -983,7 +983,7 @@ allow FEATURE="report" ENTRY="" ACTION="":
             exit 0
         fi
         mapfile -t choices < <(cut -f1,3 <<<"${open}")
-        choice="$(gum choose --header "$(gettext "Accept which?")" "${choices[@]}" "${cancel}")"
+        choice="$(gum choose --header "$(gettext "Accept which?")" "${choices[@]}" "${cancel}")" || exit 0
         [[ -n "${choice}" && "${choice}" != "${cancel}" ]] || exit 0
         entry="${choice%%$'\t'*}"
     fi
@@ -1119,7 +1119,7 @@ location ACTION="":
     fi
     echo "$(gettext "When one asks, the Wi-Fi networks in reach and their signal go to BeaconDB (api.beacondb.net), and the address alone when none is in reach. Nothing is sent back to improve its map. This setting is this account's.")"
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "Location services")" "${turn_on}" "${turn_off}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "Location services")" "${turn_on}" "${turn_off}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${turn_on}" | on)
@@ -1310,7 +1310,7 @@ input-remapper ACTION="":
         echo "$(gettext "Key remapping is off. Input Remapper's window still opens, but cannot apply a mapping.")"
     fi
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "Key remapping (Input Remapper)")" "${turn_on}" "${turn_off}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "Key remapping (Input Remapper)")" "${turn_on}" "${turn_off}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${turn_on}" | on)
@@ -1367,7 +1367,7 @@ usb ACTION="":
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "$(gettext "USB protection (USBGuard)")" \
             "${block_locked}" "${block_all}" \
-            "${allow_device}" "${turn_off}" "${cancel}")"
+            "${allow_device}" "${turn_off}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${block_locked}" | locked)
@@ -1422,7 +1422,7 @@ usb ACTION="":
                 echo "$(gettext "Nothing is blocked.")"
                 exit 0
             fi
-            choice="$(gum choose --header "$(gettext "Allow which device?")" --height 12 <<<"${blocked}")"
+            choice="$(gum choose --header "$(gettext "Allow which device?")" --height 12 <<<"${blocked}")" || exit 0
             [[ -n "${choice}" ]] || exit 0
             if [[ "${mode}" == locked ]]; then
                 sudo usbguard allow-device "${choice%%:*}"
@@ -1518,7 +1518,7 @@ browser ACTION="" ID="":
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "$(gettext "Browser protection")" \
             "${turn_on}" "${allow_extension}" "${disallow_extension}" "${add_osprey}" \
-            "${take_osprey}" "${stop_data}" "${allow_data}" "${turn_off}" "${cancel}")"
+            "${take_osprey}" "${stop_data}" "${allow_data}" "${turn_off}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${turn_on}" | on)
@@ -1537,7 +1537,7 @@ browser ACTION="" ID="":
             id="${2:-}"
             if [[ -z "${id}" ]]; then
                 echo "$(gettext "Firefox lists each extension's ID in about:support, under Add-ons. The others show it on their extensions page with developer mode on.")"
-                id="$(gum input --prompt "$(gettext "Extension ID")> " --placeholder "uBlock0@raymondhill.net")"
+                id="$(gum input --prompt "$(gettext "Extension ID")> " --placeholder "uBlock0@raymondhill.net")" || exit 0
             fi
             [[ -n "${id}" ]] || exit 0
             sudo "${policy}" allow "${id}"
@@ -1548,7 +1548,7 @@ browser ACTION="" ID="":
             if [[ -z "${id}" ]]; then
                 [[ -n "${allowed}" ]] || { echo "$(gettext "No extension of this machine's own is on the list.")"; exit 0; }
                 mapfile -t ids <<<"${allowed}"
-                id="$(gum choose --header "$(gettext "Take which off?")" "${ids[@]}" "${cancel}")"
+                id="$(gum choose --header "$(gettext "Take which off?")" "${ids[@]}" "${cancel}")" || exit 0
                 [[ -n "${id}" && "${id}" != "${cancel}" ]] || exit 0
             fi
             sudo "${policy}" disallow "${id}"
@@ -1742,7 +1742,7 @@ mac ACTION="":
         *) echo "$(gettext "Off: wired networks see this machine's own hardware address, Wi-Fi networks one for each network name, and every network is told the machine's name.")" ;;
     esac
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "A different address on each network")" "${turn_away}" "${turn_on}" "${choose_home}" "${turn_off}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "A different address on each network")" "${turn_away}" "${turn_on}" "${choose_home}" "${turn_off}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${choose_home}" | home)
@@ -1824,7 +1824,7 @@ disk-unlock ACTION="":
     fi
     echo
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "TPM disk unlock")" "${set_up_pin}" "${remove_key}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "TPM disk unlock")" "${set_up_pin}" "${remove_key}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${set_up_pin}" | on-pin) FLAGS=(--tpm2-with-pin=yes) ;;
@@ -1894,7 +1894,7 @@ ransomware ACTION="":
     fi
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "$(gettext "Ransomware protection (snapshots of the home folders)")" \
-            "${turn_on}" "${put_back}" "${turn_off}" "${cancel}")"
+            "${turn_on}" "${put_back}" "${turn_off}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${turn_on}" | on)
@@ -1932,13 +1932,13 @@ ransomware ACTION="":
                 exit 1
             fi
             echo "$(gettext "Backups, in the app grid, shows each folder as it was and puts back single files.")"
-            snapshot="$(gum choose --header "$(gettext "From which snapshot? (date_time)")" --height 16 "${YOURS[@]}")"
+            snapshot="$(gum choose --header "$(gettext "From which snapshot? (date_time)")" --height 16 "${YOURS[@]}")" || exit 0
             [[ -n "${snapshot}" ]] || exit 0
             from="${SNAPSHOTS}/${snapshot}/${home#/var/home/}"
             open_files="$(gettext "Open it in Files")"
             put_folder="$(gettext "Put a folder back")"
             how="$(gum choose --header "$(eval_gettext "Your home folder as it was at \${snapshot}")" \
-                "${open_files}" "${put_folder}" "${cancel}")"
+                "${open_files}" "${put_folder}" "${cancel}")" || exit 0
             case "${how}" in
                 "${open_files}")
                     echo "$(gettext "Read-only: copy what you want back into your home folder.")"
@@ -1946,7 +1946,7 @@ ransomware ACTION="":
                     ;;
                 "${put_folder}")
                     folder="$(gum input --header "$(gettext "Which folder, inside your home? (empty for all of it)")" \
-                        --placeholder "Documents")"
+                        --placeholder "Documents")" || exit 0
                     folder="${folder#/}"
                     folder="${folder%/}"
                     if [[ ! -d "${from}/${folder}" ]]; then
@@ -2025,7 +2025,7 @@ scan ACTION="":
     esac
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "$(gettext "Virus scan (ClamAV)")" "${scan_now}" "${show_quarantine}" \
-            "${put_back}" "${delete_file}" "${show_log}" "${cancel}")"
+            "${put_back}" "${delete_file}" "${show_log}" "${cancel}")" || exit 0
     fi
     case "${action}" in
         "${scan_now}" | now)
@@ -2053,7 +2053,7 @@ scan ACTION="":
                 echo "$(gettext "The quarantine is empty.")"
                 exit 0
             fi
-            choice="$(gum choose --header "$(gettext "Put which file back?")" <<<"${list}")"
+            choice="$(gum choose --header "$(gettext "Put which file back?")" <<<"${list}")" || exit 0
             id="${choice%%$'\t'*}"
             path="${choice##*$'\t'}"
             echo "$(gettext "A file is only in quarantine because it matched known malware. Put it back only if you are sure that match is wrong.")"
@@ -2071,7 +2071,7 @@ scan ACTION="":
                 echo "$(gettext "The quarantine is empty.")"
                 exit 0
             fi
-            choice="$(gum choose --header "$(gettext "Delete which file for good?")" <<<"${list}")"
+            choice="$(gum choose --header "$(gettext "Delete which file for good?")" <<<"${list}")" || exit 0
             id="${choice%%$'\t'*}"
             path="${choice##*$'\t'}"
             gum confirm "$(eval_gettext "Delete \${path} for good? Nothing can bring it back.")" || exit 0
