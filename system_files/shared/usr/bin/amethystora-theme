@@ -229,9 +229,10 @@ theme_set() {
     slug="$(theme_slug "${1:?usage: amethystora-theme set <theme>}")"
     theme_exists "${slug}" || die "no theme '${slug}'. Try: amethystora-theme list"
 
-    stage_theme "${slug}"
+    # Held first: the shell's stylesheets and the apps follow current/ as soon as stage_theme swaps it in
     transition Hold
     trap 'transition Release' EXIT
+    stage_theme "${slug}"
     apply_all
     # A wallpaper that cannot be set is worth a warning, not a half-applied theme
     if [[ ${AMETHYSTORA_THEME_SKIP_BACKGROUND:-0} != 1 ]]; then
