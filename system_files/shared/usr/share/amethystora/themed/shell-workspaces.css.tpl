@@ -1,5 +1,5 @@
 /* The workspaces in the top bar, in the colours of {{ theme_name }}: the one you are on filled with the accent,
-   one with windows in the text colour, an empty one fainter */
+   one with windows in the text colour, an empty one fainter, as dim as a label may be and still read (4.5:1) */
 
 .amethystora-workspaces-label.amethystora-workspaces-active {
   background-color: {{ accent }};
@@ -7,11 +7,11 @@
 }
 
 .amethystora-workspaces-label.amethystora-workspaces-busy {
-  color: rgba({{ foreground_rgb }}, 0.7);
+  color: {{ foreground }};
 }
 
 .amethystora-workspaces-label.amethystora-workspaces-empty {
-  color: rgba({{ foreground_rgb }}, 0.4);
+  color: rgba({{ foreground_rgb }}, {{ dim_alpha }});
 }
 
 /* A label being dragged, on the theme's background; the one you are on keeps its accent */

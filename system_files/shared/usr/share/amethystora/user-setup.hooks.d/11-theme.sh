@@ -44,6 +44,8 @@
 #      written only when the theme is applied again.
 #  18  Quick settings tiles with an arrow as one card in every style (themed/shell-styles.css.tpl), written only when the
 #      theme is applied again.
+#  19  The top bar's empty workspaces as dim as a label may be and still read (themed/shell-workspaces.css.tpl, the
+#      palette's dim_alpha, 4.5:1), written only when the theme is applied again.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -52,7 +54,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 18 || exit 0
+version-script theme user 19 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"
