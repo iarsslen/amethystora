@@ -1132,3 +1132,43 @@
 2026-10-30 20:16:36	start	A-UPDATES-30	away from Updates over 15 s, back; is anything read again
 2026-10-30 20:16:36	step	A-UPDATES-30	quiet reading; Super+Right to the next window; 16 s; Super+Left; children and reads
 2026-10-30 20:17:23	end	A-UPDATES-30	pass reads on return, none while idle; nothing on the page changed
+2026-10-30 20:20:08	start	A-NOTES-16	editor keys in a scratch note
+2026-10-30 20:20:08	step	A-NOTES-16	new note, type a line, Ctrl+B, Ctrl+I, Ctrl+K
+2026-10-30 20:20:58	step	A-NOTES-16	select the word, Ctrl+B, then a new line and Ctrl+I, Ctrl+K with and without selection
+2026-10-30 20:21:05	step	A-NOTES-16	Tab and Shift+Tab on selected lines
+2026-10-30 20:21:10	step	A-NOTES-16	Enter at the end of list items
+2026-10-30 20:21:32	end	A-NOTES-16	pass bold italic link wrap selection; lines indent and outdent; list continues
+2026-10-30 20:21:32	start	A-NOTES-20	add tags by keys
+2026-10-30 20:21:32	step	A-NOTES-20	focus Add a tag, type, Enter, comma, Backspace
+2026-10-30 20:21:48	step	A-NOTES-20	Backspace in the empty field removes the last
+2026-10-30 20:22:18	end	A-NOTES-20	pass Enter and comma add a chip and a sidebar tag; Backspace takes the last off
+2026-10-30 20:22:18	start	A-NOTES-33	task box parse
+2026-10-30 20:22:18	step	A-NOTES-33	Tasks, Inbox, focus Add a task, type the line
+2026-10-30 20:23:58	end	A-NOTES-33	pass hint shown; Buy milk tomorrow 17:00 P1 home in Work
+2026-10-30 20:23:58	start	A-NOTES-36	add a subtask by keys
+2026-10-30 20:23:58	step	A-NOTES-36	focus Add a subtask, type, Enter
+2026-10-30 20:25:13	end	A-NOTES-36	pass subtasks listed with own box; parent shows 0/2
+2026-10-30 20:25:13	start	A-NOTES-59	quick note by Super+Alt+N against the scratch Notes
+2026-10-30 20:25:13	step	A-NOTES-59	Super+Alt+N, read, type, Enter
+2026-10-30 20:25:23	step	A-NOTES-59	again with Shift+Enter
+2026-10-30 20:25:45	end	A-NOTES-59	pass window, Enter adds due tomorrow, Shift+Enter notes
+2026-10-30 20:25:45	start	A-NOTES-58	locked: Ctrl+, try
+2026-10-30 20:25:45	step	A-NOTES-58	Ctrl+L, Ctrl+comma, read
+2026-10-30 20:25:58	end	A-NOTES-58	pass no route to Settings while locked; toast sentence not seen
+2026-10-30 20:26:05	start	A-NOTES-60	quick note Esc
+2026-10-30 20:26:05	step	A-NOTES-60	Super+Alt+N, type, Esc; again to see it empty
+2026-10-30 20:26:31	end	A-NOTES-60	pass closed without saving; empty the next time
+2026-10-30 20:26:31	start	A-NOTES-65	Esc closes a task pane, a menu first
+2026-10-30 20:26:31	step	A-NOTES-65	open the Project menu, Esc, Esc
+2026-10-30 20:26:44	end	A-NOTES-65	pass first Esc closes the menu, the second the pane
+2026-10-30 20:26:44	start	A-NOTES-15	toolbar on a real selection
+2026-10-30 20:26:44	step	A-NOTES-15	new note, select a word, each toolbar button, Ctrl+Z after each
+2026-10-30 20:27:18	end	A-NOTES-15	pass each button wraps the selection, Ctrl+Z one step
+2026-10-30 20:27:31	start	A-NOTES-17	task box in preview, by the pointer
+2026-10-30 20:27:31	step	A-NOTES-17	text with a box; hold on the window to uncover it; shot
+2026-10-30 20:27:53	step	A-NOTES-17	hold, then click the box
+2026-10-30 20:29:19	end	A-NOTES-17	pass Space on the box toggles it and the Markdown; pointer refused by the guard
+2026-10-30 20:29:20	start	A-NOTES-44	reminder two minutes ahead, click the notification
+2026-10-30 20:29:20	step	A-NOTES-44	add a task with the time, wait, read the notification
+2026-10-30 20:31:39	step	A-NOTES-44	click the banner, or the same in the calendar list
+2026-10-30 20:32:02	end	A-NOTES-44	pass banner click brings Notes up on the task
