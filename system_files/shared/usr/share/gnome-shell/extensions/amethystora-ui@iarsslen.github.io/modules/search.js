@@ -129,13 +129,14 @@ export class Search {
         Main.overview.connectObject('showing', () => this._giveBack(), this);
 
         // While the box is open, opening a result asks the overview to go (it is not there); the Super key asks it to
-        // come. Both are answered here instead.
+        // come. Both are answered here instead. A result opened by its Ctrl key on another workspace has closed the box
+        // by the time GNOME's result asks, and still brings no overview
         const proto = Overview.Overview.prototype;
         const {toggle, hide} = proto;
         this._overviewMethods = {toggle, hide};
         const search = this;
         proto.toggle = function (...args) {
-            if (search._open && search._answer(true))
+            if ((search._open || search._activating) && search._answer(true))
                 return undefined;
             return toggle.apply(this, args);
         };
