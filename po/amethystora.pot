@@ -1353,7 +1353,7 @@ msgstr ""
 msgid "Nothing is scanned, and no virus signatures are kept in memory or downloaded."
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "not yet"
 msgstr ""
 
@@ -9240,6 +9240,10 @@ msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "That leaves the one rule out on this machine; ame security connections block <rule number> puts it back. The rules allowed here are listed in /etc/amethystora/ips-allowed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "fail2ban is not running, so no address is blocked. It runs while SSH is on."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just

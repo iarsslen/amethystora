@@ -81,11 +81,21 @@ done
 
 OUTPUT="$(clamdscan --fdpass --multiscan --infected "${TARGETS[@]}" 2>&1)"
 STATUS=$?
+# clamd counts a socket or a pipe (an X server's in /tmp/.X11-unix, an agent's) as an error, and clamdscan then
+# exits 2 as if nothing could be scanned: such a file holds nothing to scan, so a scan whose only errors are those
+# ended as it would have without them
+UNSUPPORTED=': Not supported file type$'
+if [[ ${STATUS} -eq 2 ]] &&
+    [[ "$(sed -n 's/^Total errors: //p' <<<"${OUTPUT}")" == "$(grep -c "${UNSUPPORTED}" <<<"${OUTPUT}")" ]]; then
+    [[ "$(sed -n 's/^Infected files: //p' <<<"${OUTPUT}")" == 0 ]] && STATUS=0 || STATUS=1
+fi
 # What is written to the journal and the findings log, which `ame security scan` shows in a terminal: a file
-# name is whatever somebody called a file, so it is made safe to show first. The paths acted on are the
+# name is whatever somebody called a file, so it is made safe to show first, and libclamav's own warnings and the
+# files it could not read are left out, which would push a finding off the screen. The paths acted on are the
 # real ones, read from OUTPUT itself.
 # A YARA rule's match names the rule's author, as its licence asks (amethystora-yara).
-SHOWN="$(/usr/libexec/amethystora-yara credit <<<"${OUTPUT}" | /usr/libexec/amethystora-security-text --lines --max 1000)"
+SHOWN="$(grep -v -e '^LibClamAV Warning: ' -e "${UNSUPPORTED}" <<<"${OUTPUT}" | /usr/libexec/amethystora-yara credit |
+    /usr/libexec/amethystora-security-text --lines --max 1000)"
 
 case "${STATUS}" in
     0)

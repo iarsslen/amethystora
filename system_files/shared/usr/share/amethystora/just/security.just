@@ -1277,6 +1277,11 @@ addresses ADDRESS="":
     set -euo pipefail
     # shellcheck source=/dev/null
     source gettext.sh
+    # fail2ban runs only while SSH is on (its sshd jail): with it stopped, nothing is blocked
+    if ! systemctl is-active --quiet fail2ban.service; then
+        echo "$(gettext "fail2ban is not running, so no address is blocked. It runs while SSH is on.")"
+        exit 0
+    fi
     if [[ -n "${1:-}" ]]; then
         sudo fail2ban-client set sshd unbanip "${1:-}"
         exit 0
@@ -2000,7 +2005,15 @@ scan ACTION="":
     fi
     mode="$(/usr/libexec/amethystora-security-config ON_DETECTION || true)"
     echo "$(eval_gettext "On detection: \${mode} (ame security settings on-detection)")"
-    last_run="$(systemctl show -p InactiveEnterTimestamp --value amethystora-clamav-scan.service || true)"
+    # As the report says it: the unit knows only a run of this start, its timer the last one it started
+    last_run="$({ systemctl show --timestamp=unix -p InactiveEnterTimestamp --value amethystora-clamav-scan.service
+        systemctl show --timestamp=unix -p LastTriggerUSec --value amethystora-clamav-scan.timer; } 2>/dev/null |
+        sed -n 's/^@\([0-9][0-9]*\)$/\1/p' | sort -n | tail -n1 || true)"
+    if [[ -n "${last_run}" ]]; then
+        last_run="$(date -d "@${last_run}" '+%a %-d %b, %H:%M')"
+    else
+        last_run="$(gettext "not yet")"
+    fi
     echo "$(eval_gettext "Last run:    \${last_run}")"
     AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
     case "${SIG}" in
