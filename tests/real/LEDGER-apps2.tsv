@@ -40,3 +40,5 @@
 2026-10-30 20:01:14	end	A-BACKUPS-12	pass 07 to 22, 24, 27, 28, 30, 31 on a scratch home; no fault, no core dump
 2026-10-30 20:02:25	start	A-UPDATES-06	stand-ins on a scratch home: the window's states, nothing real started
 2026-10-30 20:08:59	end	A-UPDATES-06	pass 06 to 22, 29 on stand-ins, 20 failed; no fault
+2026-10-30 20:09:35	start	A-SECURITY-14	scan of a scratch home holding the EICAR test string, report only, nothing else scanned
+2026-10-30 20:12:25	end	A-SECURITY-14	pass 10, 14, 15, 29, 44, 45, 46 on a scratch home; an already-disposed line in the shell at 20:10:18, not this track's
