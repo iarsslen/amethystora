@@ -249,7 +249,10 @@ theme_set() {
 
     # The notification answers a key or a menu; the login hook that applies the theme asked for none
     if [[ ${AMETHYSTORA_THEME_QUIET:-0} != 1 ]]; then
-        notify "Theme" "${slug}. The apps that are open take its colours when they next start."
+        # Named as Control names it: tokyo-night as Tokyo Night
+        local words
+        read -ra words <<<"${slug//-/ }"
+        notify "Theme" "${words[*]^}. The apps that are open take its colours when they next start."
     fi
     echo "Theme set to ${slug}"
 }
