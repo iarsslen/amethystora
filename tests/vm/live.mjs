@@ -77,7 +77,10 @@ async function relogin() {
 async function boot() {
   say((await call('vm_wait', { name: vm, timeout_s: 900 })).content[0].text);
   await unlock();
-  if (await hasAccount()) await session();
+  // A session that does not come still has what was pushed put back first, or every suite after would run on the
+  // image's own files (seen after 91's restart)
+  let late = null;
+  if (await hasAccount()) await session().catch((e) => { late = e; });
   if (fs.existsSync(`${DIR}/push.list`)) {
     // Only what the restart threw away: /etc is on the disk and keeps what was pushed, and what a suite changed since
     // (security.conf put back over a profile a suite turned on before its restart)
@@ -88,6 +91,7 @@ async function boot() {
     say('putting back the apps program live.sh app built');
     await installApps();
   }
+  if (late) throw late;
 }
 // The signed-in state `ready` kept: a stopped VM of its own, VM-ready, which a fresh start of VM is cloned from
 // (vm_start's from: an overlay on its overlay, its firmware variables and TPM copied), as run.sh --parallel does
