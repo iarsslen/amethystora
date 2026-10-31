@@ -1169,8 +1169,11 @@ impl Security {
             text.append(&ui::limit(&wrapping(summary, &["lead"]), 520));
         }
         hero.append(&text);
+        // Beside the words, or under them in a window of one column, which would leave the words a few letters wide
+        let under = self.columns.get() == 1;
         let side = ui::vbox(8, &["hero-side"]);
         side.set_valign(gtk::Align::Start);
+        let end = if under { gtk::Align::Start } else { gtk::Align::End };
         let again = self.button_with(&t!("Check again"), Opts { icon: Some("refresh"), ..Default::default() }, |this, button| {
             button.set_sensitive(false);
             if let Some(words) = ui::button_words(button) {
@@ -1179,12 +1182,17 @@ impl Security {
             let this = this.clone();
             glib::spawn_future_local(async move { this.reload().await });
         });
-        again.set_halign(gtk::Align::End);
+        again.set_halign(end);
         side.append(&again);
         let checked = ui::line(&t!("Checked at {time}", time = time(report.checked)), &["faint", "small-type"]);
-        checked.set_halign(gtk::Align::End);
+        checked.set_halign(end);
         side.append(&checked);
-        hero.append(&side);
+        if under {
+            side.set_margin_top(10);
+            text.append(&side);
+        } else {
+            hero.append(&side);
+        }
         art::hero_glow(&hero)
     }
 
