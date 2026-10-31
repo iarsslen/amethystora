@@ -544,7 +544,7 @@ impl Updates {
             _ => {
                 if let Some(recent) = recent.as_ref().filter(|r| r.result != "success") {
                     title = t!("The last update did not finish");
-                    lead = t!("It stopped {when}. Try again; if it fails again, this window shows where.", when = when(recent.finished));
+                    lead = t!("It stopped {when}. Try again; if it fails again, this window shows where.", when = when(recent.finished).trim_end_matches('.'));
                     actions.push(self.button(&t!("Try again"), Some("refresh"), true, false, false, |this| this.update_now()).upcast());
                     if let Some(agent) = self.ask_agent() {
                         actions.push(agent.upcast());
