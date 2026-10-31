@@ -35,7 +35,7 @@ pub struct Command {
     pub command: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Choice {
     pub value: String,
     pub title: String,
@@ -56,7 +56,7 @@ pub struct Choice {
     pub thumbnail: Option<String>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Widget {
     pub id: String,
     pub name: Option<String>,
@@ -64,7 +64,7 @@ pub struct Widget {
     pub broken: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Webapp {
     pub name: String,
     pub address: String,
@@ -78,7 +78,7 @@ pub struct Shortcut {
 }
 
 /// One of the actions the list gives a pool of disks
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct PoolAction {
     pub id: String,
     pub title: String,
@@ -86,7 +86,7 @@ pub struct PoolAction {
     pub command: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Disk {
     pub id: String,
     pub title: String,
@@ -96,7 +96,7 @@ pub struct Disk {
 }
 
 /// An entry of the list, as amethystora-control-list's item() makes it, with what its kind adds
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Item {
     pub page: String,
     pub id: String,
@@ -136,7 +136,7 @@ pub struct Item {
 }
 
 /// The list as the script gave it: {version, sealed, elsewhere, items}, of which the page uses the last two
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct List {
     /// Whether the Updates window's automatic updates are on, "on" or "off"
     pub automatic_updates: Option<String>,

@@ -484,11 +484,17 @@ impl Control {
             self.render();
         }
         let result = backend::read_list().await;
+        // Read again quietly (the window coming back to the front) and found the same: nothing is drawn again, which
+        // would close an open drop-down whose popover took the window's focus for a moment
+        let mut unchanged = false;
         {
             let mut state = self.state.borrow_mut();
             state.reading = false;
             state.read = amethystora_ui::i18n::now();
             match result {
+                Ok(list) if quiet && state.banner.is_none() && state.list.as_deref() == Some(&list) => {
+                    unchanged = true;
+                }
                 Ok(list) => {
                     let list = Rc::new(list);
                     self.known.replace(Some(list.clone()));
@@ -507,6 +513,9 @@ impl Control {
                     }
                 }
             }
+        }
+        if unchanged {
+            return;
         }
         self.render();
         self.reveal();
