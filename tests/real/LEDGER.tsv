@@ -1172,3 +1172,11 @@
 2026-10-30 20:29:20	step	A-NOTES-44	add a task with the time, wait, read the notification
 2026-10-30 20:31:39	step	A-NOTES-44	click the banner, or the same in the calendar list
 2026-10-30 20:32:02	end	A-NOTES-44	pass banner click brings Notes up on the task
+2026-10-30 20:32:06	start	A-NOTES-63	launcher actions in the app grid
+2026-10-30 20:32:06	step	A-NOTES-63	open the grid, right-click Notes, read the menu, no launch
+2026-10-30 20:32:44	step	A-NOTES-63	Quick note in the menu, to the scratch Notes that is open
+2026-10-30 20:32:48	step	A-NOTES-63	Tasks: the launcher's own command with scratch data, Notes closed first (asking an open one for a page aborts it in this image)
+2026-10-30 20:33:32	end	A-NOTES-63	pass menu has Tasks and Quick note; Quick note opened; Tasks by command
+2026-10-30 20:33:32	start	A-NOTES-64	today in the calendar menu
+2026-10-30 20:33:32	step	A-NOTES-64	open the calendar, read, close; Ctrl+L; open again
+2026-10-30 20:34:58	end	A-NOTES-64	stopped pause requested; calendar menu not seen open: chip took the clicks, and the last click left the view on workspace 1
