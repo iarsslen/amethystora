@@ -42,3 +42,7 @@
 2026-10-30 20:08:59	end	A-UPDATES-06	pass 06 to 22, 29 on stand-ins, 20 failed; no fault
 2026-10-30 20:09:35	start	A-SECURITY-14	scan of a scratch home holding the EICAR test string, report only, nothing else scanned
 2026-10-30 20:12:25	end	A-SECURITY-14	pass 10, 14, 15, 29, 44, 45, 46 on a scratch home; an already-disposed line in the shell at 20:10:18, not this track's
+2026-10-30 20:13:12	start	A-SHELF-13	text handed to the shelf; its token looked for in the clipboard history; Clear
+2026-10-30 20:14:00	end	A-SHELF-13	skip the clipboard's history is sealed, not to be searched from outside: needs Super+Shift+V
+2026-10-30 20:14:00	start	A-BACKUPS-05	scratch home, Open Security on a stand-in
+2026-10-30 20:14:08	end	A-BACKUPS-05	pass 05
