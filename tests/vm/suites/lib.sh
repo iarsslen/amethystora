@@ -22,16 +22,21 @@ not_ok() {
 skip() { echo "skip - $*"; }
 # Whatever else a suite checks, it ends here: while it ran, nothing of ours threw in the shell, and no stylesheet left out
 # a colour the shell asked for. Both can be invisible on the screen, and no suite's own check has to think of them. A suite
-# that makes the shell fail on purpose says SHELL_FAULTS_EXPECTED=1 first
+# that makes the shell fail on purpose says SHELL_FAULTS_EXPECTED=1 first. An error, or a disposed object reached, counts
+# when its stack passes through our files, and is said with the first of our frames on it
 SUITE_BEGAN="$(date '+%Y-%m-%d %H:%M:%S')"
 shell_faults() {
     journalctl -b --since "${SUITE_BEGAN}" _COMM=gnome-shell --no-pager -o cat 2>/dev/null |
-        awk '/JS ERROR/ { block = $0; next } block && /@(resource|file):\/\// { block = block " | " $0; next }
-            block { if (block ~ /amethystora-/) print block; block = "" }
+        awk 'function flush() { if (block ~ /amethystora-|Gjs_[A-Za-z_]*Amethystora/) print (ours ? head " | " ours : block); block = ours = "" }
+            /JS ERROR|has been already disposed/ { flush(); block = $0; head = substr($0, 1, 110)
+                gsub(/ \(0x[0-9a-f]+\)/, "", head); next }
+            block && (/@(resource|file):\/\// || /^(== Stack trace|#[0-9]+ )/) { block = block " | " $0
+                if (!ours && /amethystora-/) { ours = $0; gsub(/^#[0-9]+ +[0-9a-f]+ [a-z] +| \([0-9a-f]+ @ [0-9]+\)/, "", ours) }
+                next }
+            block { flush() }
             /Did not find color property/ { print }
-            /has been already disposed/ { print }
             /Amethystora UI: .*(failed|threw|did not (start|stop cleanly))/ { print }
-            END { if (block ~ /amethystora-/) print block }' | sort | uniq -c | sort -rn | head -n 15
+            END { flush() }' | sort | uniq -c | sort -rn | head -n 15
 }
 finish() {
     local faults

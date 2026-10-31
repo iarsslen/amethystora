@@ -296,6 +296,9 @@ record
 for i in $(seq 10); do
     ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 'cycled'" >/dev/null
 done
+# Sent back to back on purpose; GNOME may leave it off after the last one, so it is turned on again before the count
+ev "Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+wait_for 30 ready
 same "27 ten disables and enables leave four corners" "$(corners)" 4
 sleep 2
 same "31 and play no second chord" "$(recorded)" ""

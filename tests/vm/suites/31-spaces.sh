@@ -63,6 +63,14 @@ SETS="${WS}.sets"
 # The windows that count, as [class, workspace, x, y, width, height]
 WINS="global.display.list_all_windows().filter(w => w.get_window_type() === 0)"
 module_up() { [[ "$(ev "typeof ${WS}?.claim")" == function ]]; }
+# Amethystora UI off and on again, one step at a time: GNOME enables it again from its enabled-extensions setting, and an
+# enable sent right behind the disable could leave it off for the rest of the suite (seen on GNOME 50.6)
+reload_ui() {
+    ev "Main.extensionManager.disableExtension('${UUID}'); 1" >/dev/null
+    wait_for 10 is_true "Main.extensionManager.lookup('${UUID}').state !== 1"
+    ev "Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+    wait_for 30 module_up
+}
 opening_over() { [[ "$(ev "JSON.stringify(${SETS}?.snapshot().opening ?? null)")" == null ]]; }
 count_class() { ev "${WINS}.filter(w => w.get_wm_class() === '$1').length"; }
 close_all() {
@@ -213,13 +221,13 @@ cleanup() {
     else
         rm -f "${STATE}/sets.json" "${STATE}/sets.json.bak"
     fi
-    ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null 2>&1
+    reload_ui
     user_bus pkill -f "${WORK}/" 2>/dev/null
 }
 trap cleanup EXIT
 fresh_sets() { # The file empty and the module reading it again
     rm -f "${STATE}/sets.json" "${STATE}/sets.json.bak"
-    ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+    reload_ui
     wait_for 30 module_up
 }
 fresh_sets
@@ -369,7 +377,7 @@ for f in sets.json sets.json.bak; do
         {"app": "vmlab-broken.desktop", "rank": 0, "place": {"m": .sets[0].windows[0].place.m, "x": 20, "y": 20, "w": 300, "h": 300, "max": false}}]' \
         "${STATE}/${f}" >"${WORK}/${f}" && install -m 0600 -o "${TEST_USER}" -g "${TEST_USER}" "${WORK}/${f}" "${STATE}/${f}"
 done
-ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+reload_ui
 wait_for 30 module_up
 go_to 0
 open_menu
@@ -391,7 +399,7 @@ for f in sets.json sets.json.bak; do
         "place": {"m": .sets[0].windows[0].place.m, "x": 37, "y": 91, "w": 333, "h": 222, "max": false}}]}] + .sets' \
         "${STATE}/${f}" >"${WORK}/${f}" && install -m 0600 -o "${TEST_USER}" -g "${TEST_USER}" "${WORK}/${f}" "${STATE}/${f}"
 done
-ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+reload_ui
 wait_for 30 module_up
 go_to 0
 ev "${WS}.openSet('Slow'); 1" >/dev/null
@@ -601,12 +609,12 @@ close_all
 sleep 1
 cp "${STATE}/sets.json" "${WORK}/good.json"
 printf '{"version":' >"${STATE}/sets.json"
-ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+reload_ui
 wait_for 30 module_up
 same "17 a broken file: the sets are its copy's" "$(ev "${SETS}.list.length")" 12
 printf 'garbage' >"${STATE}/sets.json"
 printf '[1,2' >"${STATE}/sets.json.bak"
-ev "Main.extensionManager.disableExtension('${UUID}'); Main.extensionManager.enableExtension('${UUID}'); 1" >/dev/null
+reload_ui
 wait_for 30 module_up
 same "17 both broken: no sets" "$(ev "${SETS}.list.length")" 0
 go_to 0
