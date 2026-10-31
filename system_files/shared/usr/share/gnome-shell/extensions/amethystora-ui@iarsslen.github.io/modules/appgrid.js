@@ -7,6 +7,7 @@
 
 import Clutter from 'gi://Clutter';
 import Graphene from 'gi://Graphene';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -79,14 +80,19 @@ export class AppGrid {
         this._show(false);
         // Filled as the overview opens, and only then
         Main.overview.connectObject('showing', () => this._fill(), this);
-        // The grid lays itself out again when the screen, the row or its pages change: the row follows it then
-        this._appDisplay._grid.connectObject('notify::allocation', () => this._align(), this);
-        this._appDisplay._grid.layout_manager.connectObject('notify::icon-size', () => this._align(), this);
+        // The grid lays itself out again when the screen, the row or its pages change: the row follows it then, once the
+        // layout is over (sizes changed while the grid is being laid out leave its icons without an allocation, and the
+        // grid then draws over its old frames)
+        this._appDisplay._grid.connectObject('notify::allocation', () => this._queueAlign(), this);
+        this._appDisplay._grid.layout_manager.connectObject('notify::icon-size', () => this._queueAlign(), this);
         if (Main.overview.visible)
             this._fill();
     }
 
     _removeRow() {
+        if (this._alignLater)
+            global.compositor.get_laters().remove(this._alignLater);
+        this._alignLater = 0;
         Main.overview.disconnectObject(this);
         this._appDisplay?._grid.disconnectObject(this);
         this._appDisplay?._grid.layout_manager.disconnectObject(this);
@@ -157,6 +163,14 @@ export class AppGrid {
         // Shown or hidden only when that changes, so that the grid lays its pages out again only then
         if (this._row.visible !== apps.length > 0)
             this._show(apps.length > 0);
+    }
+
+    _queueAlign() {
+        this._alignLater ||= global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
+            this._alignLater = 0;
+            this._align();
+            return false;
+        });
     }
 
     // The row in the grid's own columns and at its icon size: as far from the left and as far apart as the grid's first
