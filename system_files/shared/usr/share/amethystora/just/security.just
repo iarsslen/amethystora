@@ -883,20 +883,22 @@ profile NAME="":
     cancel="$(gettext "Cancel")"
     current="$("${config}" --profile || true)"
     echo "$(eval_gettext "The switches match the profile: \${current}")"
+    # What each profile does, also when one is named (the Security app names it): said before anything changes
+    echo
+    printf '%-10s%s\n' off "$(gettext "Turn off everything that can be: the security watcher, the virus scanner, the settings audit, real-time watching, network protection and the audit log. Nothing of it runs, the audit log from the next restart.")"
+    printf '%-10s%s\n' default "$(gettext "Every switch back as the image ships it: network protection and real-time watching off, what looks for new threats off, the rest on, and found files reported.")"
+    printf '%-10s%s\n' light "$(gettext "As default, and the cheapest of what looks for new threats: odd processes, SELinux, AI agents and developer tools recorded; ransomware, agents' settings and apps' permissions said.")"
+    printf '%-10s%s\n' balanced "$(gettext "As light, all of those said, with secrets read, programs run from downloads and BPF recorded, the chains of steps put together, and the command-server lists daily.")"
+    printf '%-10s%s\n' thorough "$(gettext "Everything that looks for new threats on: the decoy key, the YARA rules, the behaviour sensor (Falco, a few hundred megabytes) recording, odd DNS names and hunting rules, the command-server lists hourly. Costs memory, CPU and downloads; developers will see noise.")"
+    echo "$(gettext "None of them turns on what sends something to somebody else: site checking, asking the agent about events and hash reputation are each chosen on their own.")"
     if [[ -z "${name}" ]]; then
-        echo
-        printf '%-10s%s\n' off "$(gettext "Turn off everything that can be: the security watcher, the virus scanner, the settings audit, real-time watching, network protection and the audit log. Nothing of it runs, the audit log from the next restart.")"
-        printf '%-10s%s\n' default "$(gettext "Every switch back as the image ships it: network protection and real-time watching off, what looks for new threats off, the rest on, and found files reported.")"
-        printf '%-10s%s\n' light "$(gettext "As default, and the cheapest of what looks for new threats: odd processes, SELinux, AI agents and developer tools recorded; ransomware, agents' settings and apps' permissions said.")"
-        printf '%-10s%s\n' balanced "$(gettext "As light, all of those said, with secrets read, programs run from downloads and BPF recorded, the chains of steps put together, and the command-server lists daily.")"
-        printf '%-10s%s\n' thorough "$(gettext "Everything that looks for new threats on: the decoy key, the YARA rules, the behaviour sensor (Falco, a few hundred megabytes) recording, odd DNS names and hunting rules, the command-server lists hourly. Costs memory, CPU and downloads; developers will see noise.")"
-        echo "$(gettext "None of them turns on what sends something to somebody else: site checking, asking the agent about events and hash reputation are each chosen on their own.")"
         name="$(gum choose --header "$(gettext "Security profile")" off default light balanced thorough "${cancel}")"
     fi
     case "${name}" in
         off)
             gum confirm "$(gettext "Turn every detection switch off?")" || exit 0 ;;
-        default | light | balanced) ;;
+        default | light | balanced)
+            gum confirm "$(eval_gettext "Set the security profile \${name}?")" || exit 0 ;;
         thorough)
             gum confirm "$(gettext "Turn on everything that looks for new threats?")" || exit 0 ;;
         *) exit 0 ;;

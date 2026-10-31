@@ -168,7 +168,7 @@ case "${SUITE_PHASE}" in
         if [[ -e "${CONF}" ]]; then cp -a "${CONF}" "${STATE}/original.conf"; else rm -f "${STATE}/original.conf"; fi
         "${CONFIG}" --profile >"${STATE}/original.profile"
         as_user "mkdir -p -m 0700 ~/.ssh"
-        check "ame security profile default" in_terminal 300 -- ame security profile default
+        check "ame security profile default" in_terminal 300 'Set the security profile default' y -- ame security profile default
         cp -a "${CONF}" "${STATE}/default.conf"
         reboot_and_continue
         ;;
@@ -194,7 +194,7 @@ case "${SUITE_PHASE}" in
         ;;
     3)
         if [[ -e "${STATE}/decoy" ]]; then check_off "profile off" true; else skip "the decoy: the account had an id_backup of its own"; check_off "profile off" false; fi
-        check "ame security profile default" in_terminal 300 -- ame security profile default
+        check "ame security profile default" in_terminal 300 'Set the security profile default' y -- ame security profile default
         reboot_and_continue
         ;;
     4)

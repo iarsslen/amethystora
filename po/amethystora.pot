@@ -9104,6 +9104,11 @@ msgid "Turn every detection switch off?"
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Set the security profile ${name}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
 msgid "Turn on everything that looks for new threats?"
 msgstr ""
 
