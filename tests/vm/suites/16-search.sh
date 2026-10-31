@@ -440,6 +440,7 @@ if wait_for 120 files_found; then
     same "14 ...and the file's hint comes back, on a new row" "$(q '[.sections[].rows[] | select(.hint == "Space previews")][0].title' | cut -c1-14)" "vmlab-glance-1"
     keys space
     check "14 Space opens the previewer" soon 10 previewer
+    same "14 the tiling has not taken the previewer" "$(ev "global.display.get_tab_list(0, null).some(w => w.get_sandboxed_app_id() === 'org.gnome.NautilusPreviewer' && ${UI}.get('tiling').engine?.isTiled(w))")" false
     same "14 the card steps aside" "$(q '.glancing') $(q '.opacity')" "true 0"
     keys down
     on_second() { [[ "$(q '[.sections[].rows[] | select(.selected)][0].title' | cut -c1-14)" == "vmlab-glance-2" ]]; }

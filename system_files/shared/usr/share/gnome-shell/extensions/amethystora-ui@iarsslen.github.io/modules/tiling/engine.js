@@ -43,6 +43,11 @@ const Uncovered = GObject.registerClass(class Uncovered extends Clutter.Effect {
 // it is switched off and on
 const remembered = {strips: [], windows: new WeakMap(), floating: new Set()};
 
+// GNOME's previewer (Space in Files, and Glance) belongs over the file's window, never in a strip. A window gets no
+// signal when it gains a parent, and Glance's has none, so it goes by its name
+const PREVIEWER = 'org.gnome.NautilusPreviewer';
+const isPreviewer = window => window.get_sandboxed_app_id() === PREVIEWER || window.get_wm_class() === PREVIEWER;
+
 // Which screen each screen number is, by its connector. The numbers shift when a screen other than the last is
 // unplugged, so a strip follows its screen by this and not by its number.
 function connectors() {
@@ -263,7 +268,7 @@ export class Engine {
     tileable(window) {
         if (!window || window.is_override_redirect() || window.get_window_type() !== Meta.WindowType.NORMAL)
             return false;
-        if (window.get_transient_for() || window.is_on_all_workspaces() || this.floating.has(window))
+        if (window.get_transient_for() || window.is_on_all_workspaces() || this.floating.has(window) || isPreviewer(window))
             return false;
         return true;
     }
@@ -567,6 +572,11 @@ export class Engine {
                     Main.activateWindow(next);
             }
             this.closeUp(strip);
+        } else if (window.has_focus() && isPreviewer(window)) {
+            // The keyboard goes back to the window it showed a file of, whatever GNOME would pick
+            const owner = window.get_transient_for() ?? this.activeStrip().selected;
+            if (owner)
+                Main.activateWindow(owner);
         }
         this._untrack(window);
     }
