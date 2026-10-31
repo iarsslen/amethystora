@@ -481,10 +481,10 @@ export class Focus {
             source.addNotification(notification);
             return;
         }
-        const id = menu.connect('open-state-changed', (m, open) => {
+        const closed = menu.connect('open-state-changed', (m, open) => {
             if (open)
                 return;
-            menu.disconnect(id);
+            menu.disconnect(closed);
             if (this._question === notification)
                 source.addNotification(notification);
         });
