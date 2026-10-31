@@ -9,6 +9,7 @@ If the machine hung: first save the tails of `journalctl -b -1` into `tests/real
   decodes locally (`zxing-cpp`; never open its link), but it ends at the journal's last kernel line, 14 minutes earlier: no Oops, RIP or trace, so the
   cause is unknown. Nothing implicates amdgpu or a test. It weakens dock and evdi as the only cause, and doesn't show the silent hangs are the same fault.
   Next, each the maintainer's to decide: `efi_pstore.pstore_disable=0` as a kernel argument, a full memtest86+ pass, a BIOS newer than 1.06, kdump if pstore comes back empty too.
+- **To put back at the end:** the walk turned `amethystora-transitions` off at 18:39 on 2026-10-30, since its reveal bug (fixed on main, not in this image) sticks the picture: turn it on again once a fixed image or the overlay is loaded. No reveal is tested meanwhile, which may be why no stuck picture was seen since. The panic's boot had it off too.
 - **Every live test goes through `tests/real/ledger.sh`, one at a time** (the maintainer's request of 2026-10-30, who suspects a
   test is behind the freezes). After a hang, run `tests/real/ledger.sh hang` first: the test left open is the suspect, and
   `~/.local/state/amethystora/walk/{ledger,beats}.tsv` hold it, `tests/real/LEDGER.tsv` the pushed copy. The maintainer asked to speed up on 2026-10-30, so the terminal track runs beside
