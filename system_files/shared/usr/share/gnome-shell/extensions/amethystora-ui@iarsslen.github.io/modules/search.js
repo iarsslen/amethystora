@@ -105,6 +105,7 @@ export class Search {
         this._stretched = new Map();
         this._stretchedIds = new Map();
 
+        this._boxGone = false;
         this._box = new St.BoxLayout({
             style_class: 'amethystora-search-box',
             orientation: Clutter.Orientation.VERTICAL,
@@ -113,7 +114,9 @@ export class Search {
             visible: false,
             pivot_point: new Graphene.Point({x: 0.5, y: 0}),
         });
-        this._box.connectObject('key-press-event', (actor, event) => this._onKeyPress(event), this);
+        this._box.connectObject('key-press-event', (actor, event) => this._onKeyPress(event),
+            // GNOME Shell ending destroys its chrome without turning the extensions off: the glass is not given it after
+            'destroy', () => (this._boxGone = true), this);
         // Ctrl+1 to Ctrl+9 and Glance's Space are seen before the field and the results see them
         this._keys = new Clutter.KeyController();
         this._keys.connectObject('key-press', controller => {
@@ -217,7 +220,7 @@ export class Search {
 
     glassSurfaces() {
         const surfaces = [];
-        if (this._box)
+        if (this._box && !this._boxGone)
             surfaces.push({actor: this._box, material: 'glass', radius: null});
         if (this._glance?.pill)
             surfaces.push({actor: this._glance.pill, material: 'glass', radius: null});
