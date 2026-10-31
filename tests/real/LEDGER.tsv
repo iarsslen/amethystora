@@ -1123,3 +1123,12 @@
 2026-10-30 20:15:48	end	A-SECURITY-27	skip the share guard covers Security under an input session and takes the pointer; for the person
 2026-10-30 20:15:48	start	A-SECURITY-28	needs a drop, as A-SECURITY-27
 2026-10-30 20:15:48	end	A-SECURITY-28	skip for the person
+2026-10-30 20:15:50	start	A-UPDATES-02	Release notes in Updates, browser
+2026-10-30 20:15:50	step	A-UPDATES-02	open Updates; press Release notes; Firefox; closed by its pid
+2026-10-30 20:16:11	end	A-UPDATES-02	pass Firefox on the releases address; closed
+2026-10-30 20:16:12	start	A-UPDATES-31	Updates narrower than 720 px, by the tiling's key; frame
+2026-10-30 20:16:12	step	A-UPDATES-31	Super+minus until narrow; frame; read width from the frame
+2026-10-30 20:16:35	end	A-UPDATES-31	fail links stack right of the wordmark at 620 px, not under it; readable; no overflow
+2026-10-30 20:16:36	start	A-UPDATES-30	away from Updates over 15 s, back; is anything read again
+2026-10-30 20:16:36	step	A-UPDATES-30	quiet reading; Super+Right to the next window; 16 s; Super+Left; children and reads
+2026-10-30 20:17:23	end	A-UPDATES-30	pass reads on return, none while idle; nothing on the page changed
