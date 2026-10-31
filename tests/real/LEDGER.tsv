@@ -1010,3 +1010,39 @@
 2026-10-30 19:53:28	step	A-ALL-06	Updates to workspace 6; light; frame; back; frame
 2026-10-30 19:54:45	step	A-ALL-06	Updates on workspace 6 by its launcher; light; frame; back; frame
 2026-10-30 19:55:52	end	A-ALL-06	pass Updates dark to light and back within 1 s of the set; banner stayed on the first name
+2026-10-30 19:56:02	start	A-ALL-07	Updates open: each of the seven styles, a frame each; back to the theme's
+2026-10-30 19:56:02	step	A-ALL-07	style islands, frame
+2026-10-30 19:56:10	step	A-ALL-07	style floating, frame
+2026-10-30 19:56:18	step	A-ALL-07	style hairline, frame
+2026-10-30 19:56:25	step	A-ALL-07	style capsule, frame
+2026-10-30 19:56:33	step	A-ALL-07	style terminal, frame
+2026-10-30 19:56:41	step	A-ALL-07	style segments, frame
+2026-10-30 19:56:49	step	A-ALL-07	style neon, frame
+2026-10-30 19:56:57	step	A-ALL-07	style back to the theme's; read
+2026-10-30 19:57:21	step	A-ALL-07	again, Updates raised before each frame: another track's Backups keeps opening on this workspace
+2026-10-30 19:57:21	step	A-ALL-07	style islands, frame
+2026-10-30 19:57:29	step	A-ALL-07	style floating, frame
+2026-10-30 19:57:37	step	A-ALL-07	style hairline, frame
+2026-10-30 19:57:45	step	A-ALL-07	style capsule, frame
+2026-10-30 19:57:53	step	A-ALL-07	style terminal, frame
+2026-10-30 19:58:01	step	A-ALL-07	style segments, frame
+2026-10-30 19:58:09	step	A-ALL-07	style neon, frame
+2026-10-30 19:58:17	step	A-ALL-07	style back to the theme's; read
+2026-10-30 19:58:45	end	A-ALL-07	pass corners follow; style back to the theme's, floating, file gone
+2026-10-30 19:58:48	start	A-ALL-09	zoom in Updates: focus by a click on empty space, the keys, frames
+2026-10-30 19:58:48	step	A-ALL-09	wait the chip; click an empty part of Updates; read the focus
+2026-10-30 19:59:04	step	A-ALL-09	Updates ended by its own process id, started anew on workspace 3
+2026-10-30 19:59:08	step	A-ALL-09	Ctrl+= twice; frame; Ctrl+-; frame; Ctrl+0; frame
+2026-10-30 19:59:34	end	A-ALL-09	pass Updates: bigger, one step down, normal; nothing cut
+2026-10-30 19:59:36	start	A-ALL-10	reload in Updates: Ctrl+R, F5, watch its children
+2026-10-30 19:59:36	step	A-ALL-10	Ctrl+R; F5 after 3 s; frame
+2026-10-30 19:59:58	step	A-ALL-10	Ctrl+R; F5 after 3 s; frame
+2026-10-30 20:00:37	end	A-ALL-10	pass page stayed; a read again not visible on this page
+2026-10-30 20:00:39	start	A-ALL-13	keyboard only in Updates: Tab forward and back, names of what takes the focus; Enter on nothing that acts
+2026-10-30 20:00:39	step	A-ALL-13	Tab 14 times and Shift+Tab 3, frames at the 3rd and 6th; no Enter
+2026-10-30 20:01:17	end	A-ALL-13	pass seven buttons in order, back with Shift+Tab, rings seen; activation not pressed
+2026-10-30 20:01:19	start	A-ALL-15	Updates narrowed with the tiling's key, not a drag: frame, close
+2026-10-30 20:01:19	step	A-ALL-15	Super+minus until it stops; frame
+2026-10-30 20:01:46	end	A-ALL-15	pass reflowed narrower; by the tiling's key, not a drag
+2026-10-30 20:01:48	start	A-ALL-08	only on an account with no theme applied
+2026-10-30 20:01:48	end	A-ALL-08	skip this account has a theme
