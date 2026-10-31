@@ -7606,6 +7606,11 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
+msgid "${shown} lets through no app's banners."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
 msgid "${shown} lets through banners from: ${list}"
 msgstr ""
 
@@ -7880,6 +7885,10 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "Key: ${keys}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The emoji picker shows hands and people without a skin tone, in plain yellow."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

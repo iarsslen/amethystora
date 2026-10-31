@@ -968,7 +968,17 @@ keybindings:
             break
         fi
     done
-    glow --pager "${file}"
+    # The page is wrapped at 100 columns and glow keeps its line ends, so a paragraph's lines are joined
+    # first for glow to wrap to the terminal
+    page="$(mktemp --suffix=.md)"
+    trap 'rm -f "${page}"' EXIT
+    awk '/^```/ { fence = !fence }
+        { block = fence || $0 == "" || $0 ~ /^(\||#|```)/
+          item = $0 ~ /^ *([-*+]|[0-9]+[.)]) / }
+        !block && !item && open { printf " %s", $0; next }
+        { if (NR > 1) print ""; printf "%s", $0; open = !block }
+        END { print "" }' "${file}" >"${page}"
+    glow --pager "${page}"
 
 # Put the Amethystora artwork on the GRUB boot menu, or take it off again
 [positional-arguments]
@@ -1885,6 +1895,7 @@ focus *ARGS:
                     [[ $# -eq 1 ]] && one_of "$1" on off || usage
                     value="$1"
                     if [[ "${value}" == on ]]; then gsettings set "${SCHEMA}" "${key}" true; else gsettings set "${SCHEMA}" "${key}" false; fi
+                    profile="$(name "${profile}")"
                     echo "$(eval_gettext "\${profile} \${field}: \${value}")"
                     exit 0
                     ;;
@@ -1897,6 +1908,7 @@ focus *ARGS:
                     quoted="${value//\\/\\\\}"
                     quoted="${quoted//\'/\\\'}"
                     gsettings set "${SCHEMA}" "${key}" "'${quoted}'"
+                    profile="$(name "${profile}")"
                     echo "$(eval_gettext "\${profile} set: \${value}")"
                     exit 0
                     ;;
@@ -1941,24 +1953,35 @@ focus *ARGS:
                         # The calendar's reminders have no launcher of their own to pick: they stay
                         [[ "${current}" == *"'org.gnome.Evolution-alarm-notify.desktop'"* ]] && apps+=(org.gnome.Evolution-alarm-notify.desktop)
                     fi
-                    list=""
+                    list="" names=""
                     for app in "${apps[@]}"; do
                         [[ "${app}" =~ ^[A-Za-z0-9._+-]+\.desktop$ ]] || usage
                         if ! launcher_file "${app}" >/dev/null && [[ "${app}" != org.gnome.Evolution-alarm-notify.desktop ]]; then
                             echo "$(eval_gettext "No launcher \${app} is installed.")" >&2
                             exit 1
                         fi
-                        [[ "${list}" == *"'${app}'"* ]] || list+="${list:+, }'${app}'"
+                        [[ "${list}" != *"'${app}'"* ]] || continue
+                        list+="${list:+, }'${app}'"
+                        # Said by the name the app grid shows
+                        label=""
+                        file="$(launcher_file "${app}")" && label="$(sed -n 's/^Name=//p' "${file}" | head -n1)"
+                        names+="${names:+, }${label:-${app}}"
                     done
                     gsettings set "${SCHEMA}" "${key}" "@as [${list}]"
                     shown="$(name "${profile}")"
-                    echo "$(eval_gettext "\${shown} lets through banners from: \${list}")"
+                    if [[ -z "${names}" ]]; then
+                        echo "$(eval_gettext "\${shown} lets through no app's banners.")"
+                    else
+                        list="${names}"
+                        echo "$(eval_gettext "\${shown} lets through banners from: \${list}")"
+                    fi
                     exit 0
                     ;;
                 *) usage ;;
             esac
             value="$1"
             gsettings set "${SCHEMA}" "${key}" "${value}"
+            profile="$(name "${profile}")"
             echo "$(eval_gettext "\${profile} \${field}: \${value}")"
             ;;
         *) usage ;;
@@ -2511,7 +2534,11 @@ emoji ACTION="" VALUE="":
         tone)
             tone="${2:-}"
             case "${tone}" in
-                none | light | medium-light | medium | medium-dark | dark)
+                none)
+                    gsettings set "${schema}" skin-tone none
+                    echo "$(gettext "The emoji picker shows hands and people without a skin tone, in plain yellow.")"
+                    ;;
+                light | medium-light | medium | medium-dark | dark)
                     gsettings set "${schema}" skin-tone "${tone}"
                     echo "$(eval_gettext "The emoji picker shows hands and people in the \${tone} skin tone.")"
                     ;;
