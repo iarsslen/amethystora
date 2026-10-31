@@ -297,10 +297,20 @@ if [[ "${SUITE_PHASE}" == 6 ]]; then
         not_ok "the launcher asked for no password" "$(journalctl -b --since -2min --no-pager -o cat | tail -n 10)"
     fi
     same "its watcher runs" "$(watcher)" active
-    # Close Now, the launcher's action
+    # Close Now, the launcher's action, with a program holding a file in it
+    in_session "exec tail -f '${PRIVATE}/letter.txt'" >/dev/null 2>&1 &
+    wait_for 30 pgrep -u "${TEST_USER}" -x tail
+    notify_watch
     in_session "$(sed -n '/^\[Desktop Action close\]/,$ s/^Exec=//p' /usr/share/applications/amethystora-private-folder.desktop)" >/dev/null 2>&1
     check "Close Now closes it" wait_for 30 closed
     check "and stops its watcher" wait_for 30 watcher_gone
+    if wait_for 30 notified "These programs had files open in it"; then
+        out="$(grep -A2 -F "These programs had files open in it" /var/tmp/vmlab-86-notifications)"
+        if [[ "${out}" == *tail* ]]; then ok "Close Now names the program"; else not_ok "Close Now's notification does not name tail" "${out}"; fi
+    else
+        not_ok "Close Now named no program" "$(tail -n 20 /var/tmp/vmlab-86-notifications)"
+    fi
+    pkill -u "${TEST_USER}" -x tail
     pkill -u "${TEST_USER}" -x nautilus
     # However the watcher ends, the folder closes
     open_in_terminal() { session_terminal 120 'Password:' "${PASSWORD_ONE}"$'\r' -- "${HELPER}" open >/dev/null 2>&1; }

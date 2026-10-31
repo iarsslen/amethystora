@@ -57,7 +57,7 @@ base_image="${IMAGE_REGISTRY}/${IMAGE_NAME}"
 if [[ -e /usr/share/amethystora/sealed ]] ; then
   echo "This machine is sealed, so it can follow the sealed stream only"
 else
-  echo "The default selection is stable (weekly builds) and stable-daily (daily builds) are for enthusiasts, and latest is for testers"
+  echo "The default is stable, built weekly. stable-daily, built every day, is for enthusiasts, and latest is for testers."
 fi
 
 channel_choice="$(gum choose --selected="${PRESET_STREAM:-${IMAGE_TAG}}" "${CHANNELS[@]}" cancel)"

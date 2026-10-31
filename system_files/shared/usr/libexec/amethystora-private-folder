@@ -135,19 +135,19 @@ PY
     done
 }
 
-# The folder closed, whatever closes it
+# The folder closed, whatever closes it. shut [PROGRAMS]: the programs that had files in it, one a line, when they
+# were read before something else closed it
 shut() {
-    local programs folder_uri PROGRAMS body
-    if ! mounted && ! systemctl --user is-active --quiet "${SCOPE}"; then
-        seal
-        return 0
+    local programs="${1:-}" folder_uri PROGRAMS body
+    if mounted || systemctl --user is-active --quiet "${SCOPE}"; then
+        [[ -n "${programs}" ]] || programs="$(holders)"
+        # gocryptfs unmounts as it ends, lazily when something is busy, and is killed three seconds on
+        systemctl --user stop "${SCOPE}" 2>/dev/null
+        if mounted; then
+            fusermount3 -u -z "${PLAIN}" 2>/dev/null || fusermount -u -z "${PLAIN}" 2>/dev/null
+        fi
     fi
-    programs="$(holders | paste -sd ',' - | sed 's/,/, /g')"
-    # gocryptfs unmounts as it ends, lazily when something is busy, and is killed three seconds on
-    systemctl --user stop "${SCOPE}" 2>/dev/null
-    if mounted; then
-        fusermount3 -u -z "${PLAIN}" 2>/dev/null || fusermount -u -z "${PLAIN}" 2>/dev/null
-    fi
+    programs="$(paste -sd ',' - <<<"${programs}" | sed 's/^,*//; s/,/, /g')"
     seal
     folder_uri="$(uri "${PLAIN}")"
     forget_thumbnails "${folder_uri}"
@@ -169,10 +169,15 @@ shut() {
 }
 
 # Closed by hand or from the launcher: the watcher stops first, and its ExecStopPost, which runs this too,
-# closes the folder; run as that ExecStopPost (systemd sets SERVICE_RESULT), it only closes
+# closes the folder; run as that ExecStopPost (systemd sets SERVICE_RESULT), it only closes. gocryptfs, bound to
+# the watcher, has stopped by then, so the programs with files in the folder are read before.
 close() {
-    [[ -n "${SERVICE_RESULT:-}" ]] || systemctl --user stop "${WATCH}" 2>/dev/null
-    shut
+    local programs=""
+    if [[ -z "${SERVICE_RESULT:-}" ]]; then
+        ! mounted || programs="$(holders)"
+        systemctl --user stop "${WATCH}" 2>/dev/null
+    fi
+    shut "${programs}"
 }
 
 # --- Watching -----------------------------------------------------------------------------------------------

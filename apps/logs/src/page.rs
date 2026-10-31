@@ -750,6 +750,15 @@ impl Logs {
             self.render_fresh();
             return;
         }
+        if self.system_view() && error.contains("insufficient permissions") {
+            // The system's logs asked for by somebody who is not an administrator: the callout over the list says so
+            // already, and journalctl's own words would only say it again
+            let nothing = ui::vbox(0, &[]);
+            self.set_list_child(Some(nothing.upcast_ref()));
+            self.render_count();
+            self.render_fresh();
+            return;
+        }
         if !error.is_empty() {
             // What journalctl said is in its own words, which may run the other way from the page's
             let mut extra: Vec<gtk::Widget> = Vec::new();
@@ -1379,6 +1388,12 @@ impl Logs {
             chips.append(&chip);
         }
         Some(chips.upcast())
+    }
+
+    /// Whether the system's side of the journal is shown, which access() says over the list is for administrators
+    /// when this account cannot read it (the overview that says so may come after the list)
+    fn system_view(&self) -> bool {
+        SYSTEM_VIEWS.contains(&self.state.borrow().category.as_str())
     }
 
     /// Who is not shown what: the system's side of the journal is for administrators
