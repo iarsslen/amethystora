@@ -191,8 +191,13 @@ export class TopBar {
             () => this._tiling.actions.cycleFocusMode(), () => this._describeMode());
         this._open = new Icon(_('Where new windows open'), 'amethystora-tiling-open',
             () => this._tiling.actions.cycleOpenPosition(), () => this._describeOpen());
-        Main.panel.addToStatusArea('amethystora-tiling-mode', this._mode, 2, 'left');
-        Main.panel.addToStatusArea('amethystora-tiling-open', this._open, 3, 'left');
+        // Right after the workspaces' numbers, where they are: the tiling turned on again after the classic layout comes
+        // after more of the bar than it does at a login
+        const row = Main.panel.statusArea['amethystora-workspaces']?.container;
+        const after = row ? Main.panel._leftBox.get_children().indexOf(row) + 1 : 0;
+        const at = after > 0 ? after : 2;
+        Main.panel.addToStatusArea('amethystora-tiling-mode', this._mode, at, 'left');
+        Main.panel.addToStatusArea('amethystora-tiling-open', this._open, at + 1, 'left');
         // The workspaces the person turned the other way, kept by the workspace itself and written down by its number
         this._turned = {top: this._load('hiddenTopBar'), position: this._load('hiddenPositionBar')};
         this._screens = new Map();
