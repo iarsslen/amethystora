@@ -1072,3 +1072,35 @@
 2026-10-30 20:06:50	end	A-MANUAL-13	pass Down, Up, wrap to the last, Enter opened the hit's section, search emptied
 2026-10-30 20:06:50	start	A-MANUAL-15	seen in A-MANUAL-11's frames: Esc
 2026-10-30 20:06:50	end	A-MANUAL-15	pass seen at 20:05:41 in the same sequence
+2026-10-30 20:06:52	start	A-MANUAL-17	clipboard saved; Copy on a code block; read; restored
+2026-10-30 20:06:52	step	A-MANUAL-17	focus the Manual; frame
+2026-10-30 20:07:01	step	A-MANUAL-17	hover the code block; frame
+2026-10-30 20:07:11	step	A-MANUAL-17	click Copy; frame; read the clipboard; restore
+2026-10-30 20:07:24	step	A-MANUAL-17	again, one session: hover, wait, frame, click, frame
+2026-10-30 20:07:37	end	A-MANUAL-17	pass Copied, clipboard held the block; person's clipboard restored and compared
+2026-10-30 20:07:38	start	A-MANUAL-18	point at a heading, frame; off it, frame
+2026-10-30 20:07:38	step	A-MANUAL-18	hover the heading This manual; frame; away; frame
+2026-10-30 20:07:50	end	A-MANUAL-18	pass hash shows before the heading while pointed at
+2026-10-30 20:07:51	start	A-MANUAL-20	The desktop's row of moving cards; frames while active and not
+2026-10-30 20:07:51	step	A-MANUAL-20	open the page at the section before the cards; frame
+2026-10-30 20:08:11	step	A-MANUAL-20	focus by click on the page; two frames 1.5 s apart
+2026-10-30 20:08:29	end	A-MANUAL-20	pass still while the window was not active, moving while it was
+2026-10-30 20:08:30	start	A-MANUAL-21	click a playing card; name; click again
+2026-10-30 20:08:30	step	A-MANUAL-21	click Shake to find; frames of it; names; click again
+2026-10-30 20:08:50	end	A-MANUAL-21	pass paused, name says so; played again, name says so
+2026-10-30 20:08:51	start	A-MANUAL-28	reduce motion on: cards still; off: moving
+2026-10-30 20:08:51	step	A-MANUAL-28	reduce-motion on; frames 1.5 s apart
+2026-10-30 20:08:55	step	A-MANUAL-28	reduce-motion off; frames
+2026-10-30 20:09:17	end	A-MANUAL-28	pass still with reduce motion on, playing once off; put back
+2026-10-30 20:09:18	start	A-MANUAL-23	right-click the Manual in the dock or grid: Hotkeys
+2026-10-30 20:09:18	step	A-MANUAL-23	right-click the Manual's dock icon; wait; frame
+2026-10-30 20:09:29	step	A-MANUAL-23	again: on, 3 s, frames 1.5 s apart; shown; off
+2026-10-30 20:09:45	end	A-MANUAL-23	fail correction of the line above: A-MANUAL-28 failed; cards play with reduce motion on
+2026-10-30 20:09:53	start	A-MANUAL-23	the previous ledger line belongs to A-MANUAL-28; right-click the Manual's dock icon, Hotkeys
+2026-10-30 20:09:53	step	A-MANUAL-23	right-click the icon; wait for the menu to settle; frame
+2026-10-30 20:10:05	step	A-MANUAL-23	the dock had shifted: another app's menu opened; Escape; the right icon; frame
+2026-10-30 20:10:17	step	A-MANUAL-23	click Hotkeys in the menu; title
+2026-10-30 20:10:31	end	A-MANUAL-23	pass menu with Hotkeys, the window on Hotkeys; a disposed-object warning
+2026-10-30 20:10:32	start	A-MANUAL-24	fresh Manual, Page Down and arrows without a click
+2026-10-30 20:10:32	step	A-MANUAL-24	close the Manual; open it; frame; Page Down; Down twice; frame
+2026-10-30 20:10:57	end	A-MANUAL-24	pass fresh window, keys scroll with no click
