@@ -314,6 +314,8 @@ log_in "${NEW}"
 sleep 15
 check "15 Pick a look does not open again" sh -c "! pgrep -u ${NEW} -f 'amethystora-control welcome'"
 same "15 first-look is recorded" "$(jq -r '.version.user."first-look"' "${HOME_NEW}/.local/share/amethystora/setup_versioning.json")" 1
+revealed_again() { (($(reveal_lines) > before)); }
+wait_for 30 revealed_again
 same "10 a new session reveals once more" "$(reveal_lines)" $((before + 1))
 
 # --- 11: with animations off, or the reveal off, nothing ------------------------------------------------------------
