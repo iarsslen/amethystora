@@ -1180,8 +1180,8 @@ Coral or Slate (Files lists them in alphabetical order). The folder takes that c
 of it in the dock takes it as you open the stack or bring the pointer to the dock. The colour is drawn by your icon
 pack, so it follows when you change the pack. **No colour** takes
 it away, and gives Documents, Music, Pictures and the other special folders their emblem back. A picture you set as a
-folder's icon yourself is left alone, and files in the selection are left as they are. Stars are Files' own: **Star**
-in the same menu.
+folder's icon yourself is left alone, and files in the selection are left as they are. Stars are Files' own: the star beside a
+file in the list view, and **Starred** in its sidebar.
 
 ### Back in time
 
