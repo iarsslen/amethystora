@@ -4,7 +4,7 @@
 //!
 //! Only the manual's own clips play, by an exact name under /usr/share/amethystora/manual/media, each with its poster
 //! beside it. A clip plays muted and looping only while its card is shown, the window is the active one and
-//! animations are on, and only while it is on the screen, up to MOST_OPEN at once: each clip is a pipeline of its own,
+//! animations are on and motion not reduced, and only while it is on the screen, up to MOST_OPEN at once: each clip is a pipeline of its own,
 //! and a page of them playing out of sight ran the program out of file descriptors. Otherwise the poster shows, as it does for good if the clip cannot be played. A click, or Space
 //! or Enter on the card, pauses it and plays it again.
 
@@ -34,7 +34,7 @@ pub fn card_name(href: &str) -> Option<&str> {
 struct Watch {
     window: glib::WeakRef<gtk::Window>,
     active: glib::SignalHandlerId,
-    settings: Option<(gtk::Settings, glib::SignalHandlerId)>,
+    settings: Option<(gtk::Settings, [glib::SignalHandlerId; 2])>,
     scrolled: Option<(gtk::Adjustment, glib::SignalHandlerId, glib::SignalHandlerId)>,
 }
 
@@ -67,10 +67,9 @@ impl Card {
     }
 
     fn may_play(&self, root: &gtk::Button) -> bool {
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(false);
         let active = root.root().and_downcast::<gtk::Window>().is_some_and(|window| window.is_active());
         let room = self.media.borrow().is_some() || OPEN.with(Cell::get) < MOST_OPEN;
-        root.is_mapped() && active && animations && !self.held.get() && !self.failed.get() && room && Self::on_screen(root)
+        root.is_mapped() && active && ui::animations_on() && !self.held.get() && !self.failed.get() && room && Self::on_screen(root)
     }
 
     fn sync(self: &Rc<Self>) {
@@ -132,13 +131,15 @@ impl Card {
             }
         });
         let settings = gtk::Settings::default().map(|settings| {
-            let weak = Rc::downgrade(self);
-            let id = settings.connect_gtk_enable_animations_notify(move |_| {
-                if let Some(card) = weak.upgrade() {
-                    card.sync();
-                }
+            let ids = ["gtk-enable-animations", ui::REDUCED_MOTION].map(|name| {
+                let weak = Rc::downgrade(self);
+                settings.connect_notify_local(Some(name), move |_, _| {
+                    if let Some(card) = weak.upgrade() {
+                        card.sync();
+                    }
+                })
             });
-            (settings, id)
+            (settings, ids)
         });
         // Scrolled, or the page laid out, a card may have come on or gone off the screen
         let scrolled = root.ancestor(gtk::ScrolledWindow::static_type()).and_downcast::<gtk::ScrolledWindow>().map(|page| {
@@ -165,8 +166,10 @@ impl Card {
             if let Some(window) = watch.window.upgrade() {
                 window.disconnect(watch.active);
             }
-            if let Some((settings, id)) = watch.settings {
-                settings.disconnect(id);
+            if let Some((settings, ids)) = watch.settings {
+                for id in ids {
+                    settings.disconnect(id);
+                }
             }
             if let Some((adjustment, moved, laid_out)) = watch.scrolled {
                 adjustment.disconnect(moved);

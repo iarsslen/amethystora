@@ -503,7 +503,7 @@ impl Manual {
         if let Some(animation) = self.scrolling.take() {
             animation.pause();
         }
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(true);
+        let animations = ui::animations_on();
         if !smooth || !animations {
             adjustment.set_value(y);
             return;

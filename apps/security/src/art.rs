@@ -237,7 +237,7 @@ impl ScanGem {
     pub fn new() -> ScanGem {
         let gem: ScanGem = glib::Object::new();
         gem.set_halign(gtk::Align::Center);
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(true);
+        let animations = amethystora_ui::ui::animations_on();
         if animations {
             gem.imp().started.set(-1);
             let id = gem.add_tick_callback(|gem, clock| {

@@ -414,7 +414,7 @@ impl Gem {
         if let Some(tick) = imp.tick.take() {
             tick.remove();
         }
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(true);
+        let animations = crate::ui::animations_on();
         if motion != Motion::Still && animations {
             imp.started.set(-1);
             let id = self.add_tick_callback(|gem, clock| {

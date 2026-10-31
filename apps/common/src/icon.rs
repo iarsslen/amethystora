@@ -185,7 +185,7 @@ impl Icon {
         if let Some(tick) = imp.tick.take() {
             tick.remove();
         }
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(true);
+        let animations = crate::ui::animations_on();
         if spinning && animations {
             let id = self.add_tick_callback(|icon, clock| {
                 let seconds = clock.frame_time() as f64 / 1_000_000.0;

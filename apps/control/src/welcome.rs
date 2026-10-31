@@ -295,7 +295,7 @@ impl Preview {
         if self.look.borrow().as_ref() == Some(&look) {
             return;
         }
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(true);
+        let animations = ui::animations_on();
         self.look.replace(Some(look));
         if first || !animations || *self.dock.borrow() == target {
             self.dock.replace(target);

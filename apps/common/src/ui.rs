@@ -10,6 +10,18 @@ use gtk::subclass::prelude::*;
 
 use crate::icon::Icon;
 
+/// GTK's name for GNOME's Reduced Motion, `ame desktop comfort reduce-motion`, which it follows live from the portal.
+/// By name, since the crate's own accessor needs GTK 4.22 to build
+pub const REDUCED_MOTION: &str = "gtk-interface-reduced-motion";
+
+/// Whether things may move: `gtk-enable-animations` is on and nobody asked for reduced motion, which it says nothing of
+pub fn animations_on() -> bool {
+    let Some(settings) = gtk::Settings::default() else { return true };
+    settings.is_gtk_enable_animations()
+        && (settings.find_property(REDUCED_MOTION).is_none()
+            || glib::EnumValue::from_value(&settings.property_value(REDUCED_MOTION)).is_none_or(|(_, motion)| motion.value() == 0))
+}
+
 /// Text that wraps to the width it is given, starting where the line starts
 pub fn label(text: &str, classes: &[&str]) -> gtk::Label {
     let label = gtk::Label::builder()
@@ -401,7 +413,7 @@ impl Bar {
         if let Some(tick) = imp.tick.take() {
             tick.remove();
         }
-        let animations = gtk::Settings::default().map(|s| s.is_gtk_enable_animations()).unwrap_or(true);
+        let animations = animations_on();
         if !animations {
             imp.shown.set(fraction.unwrap_or(0.0));
             imp.slide.set(0.375);
