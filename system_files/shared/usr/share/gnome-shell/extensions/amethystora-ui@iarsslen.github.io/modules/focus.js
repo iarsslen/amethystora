@@ -474,7 +474,20 @@ export class Focus {
                 this._question = null;
         });
         this._question = notification;
-        source.addNotification(notification);
+        // Picked in a menu (quick settings' tile): GNOME shows no banner while a menu is open, and a transient one
+        // would be gone unseen; it is asked once the menu has closed
+        const menu = Main.panel.menuManager.activeMenu;
+        if (!menu?.isOpen) {
+            source.addNotification(notification);
+            return;
+        }
+        const id = menu.connect('open-state-changed', (m, open) => {
+            if (open)
+                return;
+            menu.disconnect(id);
+            if (this._question === notification)
+                source.addNotification(notification);
+        });
     }
 
     // ---- For the suites and the harness ----
