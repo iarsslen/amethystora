@@ -32,6 +32,8 @@ flag() {
             # A name is letters, digits, hyphens, underscores and dots: anything else is not worth a line
             if (name !~ /^[a-z0-9._-]+$/ || name in seen) next
             seen[name] = 1
+            # An address looked up backwards is no odd name, though an IPv6 one is 34 labels deep
+            if (name ~ /^([0-9a-f]\.){1,32}ip6\.arpa$/ || name ~ /^([0-9]+\.){1,4}in-addr\.arpa$/) next
             reason = ""
             labels = split(name, label, ".")
             longest = 0

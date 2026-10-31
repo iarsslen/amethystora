@@ -1669,7 +1669,7 @@ noted() {
 read_report() {
     local report now before tiles was id state title level
     report="$(/usr/libexec/amethystora-security-status --json 2>/dev/null)" || return
-    now="$(jq -c '[.checks[] | select(.group != "optional" and .group != "sends") | {id, state, text, details}]' <<<"${report}" 2>/dev/null)"
+    now="$(jq -c '[.checks[] | select(.group != "optional" and .group != "sends") | {id, state, text, details, command}]' <<<"${report}" 2>/dev/null)"
     tiles="$(jq -c '[.checks[] | select(.group == "optional") | {id, state, title}]' <<<"${report}" 2>/dev/null)"
     [[ -n "${now}" ]] || return
     # A protection turned off with no switch of the image's own, such as encrypted DNS or USB protection, is
@@ -1694,9 +1694,13 @@ read_report() {
     printf '%s\n' "${now}" >"${STATE}/report.json.new" && chgrp wheel "${STATE}/report.json.new" 2>/dev/null
     chmod 0640 "${STATE}/report.json.new" && mv -f "${STATE}/report.json.new" "${STATE}/report.json"
     [[ -n "${before}" ]] || return
-    while IFS=$'\t' read -r state text details; do
+    while IFS=$'\t' read -r state text details command; do
         [[ "${state}" == off ]] && level=critical || level=normal
-        add "${level}" report - "Defense Evasion" "${text}${details:+. ${details}}"
+        # The detail often ends introducing the command ("Start it with:"), which comes after it. An empty field
+        # comes as -, since read would let the next one take its place
+        [[ "${details}" != - ]] || details=""
+        [[ "${command}" != - ]] || command=""
+        add "${level}" report - "Defense Evasion" "${text}${details:+. ${details}}${command:+ ${command}}"
     # A list that grows (another setuid program, another changed file) is news while the check is
     # already failing. A count of days going up is not, so the others count only when their state does.
     done < <(jq -r --argjson before "${before}" --argjson watched "${WATCHED_CHECKS}" '
@@ -1707,7 +1711,7 @@ read_report() {
         | select(.id != "security-watcher" or .state == "check")
         | select($was[.id] == null or $was[.id].state != .state
             or ((.id | IN("image-settings", "rootkit")) and $was[.id].details != .details))
-        | [.state, .text, (.details | join(" "))] | @tsv' <<<"${now}")
+        | [.state, .text, (.details | join(" ") | if . == "" then "-" else . end), (.command // "-")] | @tsv' <<<"${now}")
 }
 
 # --- The switches themselves --------------------------------------------------------------------------

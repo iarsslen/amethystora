@@ -131,6 +131,9 @@ localize() {
     SUMMARY="$(/usr/libexec/amethystora-security-text --max 200 "${SUMMARY}")"
     BODY="$(/usr/libexec/amethystora-security-text --lines --max 400 "${BODY}")"
     MARKUP_BODY="$(/usr/libexec/amethystora-security-text --lines --markup --max 400 "${BODY}")"
+    # notify-send reads escapes in the body (g_strcompress): a name shown as x\033[31m would reach the desktop with a
+    # real escape in it, so each backslash goes doubled
+    MARKUP_BODY="${MARKUP_BODY//\\/\\\\}"
 }
 
 # English first: it is what the journal keeps. Translated text is worked out again for each account

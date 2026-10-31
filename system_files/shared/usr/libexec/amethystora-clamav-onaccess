@@ -79,11 +79,17 @@ found() {
     /usr/libexec/amethystora-notify-users --security --msgid "${summary}" "${body}" critical >/dev/null
 }
 
-# Reading before clamonacc starts, so that nothing it logs is missed
+# Reading before clamonacc starts, so that nothing it logs is missed. clamonacc scans a file again each time it is
+# closed (by the program writing it, a cat, the desktop's thumbnailer...): a find in a file as it is is said once
+declare -A SAID
 tail -F -n +1 "${LOG}" 2>/dev/null | while IFS= read -r line; do
     # "<path>: <signature> FOUND", after a timestamp and " -> " when clamd.conf sets LogTime
-    [[ "${line}" =~ ^(.*\ -\>\ )?(/.*):\ ([^\ ]+)\ FOUND$ ]] &&
-        found "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    [[ "${line}" =~ ^(.*\ -\>\ )?(/.*):\ ([^\ ]+)\ FOUND$ ]] || continue
+    file="${BASH_REMATCH[2]}" signature="${BASH_REMATCH[3]}"
+    said="${signature} $(stat -c '%i %s %Y' -- "${file}" 2>/dev/null) ${file}"
+    [[ -z "${SAID[${said}]:-}" ]] || continue
+    SAID[${said}]=1
+    found "${file}" "${signature}"
 done &
 
 # --wait gives clamd time to come up; without signatures it never does, and the service tries again
