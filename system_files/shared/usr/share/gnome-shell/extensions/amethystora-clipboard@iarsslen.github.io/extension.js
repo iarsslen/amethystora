@@ -1896,18 +1896,12 @@ const ClipboardIndicator = GObject.registerClass({
         }));
         overlay.add_child(bin);
 
-        // From memory: there is no file of the picture in the clear to load at its own size
-        const size = Math.min(maxW, maxH);
-        this.registry.getEntryAsTexture(entry, size).then(actor => {
-            if (this.#_imagePreviewOverlay !== overlay) return;
-            if (!actor) return;
-
-            bin.set_size(size, size);
+        // From memory, at the picture's own proportions: there is no file of it in the clear to load at its own size
+        const actor = this.registry.getEntryAsPicture(entry, maxW, maxH);
+        if (actor)
             bin.set_child(actor);
-        }).catch(e => {
+        else
             console.error('Amethystora Clipboard: failed to load image preview');
-            console.error(e);
-        });
     }
 
     #showTagDialog (menuItem, reopenOnClose = false) {

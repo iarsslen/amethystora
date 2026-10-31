@@ -1,6 +1,8 @@
 // Modified for Amethystora: the history is kept sealed (store.js), never in plain text, and pictures are
 // shown from memory instead of from files in ~/.cache.
 
+import Cogl from 'gi://Cogl';
+import GdkPixbuf from 'gi://GdkPixbuf';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
@@ -157,14 +159,28 @@ export class Registry {
     }
 
     // The picture in a square of size pixels, its proportions kept
-    async getEntryAsTexture (entry, size) {
+    // The picture at its own proportions, as large as fits in width × height and never larger than it is; null for one
+    // that is not a picture or does not read
+    getEntryAsPicture (entry, width, height) {
         if (entry.isImage() === false) return null;
-
-        const scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        return new St.Icon({
-            gicon: Gio.BytesIcon.new(entry.asBytes()),
-            icon_size: Math.floor(size / scaleFactor),
-        });
+        let pixbuf;
+        try {
+            const stream = Gio.MemoryInputStream.new_from_bytes(entry.asBytes());
+            pixbuf = GdkPixbuf.Pixbuf.new_from_stream(stream, null);
+            stream.close(null);
+        } catch {
+            return null;
+        }
+        const scale = Math.min(width / pixbuf.get_width(), height / pixbuf.get_height(), 1);
+        const w = Math.max(1, Math.round(pixbuf.get_width() * scale));
+        const h = Math.max(1, Math.round(pixbuf.get_height() * scale));
+        pixbuf = pixbuf.scale_simple(w, h, GdkPixbuf.InterpType.BILINEAR);
+        if (!pixbuf.get_has_alpha())
+            pixbuf = pixbuf.add_alpha(false, 0, 0, 0);
+        const context = global.stage.context.get_backend().get_cogl_context();
+        const content = St.ImageContent.new_with_preferred_size(w, h);
+        content.set_bytes(context, pixbuf.read_pixel_bytes(), Cogl.PixelFormat.RGBA_8888, w, h, pixbuf.get_rowstride());
+        return new St.Widget({ content, width: w, height: h });
     }
 
     async deleteEntryFile (entry) {
