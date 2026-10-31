@@ -107,9 +107,11 @@ n="$(find "${SOUNDS}/stereo" -name '*.wav' | wc -l)"
 same "28 the nine sounds are there" "${n}" 9
 
 # The login chord, looked for before anything else plays: the session is started again with a recorder of PipeWire's
-# streams running in the account's manager, kept through the restart by lingering
+# streams running in the account's manager, kept through the restart by lingering. PipeWire itself restarts with the
+# session, which ends the recorder: it starts again at once, adding to the file, and so meets the new PipeWire
 loginctl enable-linger "${TEST_USER}"
-in_session "rm -f ${DUMP}; systemd-run --user --collect --unit=vmlab-23-dump bash -c 'timeout 120 pw-dump -m >${DUMP} 2>/dev/null'" >/dev/null 2>&1
+in_session "rm -f ${DUMP}; systemd-run --user --collect --unit=vmlab-23-dump -p Restart=always -p RestartSec=200ms \
+    bash -c 'timeout 120 pw-dump -m >>${DUMP} 2>/dev/null'" >/dev/null 2>&1
 restart_session
 if ! ready; then
     not_ok "the sounds and bezel modules did not start in the session"
