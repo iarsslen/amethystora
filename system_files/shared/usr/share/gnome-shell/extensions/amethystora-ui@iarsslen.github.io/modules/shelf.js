@@ -38,8 +38,10 @@ const GLOW_OPACITY = 200;
 const GLOW_FADE = 150;
 // The window 10 px in from the screen's edge
 const EDGE_GAP = 10;
-// A shake's card goes once the pointer has been away from it this long
+// A shake's card goes once the pointer has been away from it this long, and longer before the pointer first reached
+// it: the hand is still shaking when it shows
 const CARD_AWAY = 1000;
+const CARD_FIRST = 3000;
 // The keyboard is given back if the shelf takes it within this long of its first frame
 const FOCUS_BACK = 1000;
 
@@ -191,6 +193,8 @@ export class Shelf {
         if (!drag || drag.over === over)
             return;
         drag.over = over;
+        if (over)
+            drag.reached = true;
         const target = this._glow ?? this._card;
         target?.ease({opacity: over ? 255 : GLOW_OPACITY, duration: GLOW_FADE, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         if (over && !drag.read)
@@ -339,10 +343,11 @@ export class Shelf {
         }
         if (this._away)
             return;
-        this._away = GLib.timeout_add(GLib.PRIORITY_DEFAULT, CARD_AWAY, () => {
+        this._away = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._drag?.reached ? CARD_AWAY : CARD_FIRST, () => {
             this._away = 0;
             if (this._drag) {
                 this._drag.over = false;
+                this._drag.reached = false;
                 this._drag.shake?.reset();
             }
             this._card?.destroy();
