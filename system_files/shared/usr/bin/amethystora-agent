@@ -149,20 +149,22 @@ installer() {
 
 # Each into the account's home. Claude Code follows its stable channel, a release about a week old
 # with the ones that turned out badly skipped; its updates keep to the channel it was installed with.
-# Opencode's installer adds ~/.opencode/bin to the shell's PATH, and updates itself to patch releases
-# only, offering the rest. Codex's, Antigravity CLI's, Copilot CLI's and Cursor CLI's go to ~/.local/bin;
+# Opencode's installer adds ~/.opencode/bin to the shell's PATH, but only when the PATH it is run with
+# lacks it, and updates itself to patch releases only, offering the rest. Codex's, Antigravity CLI's, Copilot CLI's and Cursor CLI's go to ~/.local/bin;
 # the first three check the checksum of what they download, Cursor's checks nothing. Antigravity CLI's also
 # adds ~/.local/bin to the shell's PATH.
 install_agent() {
     case "$1" in
         claude) installer claude https://claude.ai/install.sh stable ;;
-        opencode) installer opencode https://opencode.ai/install ;;
+        opencode) PATH="${PATH/"${HOME}/.opencode/bin:"/}" installer opencode https://opencode.ai/install ;;
         codex) installer codex https://chatgpt.com/codex/install.sh ;;
         agy) installer agy https://antigravity.google/cli/install.sh ;;
         copilot) installer copilot https://gh.io/copilot-install ;;
         cursor-agent) installer cursor-agent https://cursor.com/install ;;
         *) die "usage: amethystora-agent install [$(IFS='|'; echo "${AGENTS[*]}")]" ;;
     esac
+    # Cursor CLI's and Antigravity CLI's folders are there now, to be given the tools
+    sync_tools
 }
 
 launch() {
@@ -274,7 +276,7 @@ edit_json() {
     local file="$1" filter="$2" new
     shift 2
     [[ -f ${file} ]] || return 0
-    new="$(jq "$@" "${filter}" "${file}" 2>/dev/null)" || return 0
+    new="$(jq "${filter}" "${file}" "$@" 2>/dev/null)" || return 0
     [[ "${new}" == "$(jq . "${file}")" ]] && return 0
     printf '%s\n' "${new}" >"${file}.amethystora-new" && mv "${file}.amethystora-new" "${file}"
 }
