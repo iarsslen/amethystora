@@ -157,7 +157,15 @@ if atspi amethystora-manual wait 20 "Four fingers for Today" >/dev/null 2>&1; th
     # A clip plays only in the active window: the Manual is given the focus, as a person's click would
     ev "global.display.list_all_windows().find(w => w.get_wm_class() === 'org.amethystora.Manual')?.activate(global.get_current_time()); true" >/dev/null
     playing() { atspi amethystora-manual has "Shake to find, playing" >/dev/null 2>&1; }
-    check "17 with animations on, the first card plays" wait_for 10 playing
+    if wait_for 10 playing; then
+        ok "17 with animations on, the first card plays"
+    else
+        not_ok "17 with animations on, the first card plays" \
+            "focus: $(ev "global.display.focus_window?.get_wm_class() ?? 'none'")" \
+            "GTK's animations and reduced motion: $(in_session "gjs -c \"imports.gi.versions.Gtk = '4.0'; const {Gtk} = imports.gi; Gtk.init(); const s = Gtk.Settings.get_default(); print(s.gtk_enable_animations, s.gtk_interface_reduced_motion);\"" 2>&1)" \
+            "enable-animations: $(gs get org.gnome.desktop.interface enable-animations); reduced-motion: $(gs get org.gnome.desktop.a11y.interface reduced-motion)" \
+            "$(atspi amethystora-manual tree 2>/dev/null | grep -oE "button \['[^']*, (playing|paused)'\]" | sort -u | head -n 9)"
+    fi
     atspi amethystora-manual click "Shake to find, playing" >/dev/null 2>&1
     paused() { atspi amethystora-manual has "Shake to find, paused" >/dev/null 2>&1; }
     check "17 a click pauses it" wait_for 6 paused
