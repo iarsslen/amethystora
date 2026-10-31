@@ -139,6 +139,7 @@ export class GettingSet {
         this._stop();
         this._card?.destroy();
         this._card = null;
+        this._progress = null;
         this._rows = null;
     }
 
@@ -158,6 +159,7 @@ export class GettingSet {
                 this._stop();
                 this._card?.destroy();
                 this._card = null;
+                this._progress = null;
                 this._rows = null;
             }
             return;
