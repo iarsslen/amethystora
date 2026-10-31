@@ -506,8 +506,9 @@ reaches() {
     local r
     r="$(ev "(() => { const b = ${W}.cards().find(x => x.id === '$1'); const card = ${W}._cards.get('$1').actor;
         const hit = global.stage.get_actor_at_pos(imports.gi.Clutter.PickMode.REACTIVE, Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2));
-        return [hit === card || card.contains(hit), hit?.constructor.name, hit?.name ?? '', Main.modalCount].join(' '); })()")"
-    if [[ ${r} == "true "*" 0" ]]; then ok "22 a click on $1 reaches its card"; else not_ok "22 a click on $1 reaches its card" "found: ${r}"; fi
+        let win = hit; while (win && !win.meta_window) win = win.get_parent();
+        return [hit === card || card.contains(hit), hit?.constructor.name, hit?.name ?? '', Main.modalCount, win?.meta_window?.get_title() ?? '', win?.meta_window?.minimized ?? ''].join(' '); })()")"
+    if [[ ${r} == "true "*" 0 "* ]]; then ok "22 a click on $1 reaches its card"; else not_ok "22 a click on $1 reaches its card" "found: ${r}"; fi
 }
 reaches vmlab-build
 reaches vmlab-menu
