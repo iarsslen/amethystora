@@ -1046,3 +1046,29 @@
 2026-10-30 20:01:46	end	A-ALL-15	pass reflowed narrower; by the tiling's key, not a drag
 2026-10-30 20:01:48	start	A-ALL-08	only on an account with no theme applied
 2026-10-30 20:01:48	end	A-ALL-08	skip this account has a theme
+2026-10-30 20:02:04	start	A-MANUAL-07	click the link Several monitors in Getting around; frame
+2026-10-30 20:02:04	step	A-MANUAL-07	go to the link; click; frame
+2026-10-30 20:02:26	step	A-MANUAL-07	Alt+Left; frame; Page Down; frame
+2026-10-30 20:03:02	step	A-MANUAL-07	click the link Control in Quick settings; frame; click a second link; Alt+Left, Alt+Left, Alt+Right with frames
+2026-10-30 20:03:21	step	A-MANUAL-07	sidebar Getting around; Page Down; the Control link; frame
+2026-10-30 20:03:41	step	A-MANUAL-07	the link theme, the link widgets; Alt+Left twice; Alt+Right; titles
+2026-10-30 20:03:56	step	A-MANUAL-07	sidebar Welcome; frame
+2026-10-30 20:04:08	step	A-MANUAL-07	the link Rolling back; frame
+2026-10-30 20:04:12	end	A-MANUAL-07	pass welcome link to Updates scrolled to Rolling back: check frame
+2026-10-30 20:04:12	start	A-MANUAL-10	Alt+Left twice, Alt+Right, titles
+2026-10-30 20:04:12	step	A-MANUAL-10	Alt+Left; Alt+Left; Alt+Right
+2026-10-30 20:04:25	end	A-MANUAL-10	pass back through Welcome to Themes, forward to Welcome
+2026-10-30 20:04:27	start	A-MANUAL-09	About: a web link, opens the browser; manual stays
+2026-10-30 20:04:27	step	A-MANUAL-09	sidebar About; frame
+2026-10-30 20:04:39	step	A-MANUAL-09	click the github link; frame; close Firefox by its pid
+2026-10-30 20:05:00	step	A-MANUAL-09	click the github link at its line; frame; close Firefox by its pid
+2026-10-30 20:05:19	end	A-MANUAL-09	pass Firefox opened on the repository's address; Manual stayed on About; Firefox closed
+2026-10-30 20:05:20	start	A-MANUAL-11	Ctrl+K, Ctrl+F, / each to the search box, / typed in it
+2026-10-30 20:05:32	step	A-MANUAL-11	focus by a click on the page; Ctrl+K, type; Ctrl+F; Esc; /; /: frames
+2026-10-30 20:05:56	end	A-MANUAL-11	pass each key to the box with its hint; selection seen with Ctrl+F; slash typed in the box
+2026-10-30 20:05:57	start	A-MANUAL-13	results: Down, Up, wrap, Enter
+2026-10-30 20:05:57	step	A-MANUAL-13	type a query, Down, Up, Up to wrap, Down, Enter: frames
+2026-10-30 20:06:30	step	A-MANUAL-13	note: the earlier Return may have reached the Updates track's stand-in window; click the box, read focus, Enter only if the Manual holds it
+2026-10-30 20:06:50	end	A-MANUAL-13	pass Down, Up, wrap to the last, Enter opened the hit's section, search emptied
+2026-10-30 20:06:50	start	A-MANUAL-15	seen in A-MANUAL-11's frames: Esc
+2026-10-30 20:06:50	end	A-MANUAL-15	pass seen at 20:05:41 in the same sequence
