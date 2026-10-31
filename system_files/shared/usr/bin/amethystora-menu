@@ -30,12 +30,15 @@ have gum || die "gum is missing, the menu needs it"
 # because the key that opened it asked for that one thing.
 DIRECT=false
 
+# Each menu on a screen of its own: going back leaves nothing of the one before above it
 heading() {
+    [[ ! -t 1 ]] || clear
     gum style --foreground 141 --bold --margin "1 0 0 0" "$1"
 }
 
+# Typing narrows the list, the arrows move, Enter chooses and Esc goes back
 choose() {
-    gum choose --header "$1" --height 14 "${@:2}"
+    gum filter --header "$1" --height 14 --placeholder "Type to filter" "${@:2}"
 }
 
 back() {
@@ -73,11 +76,12 @@ background_menu() {
     back
 }
 
+# In gum's pager, which Esc leaves as it leaves a menu (q too)
 keys_menu() {
     if have glow; then
-        glow --pager "${KEYBINDINGS}"
+        glow --style auto "${KEYBINDINGS}" | gum pager
     else
-        less "${KEYBINDINGS}"
+        gum pager <"${KEYBINDINGS}"
     fi
     back
 }
@@ -97,7 +101,7 @@ webapps_menu() {
 system_menu() {
     local choice
     heading "System"
-    choice="$(choose "System" "Lock screen" "Log out" "Restart" "Shut down" \
+    choice="$(choose "" "Lock screen" "Log out" "Restart" "Shut down" \
         "Check for updates" "Security report" "Logs" "Backups" || true)"
     case "${choice}" in
         "Lock screen") loginctl lock-session ;;
