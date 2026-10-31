@@ -832,8 +832,8 @@ terminal and [`ame`](terminal.md#ame):
 | Apps and system commands | Every `ame` command, in its group |
 | System | Lock, log out, restart, shut down, check for updates, the security report, the logs and backups |
 
-Move with the arrow keys or type to filter, `Enter` to choose, `Esc` to go back. From a terminal,
-`amethystora-menu` opens it, and `amethystora-menu theme`, `background`, `keys`, `webapps` or `system`
+Type to filter or move with the arrow keys, `Enter` to choose; `Esc` leaves the filter, and a second `Esc` goes back. From
+a terminal, `amethystora-menu` opens it, and `amethystora-menu theme`, `background`, `keys`, `webapps` or `system`
 opens that part of it.
 
 ## Tiling windows
