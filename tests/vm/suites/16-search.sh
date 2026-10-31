@@ -93,10 +93,23 @@ systemctl restart gdm
 # The new session's login keyring is locked again (GDM's automatic login), and lib.sh unlocks it once a boot only: the
 # first Flatpak to ask for a secret (Text Editor, step 12) would bring up GNOME's modal unlock dialog, which takes every
 # key after it. Unlocked once the new shell is up, and never waited on for long (a dialog already up holds it).
+# Asked again until the login keyring says it is open: just after the login its service may not have loaded it yet
+keyring_open() {
+    local path
+    path="$(user_bus busctl --user call org.freedesktop.secrets /org/freedesktop/secrets org.freedesktop.Secret.Service         ReadAlias s default 2>/dev/null | awk '{ gsub(/"/, "", $2); print $2 }')"
+    [[ -n "${path}" && "${path}" != / ]] &&
+        [[ "$(user_bus busctl --user get-property org.freedesktop.secrets "${path}" org.freedesktop.Secret.Collection Locked 2>/dev/null)" == "b false" ]]
+}
 fresh_keyring() {
-    unlock_login_keyring &
-    local pid=$!
-    wait_for 20 sh -c "! kill -0 ${pid} 2>/dev/null" || kill "${pid}" 2>/dev/null
+    local pid tries
+    for tries in 1 2 3 4 5 6; do
+        unlock_login_keyring &
+        pid=$!
+        wait_for 20 sh -c "! kill -0 ${pid} 2>/dev/null" || kill "${pid}" 2>/dev/null
+        keyring_open && return 0
+        sleep 3
+    done
+    echo "# the login keyring did not open after the restart"
 }
 search_ready() { [[ "$(ev "typeof ${S}?.snapshot")" == function ]]; }
 if ! wait_for 240 has_session || ! wait_for 120 search_ready; then
@@ -162,6 +175,7 @@ cleanup() {
     rm -f "${HOME_DIR}"/Pictures/vmlab-glance-*
     gs reset org.gnome.desktop.interface scaling-factor
     gs set "${SEARCH}" glance true
+    gs reset org.gnome.desktop.search-providers disabled
     [[ -z ${THEME_CHANGED} ]] || lab_theme
     if [[ -n ${LOCALE_CHANGED} ]] && ! lab_locale; then
         not_ok "the lab's locale is back after the suite" "expected: ${LOCALE_LAB}" "found: $(shell_locale)"
@@ -169,6 +183,9 @@ cleanup() {
     fi
 }
 trap cleanup EXIT
+# Firefox's search provider starts a hidden Firefox for an account that never ran it, which does not answer (seen with
+# Firefox 159): GNOME's search then never settles, and settled() waits on it. Off for the suite, put back after
+gs set org.gnome.desktop.search-providers disabled "['org.mozilla.firefox.desktop']"
 
 # --- 1: the providers, in order -------------------------------------------------------------------------------------
 same "1 the search is not degraded" "$(q .degraded)" false
@@ -421,7 +438,16 @@ for n in 1 2; do install -o "${TEST_USER}" -g "${TEST_USER}" -m 0644 "${picture}
 # systemd), as Nautilus's provider asks it; started here as that does, so that its first crawl is not the search's wait
 user_bus gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
     --method org.freedesktop.DBus.StartServiceByName org.freedesktop.LocalSearch3 0 >/dev/null 2>&1
-files_found() { search "vmlab-glance"; [[ "$(q '[.sections[].rows[].title | select(startswith("vmlab-glance"))] | length')" == 2 ]]; }
+# Files (50.4) answers nothing the first time it is asked a text with a hyphen in it, as the suite sets one whole (a
+# person typing reaches it through the shorter texts before), and GNOME keeps an answer for as long as the text stays the
+# same: each try asks with a word the two pictures' names both hold, and another one the next time
+FILES_TRIES=0
+files_found() {
+    local text=glance
+    ((++FILES_TRIES % 2)) || text=glanc
+    search "${text}"
+    [[ "$(q '[.sections[].rows[].title | select(startswith("vmlab-glance"))] | length')" == 2 ]]
+}
 previewer() { [[ "$(ev "global.display.get_tab_list(0, null).some(w => w.get_sandboxed_app_id() === 'org.gnome.NautilusPreviewer')")" == true ]]; }
 no_previewer() { ! previewer; }
 on_file() { [[ "$(q '[.sections[].rows[] | select(.selected and (.title | startswith("vmlab-glance-1")))] | length')" == 1 ]]; }
