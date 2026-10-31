@@ -1549,6 +1549,7 @@ NODE=(env LD_LIBRARY_PATH=/apps-stage/usr/lib64 NODE_ICU_DATA="$(echo /apps-stag
 "${NODE[@]}" /ctx/build_files/shared/test-bars-edge.mjs
 test ! -e /usr/share/applications/documentation.desktop
 grep -q "^command='amethystora-manual'$" /etc/dconf/db/distro.d/06-amethystora-keybindings
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.settings-daemon.plugins.media-keys help)" == "@as []" ]]
 
 # Translations (apps/common/src/i18n.rs): every message the apps' code has is in its catalog's English, and
 # every translation parses and names only the values its English names; the same for the shell programs'
