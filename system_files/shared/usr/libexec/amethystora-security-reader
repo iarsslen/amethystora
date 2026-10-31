@@ -40,7 +40,8 @@ app_permissions() {
            text: ("The Flatpak app \(.name) (\(.app)) was installed"
                   + (if (.reaches | length) > 0 then ". It can: " + (.reaches | map(.text) | join("; ")) else "" end))},
           (.reaches[] | {id: "\($app.app) \(.id)", within: $app.app, allow: "\($app.app) \(.id)",
-           level: (if (.id | IN($leaves[], $code[])) then "normal" else "quiet" end),
+           # X11 and the input devices, which the image takes from every app, are said when granted back
+           level: (if (.id | IN($leaves[], $code[])) or ((.id | IN($typing[])) and .granted) then "normal" else "quiet" end),
            tactic: (if (.id | IN($leaves[])) then "Privilege Escalation" elif (.id | IN($typing[])) then "Collection"
                     elif (.id | IN($code[])) then "Persistence" else "-" end),
            text: ("\($app.name) (\($app.app)) can now \(.text | .[:1] | ascii_downcase)\(.text | .[1:])"

@@ -1177,9 +1177,11 @@ if [[ ${EUID} -ne 0 ]] && command -v flatpak >/dev/null; then
     if [[ ${#ESCAPES[@]} -gt 0 ]]; then
         COMMAND="ame security apps"
         N="${#ESCAPES[@]}"
+        # ...and the apps given back what the image takes from every app, after them
+        [[ ${#TYPING[@]} -eq 0 ]] || TYPING=("$(gettext "Given back what the image takes from every app:")" "${TYPING[@]}")
         report apps app-permissions check "$(gettext "App permissions")" \
             "$(eval_ngettext "\${N} app can leave its sandbox" "\${N} apps can leave their sandbox" "${N}")" \
-            "${ESCAPES[@]}" \
+            "${ESCAPES[@]}" "${TYPING[@]}" \
             "$(gettext "Whatever runs in it can then do anything you can. If you did not mean it to, take it back in Flatseal, or see every app's permissions with:")"
     elif [[ ${#TYPING[@]} -gt 0 ]]; then
         COMMAND="ame security apps"

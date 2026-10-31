@@ -1288,6 +1288,10 @@ msgstr[1] ""
 msgid "Each one sees every key typed and every pixel. Remove one you do not use in Extension Manager, and keep new ones from being installed with:"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status
+msgid "Given back what the image takes from every app:"
+msgstr ""
+
 #: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "App permissions"
 msgstr ""
