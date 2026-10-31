@@ -42,7 +42,7 @@ states() { echo "$("${H}" status) $("${H}" status privacy)"; }
 firefox_says() {
     local profile="${HOME_DIR}/vmlab-ff-privacy-$((++SERIAL))" out
     pkill -u "${TEST_USER}" -x firefox || true
-    as_user "mkdir -p ${profile} && (nohup firefox --headless --no-remote --marionette --remote-allow-system-access \
+    as_user "mkdir -p ${profile} && (MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 nohup firefox --headless --no-remote --marionette --remote-allow-system-access \
         --profile ${profile} about:blank >${profile}/out.log 2>&1 &)"
     out="$(python3 "${SUITES}/marionette.py" 2828 2>&1)" || { echo "${out}" >&2; pkill -u "${TEST_USER}" -x firefox || true; return 1; }
     pkill -u "${TEST_USER}" -x firefox || true

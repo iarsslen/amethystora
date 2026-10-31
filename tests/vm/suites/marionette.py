@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-"""marionette.py PORT -- asks a running Firefox (started with --marionette --remote-allow-system-access) what its
+"""marionette.py PORT -- asks a running Firefox (started with --marionette --remote-allow-system-access, and, as newer
+releases ask, MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1) what its
 enterprise policies and data collection preferences are, and prints one JSON object. For 99-browser-privacy.sh.
 """
 import json
