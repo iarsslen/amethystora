@@ -125,6 +125,9 @@ export class Dock {
         this.fan = null;
         this._card?.close(true);
         this._card = null;
+        // The launch halos are drawn in the docks' own containers, so they go before the docks do
+        this.launch?.stop();
+        this.launch = null;
         this._destroyDocks();
         this.dissolve?.stop();
         this.dissolve = null;
@@ -136,8 +139,6 @@ export class Dock {
         this.folders = null;
         this.recent?.stop();
         this.recent = null;
-        this.launch?.stop();
-        this.launch = null;
 
         this._menus?.disable();
         this._menus = null;

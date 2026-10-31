@@ -180,6 +180,11 @@ export class Launch {
             place();
             show.ring = ring;
             show.layer = layer;
+            // The dock's container can go first (a screen added or taken away): then there is nothing to hide
+            layer.connect('destroy', () => {
+                show.ring = null;
+                show.layer = null;
+            });
             if (level === 'none') {
                 ring.opacity = 255;
             } else {
@@ -199,6 +204,9 @@ export class Launch {
             }
         } else if (bin && level !== 'none' && (this._mode === 'hop' || this._mode === 'breathe')) {
             show.bin = bin;
+            show.binDestroyed = bin.connect('destroy', () => {
+                show.bin = null;
+            });
             bin.set_pivot_point(0.5, 0.5);
             this._cycle(show, 0);
         }
@@ -207,7 +215,7 @@ export class Launch {
 
     // One segment of Hop or Breathe after another, the cycle again while the app starts
     _cycle(show, step) {
-        if (show.done)
+        if (show.done || !show.bin)
             return;
         const {bin, state, level} = show;
         const edge = EDGES[state.dash.edgeName];
@@ -279,6 +287,7 @@ export class Launch {
         const bin = show.bin;
         if (!bin)
             return;
+        bin.disconnect(show.binDestroyed);
         bin.remove_all_transitions();
         const rest = {translation_x: 0, translation_y: 0, scale_x: 1, scale_y: 1, opacity: 255};
         if (now)
