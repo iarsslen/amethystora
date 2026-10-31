@@ -325,10 +325,13 @@ export class Windows {
         }
     }
 
-    // A window on its way into the dock or back is a drop of glass of its own (modules/motion.js), with no pane
+    // A window on its way into the dock or back is a drop of glass of its own (modules/motion.js), with no pane, and one
+    // the share guard covers has none (modules/privacy/guard.js)
     _wantsGlass(window) {
+        const modules = this._glass._ext.modules;
         return !this._glass.solid && this.glassWithoutFocus(window) && window !== global.display.focus_window &&
-            !this._glass._ext.modules?.get('motion')?.flying?.(window.get_compositor_private());
+            !modules?.get('motion')?.flying?.(window.get_compositor_private()) &&
+            !modules?.get('privacy')?.covers?.(window);
     }
 
     // Whether the window is on glass whenever it does not have the keyboard, as in the tiling's pictures of the

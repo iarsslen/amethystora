@@ -85,6 +85,11 @@ ${e.stack}`);
         this._guard.setLook(look);
     }
 
+    // Whether the share guard covers the window (asked by the glass)
+    covers(window) {
+        return this._guard?.covers(window) ?? false;
+    }
+
     _syncShield() {
         const mode = this._settings.get_string('shield');
         if (this._shield?.mode === mode)

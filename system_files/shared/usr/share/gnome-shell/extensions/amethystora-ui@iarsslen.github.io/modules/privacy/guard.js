@@ -207,13 +207,40 @@ class Cover {
     }
 }
 
+// The covers by window actor. The glass keeps off a covered window, which it would draw at 84 % over its pane, the cover
+// with it: a card let the window show through. It is told whenever a cover comes or goes
+class Covers extends Map {
+    constructor(changed) {
+        super();
+        this._changed = changed;
+    }
+
+    set(actor, cover) {
+        super.set(actor, cover);
+        this._changed();
+        return this;
+    }
+
+    delete(actor) {
+        const had = super.delete(actor);
+        if (had)
+            this._changed();
+        return had;
+    }
+
+    clear() {
+        super.clear();
+        this._changed();
+    }
+}
+
 export class Guard {
     constructor(ext, settings) {
         this._ext = ext;
         this._settings = settings;
         // Every share and recording Mutter told of: whether it records, and whether someone else controls this computer
         this._handles = new Map();
-        this._covers = new Map();
+        this._covers = new Covers(() => this._ext.modules?.get('glass')?.windows?.restyle());
         // The windows' actors looked at during this share, each with its window
         this._watched = new Map();
         this._uncovered = new Set();
@@ -547,6 +574,10 @@ export class Guard {
             handles: this._handles.size,
             watched: this._watched.size,
         };
+    }
+
+    covers(window) {
+        return this._covers.has(window.get_compositor_private());
     }
 
     // The cover of the window whose title is given, for the suite to hold a click on
