@@ -128,6 +128,8 @@ export class Snap {
             'destroy', () => {
                 this._pane = null;
                 this._targets = [];
+                // A pane made again starts hidden: one still counted as showing would never be shown
+                this._showing = false;
             }, this);
         const rows = [new St.BoxLayout({style_class: 'amethystora-windows-chooser-row'}),
             new St.BoxLayout({style_class: 'amethystora-windows-chooser-row'})];
