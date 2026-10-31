@@ -89,13 +89,19 @@ export class Later {
                     entry.held.delete(notification);
             }
         }
-        // Back from the lock: what waited for the unlock comes back now
+        // Back from the lock: what waited for the unlock comes back once the extension has started, since GNOME shows
+        // its banner at once and the tray is not ready for one while the unlock is still enabling the extensions
         if (store.locked) {
-            store.locked = false;
-            for (const [notification, item] of [...store.later]) {
-                if (item.unlock)
-                    this._return(notification);
-            }
+            this._unlockedId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._unlockedId = 0;
+                store.locked = false;
+                for (const [notification, item] of [...store.later]) {
+                    if (item.unlock)
+                        this._return(notification);
+                }
+                this._tick();
+                return GLib.SOURCE_REMOVE;
+            });
         }
         this._list = new LaterList(this);
         this._list.enable();
@@ -104,6 +110,9 @@ export class Later {
 
     // forget: the key was turned off, or the extension off without a lock: nothing waits any more
     disable(forget = false) {
+        if (this._unlockedId)
+            GLib.source_remove(this._unlockedId);
+        this._unlockedId = 0;
         this._undecorate();
         this._disarm();
         this._list?.disable();
