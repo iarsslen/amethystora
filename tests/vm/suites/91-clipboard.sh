@@ -175,6 +175,9 @@ menu_shows() {
     keys super+shift+v
     shell wait 15 "$1" >/dev/null && found=0
     keys esc
+    # The menu fades out with animations on, and holds the keyboard meanwhile: a copy made then (wl-copy takes the
+    # clipboard only once a surface of its own has the keyboard) would never happen
+    sleep 1
     return "${found}"
 }
 menu_lacks() {
@@ -183,6 +186,7 @@ menu_lacks() {
     sleep 3
     shell has "$1" >/dev/null || lacks=0
     keys esc
+    sleep 1
     return "${lacks}"
 }
 prompt_up() { shell has "did not get unlocked" >/dev/null || shell has "it is locked" >/dev/null; }
