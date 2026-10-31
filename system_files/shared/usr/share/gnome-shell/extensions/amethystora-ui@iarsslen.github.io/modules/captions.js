@@ -38,6 +38,8 @@ const HIDE_MS = 300;
 const LINGER_MS = 4000;
 // The program pauses this long after the last app's sound went: a pause between two videos keeps it listening
 const QUIET_MS = 10000;
+// How long the sound server's changes settle before it is asked whether the apps' streams are paused
+const CORK_SETTLE_MS = 300;
 // Where and how wide (logical pixels): the box's bottom 48 px above the work area's, at most 60 % of the screen and
 // 960 px wide, two lines at most; its padding is the stylesheet's 18 px on each side
 const BOTTOM = 48;
@@ -163,12 +165,13 @@ export class Captions {
         this._read();
 
         this._mixer = Volume.getMixerControl();
+        this._corked = false;
         this._mixer.connectObject(
-            'stream-added', () => this._streamsChanged(),
-            'stream-removed', () => this._streamsChanged(),
-            'stream-changed', () => this._streamsChanged(),
+            'stream-added', () => this._streamsChanged(true),
+            'stream-removed', () => this._streamsChanged(true),
+            'stream-changed', () => this._streamsChanged(true),
             'state-changed', () => this._streamsChanged(), this);
-        this._streamsChanged();
+        this._streamsChanged(true);
     }
 
     _stop() {
@@ -184,6 +187,12 @@ export class Captions {
             GLib.source_remove(this._retryId);
             this._retryId = 0;
         }
+        if (this._corkId) {
+            GLib.source_remove(this._corkId);
+            this._corkId = 0;
+        }
+        this._corkCancellable?.cancel();
+        this._corkCancellable = null;
         this._allowScanout();
         this._mixer?.disconnectObject(this);
         this._mixer = null;
@@ -285,12 +294,19 @@ export class Captions {
         }
     }
 
-    // Listening while an app plays; pausing a while after the last one stopped
-    _streamsChanged() {
+    // Listening while an app plays; pausing a while after the last one stopped. Under PipeWire the mixer says nothing
+    // of a paused player (its stream stays, in no state), so the sound server is asked, once its changes settle,
+    // whether every app's stream is paused (corked): only when a stream comes, changes or goes, never on a timer
+    _streamsChanged(changed = false) {
         if (!this._mixer)
             return;
-        const playing = this._mixer.get_state() === Gvc.MixerControlState.READY &&
+        const open = this._mixer.get_state() === Gvc.MixerControlState.READY &&
             this._mixer.get_sink_inputs().some(isPlaying);
+        if (!open)
+            this._corked = false;
+        else if (changed)
+            this._askCorked();
+        const playing = open && !this._corked;
         if (playing) {
             if (this._quietId) {
                 GLib.source_remove(this._quietId);
@@ -308,6 +324,47 @@ export class Captions {
                 return GLib.SOURCE_REMOVE;
             });
         }
+    }
+
+    _askCorked() {
+        if (this._corkId)
+            GLib.source_remove(this._corkId);
+        this._corkId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, CORK_SETTLE_MS, () => {
+            this._corkId = 0;
+            this._corkCancellable?.cancel();
+            const cancellable = new Gio.Cancellable();
+            this._corkCancellable = cancellable;
+            let proc;
+            try {
+                proc = Gio.Subprocess.new(['pactl', '--format=json', 'list', 'sink-inputs'],
+                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+            } catch {
+                return GLib.SOURCE_REMOVE;
+            }
+            proc.communicate_utf8_async(null, cancellable, (p, result) => {
+                if (cancellable.is_cancelled() || this._corkCancellable !== cancellable)
+                    return;
+                this._corkCancellable = null;
+                let inputs;
+                try {
+                    inputs = JSON.parse(p.communicate_utf8_finish(result)[1]);
+                } catch {
+                    return;
+                }
+                // The apps' own streams, as isPlaying() counts them: no event sound, nothing of the shell's
+                const apps = (Array.isArray(inputs) ? inputs : []).filter(input => {
+                    const props = input.properties ?? {};
+                    return props['media.role'] !== 'event' && !props['event.id'] &&
+                        !SKIPPED.includes(props['application.id'] ?? '');
+                });
+                const corked = apps.length > 0 && apps.every(input => input.corked === true);
+                if (corked !== this._corked) {
+                    this._corked = corked;
+                    this._streamsChanged();
+                }
+            });
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     // --- The box ------------------------------------------------------------------------------------------
