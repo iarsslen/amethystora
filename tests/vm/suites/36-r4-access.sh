@@ -434,9 +434,13 @@ ev "${MOVE} move(${fx} + 50, ${fy} + 120); 'moved'" >/dev/null
 check "8 as tall as larger text" wait_for 10 is "${A}.state().ruler.pieces[0].height === 38"
 gs reset org.gnome.desktop.interface text-scaling-factor
 in_session "ame desktop access ruler dim" >/dev/null
-# The window's frame again: the larger text and back can move it by a few pixels (it moved 8 down in the lab)
-read -r fx fy fw fh <<<"$(ev "(() => { const r = global.get_window_actors().find(a => a.meta_window.get_title() === 'org.vmlab.Text')
-    .meta_window.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(' '); })()")"
+# The window's frame again: the larger text and back can move it by a few pixels (it moved 8 down in the lab), and with
+# animations on it settles after a moment: read until two reads a second apart agree
+frame() { ev "(() => { const r = global.get_window_actors().find(a => a.meta_window.get_title() === 'org.vmlab.Text')
+    .meta_window.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(' '); })()"; }
+settled_frame() { local was; was="$(frame)"; sleep 1; [[ "$(frame)" == "${was}" ]]; }
+wait_for 10 settled_frame
+read -r fx fy fw fh <<<"$(frame)"
 ev "${MOVE} move(${fx} + 50, ${fy} + 100); 'moved'" >/dev/null
 wait_for 10 is "${A}.state().ruler?.style === 'dim' && ${A}.state().ruler.pieces[1]?.y === ${fy} + 115"
 dim="$(ast .ruler.pieces)"
