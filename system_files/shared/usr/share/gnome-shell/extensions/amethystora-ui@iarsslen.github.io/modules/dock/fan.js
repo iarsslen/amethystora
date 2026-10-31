@@ -353,9 +353,10 @@ export class Fan {
         if (menu) {
             menu.close(BoxPointer.PopupAnimation.NONE);
             // A click on one of its lines ends here: GNOME goes on to close this menu and to end the press on that
-            // line once its signal returns, so the menu outlives the event, and the layer, which may go at once
+            // line once its signal returns, not always before a high-priority idle (an "already disposed" in the journal),
+            // so the menu outlives the event by a margin, and the layer, which may go at once
             menu.actor.get_parent()?.remove_child(menu.actor);
-            GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
                 menu.destroy();
                 return GLib.SOURCE_REMOVE;
             });
