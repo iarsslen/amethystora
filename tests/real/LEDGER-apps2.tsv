@@ -34,3 +34,7 @@
 2026-10-30 18:50:47	end	A-UPDATES-01	pass 01 04 05 23 25 28 read
 2026-10-30 18:50:47	start	A-UPDATES-26	Firmware, Check now, which needs no password (refresh-remote)
 2026-10-30 18:51:05	end	A-UPDATES-26	pass 26
+2026-10-30 19:50:22	start	A-SECURITY-marks	put back the marks of items really skipped
+2026-10-30 19:50:22	end	A-SECURITY-marks	pass twelve back to open with their notes; 07 and 22 stay
+2026-10-30 19:51:08	start	A-BACKUPS-12	scratch home and scratch repository: Backups read through the tree
+2026-10-30 20:01:14	end	A-BACKUPS-12	pass 07 to 22, 24, 27, 28, 30, 31 on a scratch home; no fault, no core dump
